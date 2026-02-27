@@ -3431,6 +3431,7 @@ id material_timepicker_view
 id material_value_index
 id matrix
 id message
+id message_center
 id middle
 id mini
 id month_grid

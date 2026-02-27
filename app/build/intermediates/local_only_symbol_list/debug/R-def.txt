@@ -49,6 +49,7 @@ id login_container
 id map_fab_report
 id map_locations_list
 id map_placeholder
+id message_center
 id msg_back
 id msg_recycler
 id msg_swipe

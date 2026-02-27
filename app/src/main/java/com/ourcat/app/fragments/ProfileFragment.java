@@ -11,6 +11,7 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
+import androidx.navigation.fragment.NavHostFragment;
 
 import com.ourcat.app.R;
 import com.ourcat.app.activities.LoginActivity;
@@ -36,15 +37,8 @@ public class ProfileFragment extends Fragment {
         avatar = view.findViewById(R.id.avatar);
         tvNickname = view.findViewById(R.id.tv_nickname);
         tvRole = view.findViewById(R.id.tv_role);
-        view.findViewById(R.id.btn_message_center).setOnClickListener(v -> {
-            View host = requireActivity().findViewById(R.id.nav_host_fragment);
-            if (host != null) {
-                getParentFragmentManager().beginTransaction()
-                        .replace(host.getId(), new MessageCenterFragment())
-                        .addToBackStack(null)
-                        .commit();
-            }
-        });
+        view.findViewById(R.id.btn_message_center).setOnClickListener(v ->
+                NavHostFragment.findNavController(ProfileFragment.this).navigate(R.id.message_center));
         view.findViewById(R.id.btn_edit_profile).setOnClickListener(v -> {
             Toast.makeText(requireContext(), "编辑资料（可后续扩展）", Toast.LENGTH_SHORT).show();
         });

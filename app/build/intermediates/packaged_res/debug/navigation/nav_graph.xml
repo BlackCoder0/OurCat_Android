@@ -28,4 +28,8 @@
             android:name="postId"
             app:argType="long" />
     </fragment>
+    <fragment
+        android:id="@+id/message_center"
+        android:name="com.ourcat.app.fragments.MessageCenterFragment"
+        android:label="消息中心" />
 </navigation>

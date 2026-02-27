@@ -13,6 +13,7 @@ import okhttp3.Response;
 
 /**
  * Upload image via backend presigned URL. Call getUploadUrl from API first, then upload file to uploadUrl.
+ * Use the "contentType" returned by the API (not the one you passed in) so the PUT header matches the signature.
  */
 public class OssUploader {
 

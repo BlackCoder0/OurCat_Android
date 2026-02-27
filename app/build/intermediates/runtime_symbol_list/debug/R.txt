@@ -3430,6 +3430,7 @@ int id material_timepicker_view 0x7f080131
 int id material_value_index 0x7f080132
 int id matrix 0x7f080133
 int id message 0x7f080134
+int id message_center 0x7f08023f
 int id middle 0x7f080135
 int id mini 0x7f080136
 int id month_grid 0x7f080137

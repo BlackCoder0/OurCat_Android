@@ -1,78 +1,86 @@
 [
     {
-        "merged": "com.ourcat.app-merged_res-46:/layout_activity_login.xml.flat",
-        "source": "com.ourcat.app-main-48:/layout/activity_login.xml"
-    },
-    {
-        "merged": "com.ourcat.app-merged_res-46:/layout_fragment_placeholder.xml.flat",
-        "source": "com.ourcat.app-main-48:/layout/fragment_placeholder.xml"
+        "merged": "C:\\Users\\86189\\.gradle\\daemon\\8.2\\com.ourcat.app-merged_res-46:\\navigation_nav_graph.xml.flat",
+        "source": "C:\\Users\\86189\\.gradle\\daemon\\8.2\\com.ourcat.app-main-48:\\navigation\\nav_graph.xml"
     },
     {
         "merged": "com.ourcat.app-merged_res-46:/navigation_nav_graph.xml.flat",
         "source": "com.ourcat.app-main-48:/navigation/nav_graph.xml"
     },
     {
-        "merged": "com.ourcat.app-merged_res-46:/layout_fragment_message_center.xml.flat",
-        "source": "com.ourcat.app-main-48:/layout/fragment_message_center.xml"
+        "merged": "C:\\Users\\86189\\.gradle\\daemon\\8.2\\com.ourcat.app-merged_res-46:\\layout_activity_login.xml.flat",
+        "source": "C:\\Users\\86189\\.gradle\\daemon\\8.2\\com.ourcat.app-main-48:\\layout\\activity_login.xml"
     },
     {
-        "merged": "com.ourcat.app-merged_res-46:/layout_dialog_report_cat.xml.flat",
-        "source": "com.ourcat.app-main-48:/layout/dialog_report_cat.xml"
+        "merged": "C:\\Users\\86189\\.gradle\\daemon\\8.2\\com.ourcat.app-merged_res-46:\\layout_item_post.xml.flat",
+        "source": "C:\\Users\\86189\\.gradle\\daemon\\8.2\\com.ourcat.app-main-48:\\layout\\item_post.xml"
     },
     {
-        "merged": "com.ourcat.app-merged_res-46:/layout_fragment_login.xml.flat",
-        "source": "com.ourcat.app-main-48:/layout/fragment_login.xml"
+        "merged": "C:\\Users\\86189\\.gradle\\daemon\\8.2\\com.ourcat.app-merged_res-46:\\layout_fragment_square.xml.flat",
+        "source": "C:\\Users\\86189\\.gradle\\daemon\\8.2\\com.ourcat.app-main-48:\\layout\\fragment_square.xml"
     },
     {
-        "merged": "com.ourcat.app-merged_res-46:/layout_fragment_square.xml.flat",
-        "source": "com.ourcat.app-main-48:/layout/fragment_square.xml"
+        "merged": "C:\\Users\\86189\\.gradle\\daemon\\8.2\\com.ourcat.app-merged_res-46:\\layout_item_comment.xml.flat",
+        "source": "C:\\Users\\86189\\.gradle\\daemon\\8.2\\com.ourcat.app-main-48:\\layout\\item_comment.xml"
     },
     {
-        "merged": "com.ourcat.app-merged_res-46:/layout_fragment_profile.xml.flat",
-        "source": "com.ourcat.app-main-48:/layout/fragment_profile.xml"
-    },
-    {
-        "merged": "com.ourcat.app-merged_res-46:/layout_fragment_map.xml.flat",
-        "source": "com.ourcat.app-main-48:/layout/fragment_map.xml"
+        "merged": "C:\\Users\\86189\\.gradle\\daemon\\8.2\\com.ourcat.app-merged_res-46:\\layout_fragment_register.xml.flat",
+        "source": "C:\\Users\\86189\\.gradle\\daemon\\8.2\\com.ourcat.app-main-48:\\layout\\fragment_register.xml"
     },
     {
         "merged": "com.ourcat.app-merged_res-46:/layout_activity_main.xml.flat",
         "source": "com.ourcat.app-main-48:/layout/activity_main.xml"
     },
     {
-        "merged": "com.ourcat.app-merged_res-46:/layout_fragment_post_detail.xml.flat",
-        "source": "com.ourcat.app-main-48:/layout/fragment_post_detail.xml"
+        "merged": "C:\\Users\\86189\\.gradle\\daemon\\8.2\\com.ourcat.app-merged_res-46:\\layout_activity_main.xml.flat",
+        "source": "C:\\Users\\86189\\.gradle\\daemon\\8.2\\com.ourcat.app-main-48:\\layout\\activity_main.xml"
     },
     {
-        "merged": "com.ourcat.app-merged_res-46:/layout_fragment_forum.xml.flat",
-        "source": "com.ourcat.app-main-48:/layout/fragment_forum.xml"
+        "merged": "C:\\Users\\86189\\.gradle\\daemon\\8.2\\com.ourcat.app-merged_res-46:\\layout_fragment_map.xml.flat",
+        "source": "C:\\Users\\86189\\.gradle\\daemon\\8.2\\com.ourcat.app-main-48:\\layout\\fragment_map.xml"
     },
     {
-        "merged": "com.ourcat.app-merged_res-46:/menu_bottom_nav_menu.xml.flat",
-        "source": "com.ourcat.app-main-48:/menu/bottom_nav_menu.xml"
+        "merged": "C:\\Users\\86189\\.gradle\\daemon\\8.2\\com.ourcat.app-merged_res-46:\\layout_fragment_forum.xml.flat",
+        "source": "C:\\Users\\86189\\.gradle\\daemon\\8.2\\com.ourcat.app-main-48:\\layout\\fragment_forum.xml"
     },
     {
-        "merged": "com.ourcat.app-merged_res-46:/layout_item_post.xml.flat",
-        "source": "com.ourcat.app-main-48:/layout/item_post.xml"
+        "merged": "C:\\Users\\86189\\.gradle\\daemon\\8.2\\com.ourcat.app-merged_res-46:\\menu_bottom_nav_menu.xml.flat",
+        "source": "C:\\Users\\86189\\.gradle\\daemon\\8.2\\com.ourcat.app-main-48:\\menu\\bottom_nav_menu.xml"
     },
     {
-        "merged": "com.ourcat.app-merged_res-46:/layout_fragment_forum_list.xml.flat",
-        "source": "com.ourcat.app-main-48:/layout/fragment_forum_list.xml"
+        "merged": "C:\\Users\\86189\\.gradle\\daemon\\8.2\\com.ourcat.app-merged_res-46:\\layout_fragment_message_center.xml.flat",
+        "source": "C:\\Users\\86189\\.gradle\\daemon\\8.2\\com.ourcat.app-main-48:\\layout\\fragment_message_center.xml"
     },
     {
-        "merged": "com.ourcat.app-merged_res-46:/drawable_ic_launcher_foreground.xml.flat",
-        "source": "com.ourcat.app-main-48:/drawable/ic_launcher_foreground.xml"
+        "merged": "C:\\Users\\86189\\.gradle\\daemon\\8.2\\com.ourcat.app-merged_res-46:\\layout_fragment_post_detail.xml.flat",
+        "source": "C:\\Users\\86189\\.gradle\\daemon\\8.2\\com.ourcat.app-main-48:\\layout\\fragment_post_detail.xml"
     },
     {
-        "merged": "com.ourcat.app-merged_res-46:/layout_fragment_register.xml.flat",
-        "source": "com.ourcat.app-main-48:/layout/fragment_register.xml"
+        "merged": "C:\\Users\\86189\\.gradle\\daemon\\8.2\\com.ourcat.app-merged_res-46:\\layout_item_square_post.xml.flat",
+        "source": "C:\\Users\\86189\\.gradle\\daemon\\8.2\\com.ourcat.app-main-48:\\layout\\item_square_post.xml"
     },
     {
-        "merged": "com.ourcat.app-merged_res-46:/layout_item_comment.xml.flat",
-        "source": "com.ourcat.app-main-48:/layout/item_comment.xml"
+        "merged": "C:\\Users\\86189\\.gradle\\daemon\\8.2\\com.ourcat.app-merged_res-46:\\layout_fragment_profile.xml.flat",
+        "source": "C:\\Users\\86189\\.gradle\\daemon\\8.2\\com.ourcat.app-main-48:\\layout\\fragment_profile.xml"
     },
     {
-        "merged": "com.ourcat.app-merged_res-46:/layout_item_square_post.xml.flat",
-        "source": "com.ourcat.app-main-48:/layout/item_square_post.xml"
+        "merged": "C:\\Users\\86189\\.gradle\\daemon\\8.2\\com.ourcat.app-merged_res-46:\\layout_fragment_placeholder.xml.flat",
+        "source": "C:\\Users\\86189\\.gradle\\daemon\\8.2\\com.ourcat.app-main-48:\\layout\\fragment_placeholder.xml"
+    },
+    {
+        "merged": "C:\\Users\\86189\\.gradle\\daemon\\8.2\\com.ourcat.app-merged_res-46:\\layout_dialog_report_cat.xml.flat",
+        "source": "C:\\Users\\86189\\.gradle\\daemon\\8.2\\com.ourcat.app-main-48:\\layout\\dialog_report_cat.xml"
+    },
+    {
+        "merged": "C:\\Users\\86189\\.gradle\\daemon\\8.2\\com.ourcat.app-merged_res-46:\\layout_fragment_forum_list.xml.flat",
+        "source": "C:\\Users\\86189\\.gradle\\daemon\\8.2\\com.ourcat.app-main-48:\\layout\\fragment_forum_list.xml"
+    },
+    {
+        "merged": "C:\\Users\\86189\\.gradle\\daemon\\8.2\\com.ourcat.app-merged_res-46:\\drawable_ic_launcher_foreground.xml.flat",
+        "source": "C:\\Users\\86189\\.gradle\\daemon\\8.2\\com.ourcat.app-main-48:\\drawable\\ic_launcher_foreground.xml"
+    },
+    {
+        "merged": "C:\\Users\\86189\\.gradle\\daemon\\8.2\\com.ourcat.app-merged_res-46:\\layout_fragment_login.xml.flat",
+        "source": "C:\\Users\\86189\\.gradle\\daemon\\8.2\\com.ourcat.app-main-48:\\layout\\fragment_login.xml"
     }
 ]

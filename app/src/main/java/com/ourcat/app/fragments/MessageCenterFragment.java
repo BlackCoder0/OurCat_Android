@@ -10,6 +10,7 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
+import androidx.navigation.fragment.NavHostFragment;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
@@ -35,7 +36,7 @@ public class MessageCenterFragment extends Fragment {
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,
                              @Nullable Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_message_center, container, false);
-        view.findViewById(R.id.msg_back).setOnClickListener(v -> getParentFragmentManager().popBackStack());
+        view.findViewById(R.id.msg_back).setOnClickListener(v -> NavHostFragment.findNavController(MessageCenterFragment.this).navigateUp());
         RecyclerView recycler = view.findViewById(R.id.msg_recycler);
         SwipeRefreshLayout swipe = view.findViewById(R.id.msg_swipe);
         recycler.setLayoutManager(new LinearLayoutManager(requireContext()));
