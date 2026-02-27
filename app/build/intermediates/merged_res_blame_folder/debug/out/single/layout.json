@@ -1,5 +1,9 @@
 [
     {
+        "merged": "C:\\Users\\86189\\.gradle\\daemon\\8.2\\com.ourcat.app-mergeDebugResources-45:\\layout\\fragment_create_edit_post.xml",
+        "source": "C:\\Users\\86189\\.gradle\\daemon\\8.2\\com.ourcat.app-main-48:\\layout\\fragment_create_edit_post.xml"
+    },
+    {
         "merged": "C:\\Users\\86189\\.gradle\\daemon\\8.2\\com.ourcat.app-mergeDebugResources-45:\\layout\\fragment_placeholder.xml",
         "source": "C:\\Users\\86189\\.gradle\\daemon\\8.2\\com.ourcat.app-main-48:\\layout\\fragment_placeholder.xml"
     },
@@ -28,12 +32,20 @@
         "source": "C:\\Users\\86189\\.gradle\\daemon\\8.2\\com.ourcat.app-main-48:\\layout\\fragment_login.xml"
     },
     {
+        "merged": "com.ourcat.app-mergeDebugResources-45:/layout/fragment_profile.xml",
+        "source": "com.ourcat.app-main-48:/layout/fragment_profile.xml"
+    },
+    {
         "merged": "C:\\Users\\86189\\.gradle\\daemon\\8.2\\com.ourcat.app-mergeDebugResources-45:\\layout\\fragment_register.xml",
         "source": "C:\\Users\\86189\\.gradle\\daemon\\8.2\\com.ourcat.app-main-48:\\layout\\fragment_register.xml"
     },
     {
-        "merged": "com.ourcat.app-mergeDebugResources-45:/layout/activity_main.xml",
-        "source": "com.ourcat.app-main-48:/layout/activity_main.xml"
+        "merged": "com.ourcat.app-mergeDebugResources-45:/layout/item_user_manage.xml",
+        "source": "com.ourcat.app-main-48:/layout/item_user_manage.xml"
+    },
+    {
+        "merged": "com.ourcat.app-mergeDebugResources-45:/layout/fragment_user_management.xml",
+        "source": "com.ourcat.app-main-48:/layout/fragment_user_management.xml"
     },
     {
         "merged": "C:\\Users\\86189\\.gradle\\daemon\\8.2\\com.ourcat.app-mergeDebugResources-45:\\layout\\activity_main.xml",
@@ -66,5 +78,9 @@
     {
         "merged": "C:\\Users\\86189\\.gradle\\daemon\\8.2\\com.ourcat.app-mergeDebugResources-45:\\layout\\item_post.xml",
         "source": "C:\\Users\\86189\\.gradle\\daemon\\8.2\\com.ourcat.app-main-48:\\layout\\item_post.xml"
+    },
+    {
+        "merged": "C:\\Users\\86189\\.gradle\\daemon\\8.2\\com.ourcat.app-mergeDebugResources-45:\\layout\\item_image_pick.xml",
+        "source": "C:\\Users\\86189\\.gradle\\daemon\\8.2\\com.ourcat.app-main-48:\\layout\\item_image_pick.xml"
     }
 ]

@@ -34,6 +34,9 @@ public final class FragmentProfileBinding implements ViewBinding {
   public final MaterialButton btnMessageCenter;
 
   @NonNull
+  public final MaterialButton btnUserManage;
+
+  @NonNull
   public final TextView tvNickname;
 
   @NonNull
@@ -41,13 +44,14 @@ public final class FragmentProfileBinding implements ViewBinding {
 
   private FragmentProfileBinding(@NonNull ScrollView rootView, @NonNull ImageView avatar,
       @NonNull MaterialButton btnEditProfile, @NonNull MaterialButton btnLogout,
-      @NonNull MaterialButton btnMessageCenter, @NonNull TextView tvNickname,
-      @NonNull TextView tvRole) {
+      @NonNull MaterialButton btnMessageCenter, @NonNull MaterialButton btnUserManage,
+      @NonNull TextView tvNickname, @NonNull TextView tvRole) {
     this.rootView = rootView;
     this.avatar = avatar;
     this.btnEditProfile = btnEditProfile;
     this.btnLogout = btnLogout;
     this.btnMessageCenter = btnMessageCenter;
+    this.btnUserManage = btnUserManage;
     this.tvNickname = tvNickname;
     this.tvRole = tvRole;
   }
@@ -103,6 +107,12 @@ public final class FragmentProfileBinding implements ViewBinding {
         break missingId;
       }
 
+      id = R.id.btn_user_manage;
+      MaterialButton btnUserManage = ViewBindings.findChildViewById(rootView, id);
+      if (btnUserManage == null) {
+        break missingId;
+      }
+
       id = R.id.tv_nickname;
       TextView tvNickname = ViewBindings.findChildViewById(rootView, id);
       if (tvNickname == null) {
@@ -116,7 +126,7 @@ public final class FragmentProfileBinding implements ViewBinding {
       }
 
       return new FragmentProfileBinding((ScrollView) rootView, avatar, btnEditProfile, btnLogout,
-          btnMessageCenter, tvNickname, tvRole);
+          btnMessageCenter, btnUserManage, tvNickname, tvRole);
     }
     String missingId = rootView.getResources().getResourceName(id);
     throw new NullPointerException("Missing required view with ID: ".concat(missingId));

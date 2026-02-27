@@ -9,6 +9,9 @@ import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.bumptech.glide.Glide;
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 import com.ourcat.app.R;
 import com.ourcat.app.models.PostItem;
 
@@ -44,12 +47,40 @@ public class PostAdapter extends RecyclerView.Adapter<PostAdapter.ViewHolder> {
     @Override
     public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
         PostItem item = items.get(position);
-        holder.title.setText(item.getTitle());
-        holder.likes.setText(String.valueOf(item.getLikes()));
-        holder.commentsHint.setText("评论");
+
+        String titleText = item.getTitle();
+        if (item.isPinned()) titleText = "[置顶] " + titleText;
+        holder.title.setText(titleText);
+
+        String author = item.getAuthorName();
+        holder.author.setText(author != null && !author.isEmpty() ? author : "匿名");
+
+        holder.likes.setText("👍 " + item.getLikes());
+        holder.commentsHint.setText("👎 " + item.getDislikes());
+
+        String firstImageUrl = getFirstImageUrl(item.getImages());
+        if (firstImageUrl != null) {
+            holder.image.setVisibility(View.VISIBLE);
+            Glide.with(holder.itemView.getContext())
+                    .load(firstImageUrl)
+                    .centerCrop()
+                    .into(holder.image);
+        } else {
+            holder.image.setVisibility(View.GONE);
+        }
+
         holder.itemView.setOnClickListener(v -> {
             if (listener != null) listener.onItemClick(item);
         });
+    }
+
+    private String getFirstImageUrl(String imagesJson) {
+        if (imagesJson == null || imagesJson.isEmpty()) return null;
+        try {
+            List<String> urls = new Gson().fromJson(imagesJson, new TypeToken<List<String>>() {}.getType());
+            if (urls != null && !urls.isEmpty()) return urls.get(0);
+        } catch (Exception ignored) {}
+        return null;
     }
 
     @Override
@@ -58,12 +89,13 @@ public class PostAdapter extends RecyclerView.Adapter<PostAdapter.ViewHolder> {
     }
 
     static class ViewHolder extends RecyclerView.ViewHolder {
-        TextView title, likes, commentsHint;
+        TextView title, author, likes, commentsHint;
         ImageView image;
 
         ViewHolder(View itemView) {
             super(itemView);
             title = itemView.findViewById(R.id.item_post_title);
+            author = itemView.findViewById(R.id.item_post_author);
             likes = itemView.findViewById(R.id.item_post_likes);
             commentsHint = itemView.findViewById(R.id.item_post_comments_hint);
             image = itemView.findViewById(R.id.item_post_image);

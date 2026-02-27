@@ -1,0 +1,54 @@
+# Built application files
+*.apk
+*.aar
+*.ap_
+*.aab
+
+# Gradle
+.gradle/
+build/
+
+# Local configuration (sdk path, etc.)
+local.properties
+
+# Android Studio
+.idea/
+*.iml
+*.ipr
+*.iws
+.DS_Store
+/captures
+.externalNativeBuild
+.cxx
+
+# Keystore files (do not commit release keystores)
+*.jks
+*.keystore
+
+# Signing
+signing/
+
+# Google Services (if you add api key in json, keep local)
+# google-services.json
+
+# Proguard
+proguard/
+
+# Logs
+*.log
+/logs
+
+# Android Profiler
+*.hprof
+
+# Kotlin (if used later)
+*.kotlin_module
+
+# NDK
+obj/
+.externalNativeBuild/
+
+# Misc
+*.swp
+*~
+.thumbs.db

@@ -4,6 +4,7 @@ import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.inputmethod.EditorInfo;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
@@ -15,9 +16,8 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
-import com.google.android.material.floatingactionbutton.FloatingActionButton;
+import com.google.android.material.textfield.TextInputEditText;
 import com.google.gson.Gson;
-import com.google.gson.reflect.TypeToken;
 import com.ourcat.app.R;
 import com.ourcat.app.adapters.PostAdapter;
 import com.ourcat.app.models.PostItem;
@@ -36,7 +36,7 @@ public class ForumFragment extends Fragment {
     private RecyclerView recyclerView;
     private SwipeRefreshLayout refreshLayout;
     private PostAdapter adapter;
-    private int currentPage = 0;
+    private TextInputEditText etSearch;
     private static final int PAGE_SIZE = 20;
 
     @Nullable
@@ -46,6 +46,7 @@ public class ForumFragment extends Fragment {
         View view = inflater.inflate(R.layout.fragment_forum_list, container, false);
         recyclerView = view.findViewById(R.id.forum_recycler);
         refreshLayout = view.findViewById(R.id.forum_swipe);
+        etSearch = view.findViewById(R.id.et_search);
         recyclerView.setLayoutManager(new LinearLayoutManager(requireContext()));
         adapter = new PostAdapter();
         adapter.setOnItemClickListener(item -> {
@@ -57,17 +58,38 @@ public class ForumFragment extends Fragment {
         recyclerView.setAdapter(adapter);
 
         refreshLayout.setOnRefreshListener(this::loadPosts);
+
         view.findViewById(R.id.forum_fab).setOnClickListener(v -> {
-            Toast.makeText(requireContext(), "发帖（可后续打开发帖界面）", Toast.LENGTH_SHORT).show();
+            NavController nav = Navigation.findNavController(requireView());
+            nav.navigate(R.id.create_edit_post);
         });
+
+        etSearch.setOnEditorActionListener((v, actionId, event) -> {
+            if (actionId == EditorInfo.IME_ACTION_SEARCH) {
+                loadPosts();
+                return true;
+            }
+            return false;
+        });
+
         loadPosts();
         return view;
     }
 
+    @Override
+    public void onResume() {
+        super.onResume();
+        loadPosts();
+    }
+
     private void loadPosts() {
         refreshLayout.setRefreshing(true);
+        String search = etSearch != null && etSearch.getText() != null
+                ? etSearch.getText().toString().trim() : null;
+        if (search != null && search.isEmpty()) search = null;
+
         RetrofitHelper.get().create(com.ourcat.app.repositories.ForumApi.class)
-                .listPosts(0, PAGE_SIZE, null)
+                .listPosts(0, PAGE_SIZE, search)
                 .enqueue(new Callback<Map<String, Object>>() {
                     @Override
                     public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
@@ -76,7 +98,6 @@ public class ForumFragment extends Fragment {
                             Object content = response.body().get("content");
                             if (content instanceof List) {
                                 List<PostItem> list = new ArrayList<>();
-                                Gson gson = new Gson();
                                 for (Object o : (List<?>) content) {
                                     if (o instanceof Map) {
                                         PostItem item = mapToPostItem((Map<String, Object>) o);

@@ -1,9 +1,9 @@
 -- Merging decision tree log ---
 manifest
-ADDED from D:\桌面\OurCat\android\app\src\main\AndroidManifest.xml:2:1-29:12
-INJECTED from D:\桌面\OurCat\android\app\src\main\AndroidManifest.xml:2:1-29:12
-INJECTED from D:\桌面\OurCat\android\app\src\main\AndroidManifest.xml:2:1-29:12
-INJECTED from D:\桌面\OurCat\android\app\src\main\AndroidManifest.xml:2:1-29:12
+ADDED from D:\桌面\OurCat\android\app\src\main\AndroidManifest.xml:2:1-30:12
+INJECTED from D:\桌面\OurCat\android\app\src\main\AndroidManifest.xml:2:1-30:12
+INJECTED from D:\桌面\OurCat\android\app\src\main\AndroidManifest.xml:2:1-30:12
+INJECTED from D:\桌面\OurCat\android\app\src\main\AndroidManifest.xml:2:1-30:12
 MERGED from [androidx.databinding:viewbinding:8.2.0] C:\Users\86189\.gradle\caches\transforms-3\3c16d2903a07ad868fe41fa504a4ceec\transformed\jetified-viewbinding-8.2.0\AndroidManifest.xml:2:1-7:12
 MERGED from [androidx.navigation:navigation-common:2.7.6] C:\Users\86189\.gradle\caches\transforms-3\bf61f5dc230253c10dee60ca29ff814a\transformed\navigation-common-2.7.6\AndroidManifest.xml:17:1-22:12
 MERGED from [androidx.navigation:navigation-runtime:2.7.6] C:\Users\86189\.gradle\caches\transforms-3\d94ddc5c19da440262d13cb97c31248a\transformed\navigation-runtime-2.7.6\AndroidManifest.xml:17:1-22:12
@@ -76,8 +76,8 @@ ADDED from D:\桌面\OurCat\android\app\src\main\AndroidManifest.xml:4:5-67
 	android:name
 		ADDED from D:\桌面\OurCat\android\app\src\main\AndroidManifest.xml:4:22-64
 application
-ADDED from D:\桌面\OurCat\android\app\src\main\AndroidManifest.xml:6:5-28:19
-INJECTED from D:\桌面\OurCat\android\app\src\main\AndroidManifest.xml:6:5-28:19
+ADDED from D:\桌面\OurCat\android\app\src\main\AndroidManifest.xml:6:5-29:19
+INJECTED from D:\桌面\OurCat\android\app\src\main\AndroidManifest.xml:6:5-29:19
 MERGED from [com.google.android.material:material:1.11.0] C:\Users\86189\.gradle\caches\transforms-3\74a2558674f6dcad48a387d806131537\transformed\material-1.11.0\AndroidManifest.xml:22:5-20
 MERGED from [com.google.android.material:material:1.11.0] C:\Users\86189\.gradle\caches\transforms-3\74a2558674f6dcad48a387d806131537\transformed\material-1.11.0\AndroidManifest.xml:22:5-20
 MERGED from [androidx.constraintlayout:constraintlayout:2.1.4] C:\Users\86189\.gradle\caches\transforms-3\4bcbdb61f70c63be020394c3ae9403e9\transformed\constraintlayout-2.1.4\AndroidManifest.xml:9:5-20
@@ -135,7 +135,9 @@ ADDED from D:\桌面\OurCat\android\app\src\main\AndroidManifest.xml:21:17-77
 	android:name
 		ADDED from D:\桌面\OurCat\android\app\src\main\AndroidManifest.xml:21:27-74
 activity#com.ourcat.app.activities.MainActivity
-ADDED from D:\桌面\OurCat\android\app\src\main\AndroidManifest.xml:24:9-27:51
+ADDED from D:\桌面\OurCat\android\app\src\main\AndroidManifest.xml:24:9-28:58
+	android:windowSoftInputMode
+		ADDED from D:\桌面\OurCat\android\app\src\main\AndroidManifest.xml:28:13-55
 	android:exported
 		ADDED from D:\桌面\OurCat\android\app\src\main\AndroidManifest.xml:26:13-37
 	android:theme

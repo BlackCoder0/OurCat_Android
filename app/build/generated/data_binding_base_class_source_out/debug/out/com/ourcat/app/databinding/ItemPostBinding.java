@@ -21,6 +21,9 @@ public final class ItemPostBinding implements ViewBinding {
   private final MaterialCardView rootView;
 
   @NonNull
+  public final TextView itemPostAuthor;
+
+  @NonNull
   public final TextView itemPostCommentsHint;
 
   @NonNull
@@ -32,10 +35,11 @@ public final class ItemPostBinding implements ViewBinding {
   @NonNull
   public final TextView itemPostTitle;
 
-  private ItemPostBinding(@NonNull MaterialCardView rootView,
+  private ItemPostBinding(@NonNull MaterialCardView rootView, @NonNull TextView itemPostAuthor,
       @NonNull TextView itemPostCommentsHint, @NonNull ImageView itemPostImage,
       @NonNull TextView itemPostLikes, @NonNull TextView itemPostTitle) {
     this.rootView = rootView;
+    this.itemPostAuthor = itemPostAuthor;
     this.itemPostCommentsHint = itemPostCommentsHint;
     this.itemPostImage = itemPostImage;
     this.itemPostLikes = itemPostLikes;
@@ -69,6 +73,12 @@ public final class ItemPostBinding implements ViewBinding {
     // This is done to optimize the compiled bytecode for size and performance.
     int id;
     missingId: {
+      id = R.id.item_post_author;
+      TextView itemPostAuthor = ViewBindings.findChildViewById(rootView, id);
+      if (itemPostAuthor == null) {
+        break missingId;
+      }
+
       id = R.id.item_post_comments_hint;
       TextView itemPostCommentsHint = ViewBindings.findChildViewById(rootView, id);
       if (itemPostCommentsHint == null) {
@@ -93,8 +103,8 @@ public final class ItemPostBinding implements ViewBinding {
         break missingId;
       }
 
-      return new ItemPostBinding((MaterialCardView) rootView, itemPostCommentsHint, itemPostImage,
-          itemPostLikes, itemPostTitle);
+      return new ItemPostBinding((MaterialCardView) rootView, itemPostAuthor, itemPostCommentsHint,
+          itemPostImage, itemPostLikes, itemPostTitle);
     }
     String missingId = rootView.getResources().getResourceName(id);
     throw new NullPointerException("Missing required view with ID: ".concat(missingId));

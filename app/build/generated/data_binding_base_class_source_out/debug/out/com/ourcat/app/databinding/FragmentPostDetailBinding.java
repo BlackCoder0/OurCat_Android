@@ -14,6 +14,7 @@ import androidx.annotation.Nullable;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.viewbinding.ViewBinding;
 import androidx.viewbinding.ViewBindings;
+import androidx.viewpager2.widget.ViewPager2;
 import com.google.android.material.button.MaterialButton;
 import com.ourcat.app.R;
 import java.lang.NullPointerException;
@@ -25,19 +26,19 @@ public final class FragmentPostDetailBinding implements ViewBinding {
   private final ScrollView rootView;
 
   @NonNull
-  public final Button btnDelete;
+  public final MaterialButton btnDelete;
 
   @NonNull
   public final Button btnDislike;
 
   @NonNull
-  public final Button btnEdit;
+  public final MaterialButton btnEdit;
 
   @NonNull
   public final Button btnLike;
 
   @NonNull
-  public final Button btnPin;
+  public final MaterialButton btnPin;
 
   @NonNull
   public final MaterialButton btnSendComment;
@@ -61,18 +62,25 @@ public final class FragmentPostDetailBinding implements ViewBinding {
   public final TextView postDislikesCount;
 
   @NonNull
+  public final ViewPager2 postImagePager;
+
+  @NonNull
   public final TextView postLikesCount;
 
   @NonNull
   public final TextView postTitle;
 
-  private FragmentPostDetailBinding(@NonNull ScrollView rootView, @NonNull Button btnDelete,
-      @NonNull Button btnDislike, @NonNull Button btnEdit, @NonNull Button btnLike,
-      @NonNull Button btnPin, @NonNull MaterialButton btnSendComment,
+  @NonNull
+  public final TextView tvImageIndicator;
+
+  private FragmentPostDetailBinding(@NonNull ScrollView rootView, @NonNull MaterialButton btnDelete,
+      @NonNull Button btnDislike, @NonNull MaterialButton btnEdit, @NonNull Button btnLike,
+      @NonNull MaterialButton btnPin, @NonNull MaterialButton btnSendComment,
       @NonNull EditText commentInput, @NonNull RecyclerView commentsRecycler,
       @NonNull LinearLayout postActions, @NonNull TextView postAuthor,
       @NonNull TextView postContent, @NonNull TextView postDislikesCount,
-      @NonNull TextView postLikesCount, @NonNull TextView postTitle) {
+      @NonNull ViewPager2 postImagePager, @NonNull TextView postLikesCount,
+      @NonNull TextView postTitle, @NonNull TextView tvImageIndicator) {
     this.rootView = rootView;
     this.btnDelete = btnDelete;
     this.btnDislike = btnDislike;
@@ -86,8 +94,10 @@ public final class FragmentPostDetailBinding implements ViewBinding {
     this.postAuthor = postAuthor;
     this.postContent = postContent;
     this.postDislikesCount = postDislikesCount;
+    this.postImagePager = postImagePager;
     this.postLikesCount = postLikesCount;
     this.postTitle = postTitle;
+    this.tvImageIndicator = tvImageIndicator;
   }
 
   @Override
@@ -118,7 +128,7 @@ public final class FragmentPostDetailBinding implements ViewBinding {
     int id;
     missingId: {
       id = R.id.btn_delete;
-      Button btnDelete = ViewBindings.findChildViewById(rootView, id);
+      MaterialButton btnDelete = ViewBindings.findChildViewById(rootView, id);
       if (btnDelete == null) {
         break missingId;
       }
@@ -130,7 +140,7 @@ public final class FragmentPostDetailBinding implements ViewBinding {
       }
 
       id = R.id.btn_edit;
-      Button btnEdit = ViewBindings.findChildViewById(rootView, id);
+      MaterialButton btnEdit = ViewBindings.findChildViewById(rootView, id);
       if (btnEdit == null) {
         break missingId;
       }
@@ -142,7 +152,7 @@ public final class FragmentPostDetailBinding implements ViewBinding {
       }
 
       id = R.id.btn_pin;
-      Button btnPin = ViewBindings.findChildViewById(rootView, id);
+      MaterialButton btnPin = ViewBindings.findChildViewById(rootView, id);
       if (btnPin == null) {
         break missingId;
       }
@@ -189,6 +199,12 @@ public final class FragmentPostDetailBinding implements ViewBinding {
         break missingId;
       }
 
+      id = R.id.post_image_pager;
+      ViewPager2 postImagePager = ViewBindings.findChildViewById(rootView, id);
+      if (postImagePager == null) {
+        break missingId;
+      }
+
       id = R.id.post_likes_count;
       TextView postLikesCount = ViewBindings.findChildViewById(rootView, id);
       if (postLikesCount == null) {
@@ -201,9 +217,16 @@ public final class FragmentPostDetailBinding implements ViewBinding {
         break missingId;
       }
 
+      id = R.id.tv_image_indicator;
+      TextView tvImageIndicator = ViewBindings.findChildViewById(rootView, id);
+      if (tvImageIndicator == null) {
+        break missingId;
+      }
+
       return new FragmentPostDetailBinding((ScrollView) rootView, btnDelete, btnDislike, btnEdit,
           btnLike, btnPin, btnSendComment, commentInput, commentsRecycler, postActions, postAuthor,
-          postContent, postDislikesCount, postLikesCount, postTitle);
+          postContent, postDislikesCount, postImagePager, postLikesCount, postTitle,
+          tvImageIndicator);
     }
     String missingId = rootView.getResources().getResourceName(id);
     throw new NullPointerException("Missing required view with ID: ".concat(missingId));

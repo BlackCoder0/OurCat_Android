@@ -32,4 +32,17 @@
         android:id="@+id/message_center"
         android:name="com.ourcat.app.fragments.MessageCenterFragment"
         android:label="消息中心" />
+    <fragment
+        android:id="@+id/create_edit_post"
+        android:name="com.ourcat.app.fragments.CreateEditPostFragment"
+        android:label="发帖">
+        <argument
+            android:name="editPostId"
+            app:argType="integer"
+            android:defaultValue="-1" />
+    </fragment>
+    <fragment
+        android:id="@+id/user_management"
+        android:name="com.ourcat.app.fragments.UserManagementFragment"
+        android:label="用户管理" />
 </navigation>

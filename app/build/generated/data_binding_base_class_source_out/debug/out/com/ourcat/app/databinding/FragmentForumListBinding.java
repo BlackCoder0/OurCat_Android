@@ -12,6 +12,7 @@ import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 import androidx.viewbinding.ViewBinding;
 import androidx.viewbinding.ViewBindings;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
+import com.google.android.material.textfield.TextInputEditText;
 import com.ourcat.app.R;
 import java.lang.NullPointerException;
 import java.lang.Override;
@@ -20,6 +21,9 @@ import java.lang.String;
 public final class FragmentForumListBinding implements ViewBinding {
   @NonNull
   private final CoordinatorLayout rootView;
+
+  @NonNull
+  public final TextInputEditText etSearch;
 
   @NonNull
   public final FloatingActionButton forumFab;
@@ -31,9 +35,10 @@ public final class FragmentForumListBinding implements ViewBinding {
   public final SwipeRefreshLayout forumSwipe;
 
   private FragmentForumListBinding(@NonNull CoordinatorLayout rootView,
-      @NonNull FloatingActionButton forumFab, @NonNull RecyclerView forumRecycler,
-      @NonNull SwipeRefreshLayout forumSwipe) {
+      @NonNull TextInputEditText etSearch, @NonNull FloatingActionButton forumFab,
+      @NonNull RecyclerView forumRecycler, @NonNull SwipeRefreshLayout forumSwipe) {
     this.rootView = rootView;
+    this.etSearch = etSearch;
     this.forumFab = forumFab;
     this.forumRecycler = forumRecycler;
     this.forumSwipe = forumSwipe;
@@ -66,6 +71,12 @@ public final class FragmentForumListBinding implements ViewBinding {
     // This is done to optimize the compiled bytecode for size and performance.
     int id;
     missingId: {
+      id = R.id.et_search;
+      TextInputEditText etSearch = ViewBindings.findChildViewById(rootView, id);
+      if (etSearch == null) {
+        break missingId;
+      }
+
       id = R.id.forum_fab;
       FloatingActionButton forumFab = ViewBindings.findChildViewById(rootView, id);
       if (forumFab == null) {
@@ -84,8 +95,8 @@ public final class FragmentForumListBinding implements ViewBinding {
         break missingId;
       }
 
-      return new FragmentForumListBinding((CoordinatorLayout) rootView, forumFab, forumRecycler,
-          forumSwipe);
+      return new FragmentForumListBinding((CoordinatorLayout) rootView, etSearch, forumFab,
+          forumRecycler, forumSwipe);
     }
     String missingId = rootView.getResources().getResourceName(id);
     throw new NullPointerException("Missing required view with ID: ".concat(missingId));

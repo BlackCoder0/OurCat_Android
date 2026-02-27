@@ -28,6 +28,7 @@ public class ProfileFragment extends Fragment {
 
     private TextView tvNickname, tvRole;
     private View avatar;
+    private View btnUserManage;
 
     @Nullable
     @Override
@@ -37,11 +38,14 @@ public class ProfileFragment extends Fragment {
         avatar = view.findViewById(R.id.avatar);
         tvNickname = view.findViewById(R.id.tv_nickname);
         tvRole = view.findViewById(R.id.tv_role);
+        btnUserManage = view.findViewById(R.id.btn_user_manage);
         view.findViewById(R.id.btn_message_center).setOnClickListener(v ->
                 NavHostFragment.findNavController(ProfileFragment.this).navigate(R.id.message_center));
         view.findViewById(R.id.btn_edit_profile).setOnClickListener(v -> {
             Toast.makeText(requireContext(), "编辑资料（可后续扩展）", Toast.LENGTH_SHORT).show();
         });
+        btnUserManage.setOnClickListener(v ->
+                NavHostFragment.findNavController(ProfileFragment.this).navigate(R.id.user_management));
         view.findViewById(R.id.btn_logout).setOnClickListener(v -> {
             new TokenStore(requireContext()).clear();
             startActivity(new Intent(requireContext(), LoginActivity.class));
@@ -69,6 +73,7 @@ public class ProfileFragment extends Fragment {
                             tvNickname.setText(nickname != null ? nickname.toString() : "");
                             int r = role != null ? ((Number) role).intValue() : 1;
                             tvRole.setText(r == 1 ? "普通用户" : r == 2 ? "志愿者" : "管理员");
+                            btnUserManage.setVisibility(r >= 3 ? View.VISIBLE : View.GONE);
                         }
                     }
                     @Override

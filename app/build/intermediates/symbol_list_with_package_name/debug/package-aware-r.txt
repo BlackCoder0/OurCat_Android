@@ -3223,6 +3223,8 @@ id bounce
 id bounceBoth
 id bounceEnd
 id bounceStart
+id btn_add_image
+id btn_back
 id btn_delete
 id btn_dislike
 id btn_edit
@@ -3236,6 +3238,9 @@ id btn_message_center
 id btn_pin
 id btn_register
 id btn_send_comment
+id btn_submit
+id btn_toggle_role
+id btn_user_manage
 id buttonPanel
 id cache_measures
 id callMeasure
@@ -3273,6 +3278,7 @@ id coordinator
 id cos
 id counterclockwise
 id cradle
+id create_edit_post
 id currentState
 id custom
 id customPanel
@@ -3319,8 +3325,11 @@ id endToStart
 id enterAlways
 id enterAlwaysCollapsed
 id et_captcha
+id et_content
 id et_nickname
 id et_password
+id et_search
+id et_title
 id et_username
 id exitUntilCollapsed
 id expand_activities_button
@@ -3377,6 +3386,7 @@ id is_pooling_container_tag
 id italic
 id item_comment_author
 id item_comment_content
+id item_post_author
 id item_post_comments_hint
 id item_post_image
 id item_post_likes
@@ -3386,6 +3396,8 @@ id item_square_text
 id item_square_type
 id item_touch_helper_previous_elevation
 id iv_captcha
+id iv_image
+id iv_remove
 id jumpToEnd
 id jumpToStart
 id labeled
@@ -3534,6 +3546,7 @@ id post_author
 id post_content
 id post_detail
 id post_dislikes_count
+id post_image_pager
 id post_likes_count
 id post_title
 id pressed
@@ -3560,6 +3573,8 @@ id right_side
 id rounded
 id row_index_key
 id rtl
+id rv_images
+id rv_users
 id save_non_transition_alpha
 id save_overlay_view
 id sawtooth
@@ -3673,13 +3688,17 @@ id transition_position
 id transition_scene_layoutid_cache
 id transition_transform
 id triangle
+id tv_image_indicator
 id tv_nickname
 id tv_role
+id tv_user_role
+id tv_username
 id unchecked
 id uniform
 id unlabeled
 id up
 id useLogo
+id user_management
 id vertical_only
 id view_offset_helper
 id view_transition
@@ -3832,6 +3851,7 @@ layout design_navigation_menu_item
 layout design_text_input_end_icon
 layout design_text_input_start_icon
 layout dialog_report_cat
+layout fragment_create_edit_post
 layout fragment_forum
 layout fragment_forum_list
 layout fragment_login
@@ -3842,9 +3862,12 @@ layout fragment_post_detail
 layout fragment_profile
 layout fragment_register
 layout fragment_square
+layout fragment_user_management
 layout item_comment
+layout item_image_pick
 layout item_post
 layout item_square_post
+layout item_user_manage
 layout m3_alert_dialog
 layout m3_alert_dialog_actions
 layout m3_alert_dialog_title

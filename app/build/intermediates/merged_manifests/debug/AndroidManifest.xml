@@ -42,7 +42,8 @@
         <activity
             android:name="com.ourcat.app.activities.MainActivity"
             android:exported="false"
-            android:theme="@style/Theme.OurCat" />
+            android:theme="@style/Theme.OurCat"
+            android:windowSoftInputMode="adjustResize" />
 
         <provider
             android:name="androidx.startup.InitializationProvider"

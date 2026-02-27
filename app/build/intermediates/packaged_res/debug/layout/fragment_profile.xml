@@ -57,6 +57,16 @@
             app:cornerRadius="8dp" />
 
         <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_user_manage"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="用户管理"
+            android:layout_marginTop="8dp"
+            android:visibility="gone"
+            app:cornerRadius="8dp" />
+
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/btn_logout"
             style="@style/Widget.MaterialComponents.Button.TextButton"
             android:layout_width="match_parent"
