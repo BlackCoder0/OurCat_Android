@@ -1,54 +1,53 @@
-# Built application files
+# 构建产物 
 *.apk
 *.aar
 *.ap_
 *.aab
 
-# Gradle
-.gradle/
-build/
+# Gradle 缓存和构建输出
+/.gradle/
+**/build/
 
-# Local configuration (sdk path, etc.)
-local.properties
+# NDK / CMake
+.cxx/
+.externalNativeBuild/
+obj/
 
-# Android Studio
+# Android Studio / IntelliJ IDEA
 .idea/
 *.iml
 *.ipr
 *.iws
-.DS_Store
-/captures
-.externalNativeBuild
-.cxx
 
-# Keystore files (do not commit release keystores)
+# 本地配置（SDK 路径等）
+local.properties
+
+# 截图 / 性能分析等临时目录
+captures/
+*.hprof
+
+# Keystore 文件（一定不要提交）
 *.jks
 *.keystore
 
-# Signing
+# 签名配置目录（如有）
 signing/
 
-# Google Services (if you add api key in json, keep local)
-# google-services.json
-
-# Proguard
+# Proguard / R8
 proguard/
 
-# Logs
+# 日志
 *.log
-/logs
+logs/
 
-# Android Profiler
-*.hprof
-
-# Kotlin (if used later)
+# Kotlin module (如使用 Kotlin)
 *.kotlin_module
 
-# NDK
-obj/
-.externalNativeBuild/
+# OS 级别杂项
+.DS_Store
+Thumbs.db
 
-# Misc
+# 编辑器临时文件
 *.swp
 *~
 .thumbs.db
