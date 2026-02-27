@@ -1,0 +1,66 @@
+[
+    {
+        "merged": "com.ourcat.app-mergeDebugResources-45:/layout/item_post.xml",
+        "source": "com.ourcat.app-main-48:/layout/item_post.xml"
+    },
+    {
+        "merged": "com.ourcat.app-mergeDebugResources-45:/layout/fragment_register.xml",
+        "source": "com.ourcat.app-main-48:/layout/fragment_register.xml"
+    },
+    {
+        "merged": "com.ourcat.app-mergeDebugResources-45:/layout/fragment_message_center.xml",
+        "source": "com.ourcat.app-main-48:/layout/fragment_message_center.xml"
+    },
+    {
+        "merged": "com.ourcat.app-mergeDebugResources-45:/layout/fragment_square.xml",
+        "source": "com.ourcat.app-main-48:/layout/fragment_square.xml"
+    },
+    {
+        "merged": "com.ourcat.app-mergeDebugResources-45:/layout/fragment_profile.xml",
+        "source": "com.ourcat.app-main-48:/layout/fragment_profile.xml"
+    },
+    {
+        "merged": "com.ourcat.app-mergeDebugResources-45:/layout/activity_login.xml",
+        "source": "com.ourcat.app-main-48:/layout/activity_login.xml"
+    },
+    {
+        "merged": "com.ourcat.app-mergeDebugResources-45:/layout/activity_main.xml",
+        "source": "com.ourcat.app-main-48:/layout/activity_main.xml"
+    },
+    {
+        "merged": "com.ourcat.app-mergeDebugResources-45:/layout/fragment_login.xml",
+        "source": "com.ourcat.app-main-48:/layout/fragment_login.xml"
+    },
+    {
+        "merged": "com.ourcat.app-mergeDebugResources-45:/layout/fragment_forum.xml",
+        "source": "com.ourcat.app-main-48:/layout/fragment_forum.xml"
+    },
+    {
+        "merged": "com.ourcat.app-mergeDebugResources-45:/layout/fragment_forum_list.xml",
+        "source": "com.ourcat.app-main-48:/layout/fragment_forum_list.xml"
+    },
+    {
+        "merged": "com.ourcat.app-mergeDebugResources-45:/layout/item_square_post.xml",
+        "source": "com.ourcat.app-main-48:/layout/item_square_post.xml"
+    },
+    {
+        "merged": "com.ourcat.app-mergeDebugResources-45:/layout/fragment_map.xml",
+        "source": "com.ourcat.app-main-48:/layout/fragment_map.xml"
+    },
+    {
+        "merged": "com.ourcat.app-mergeDebugResources-45:/layout/item_comment.xml",
+        "source": "com.ourcat.app-main-48:/layout/item_comment.xml"
+    },
+    {
+        "merged": "com.ourcat.app-mergeDebugResources-45:/layout/fragment_placeholder.xml",
+        "source": "com.ourcat.app-main-48:/layout/fragment_placeholder.xml"
+    },
+    {
+        "merged": "com.ourcat.app-mergeDebugResources-45:/layout/dialog_report_cat.xml",
+        "source": "com.ourcat.app-main-48:/layout/dialog_report_cat.xml"
+    },
+    {
+        "merged": "com.ourcat.app-mergeDebugResources-45:/layout/fragment_post_detail.xml",
+        "source": "com.ourcat.app-main-48:/layout/fragment_post_detail.xml"
+    }
+]

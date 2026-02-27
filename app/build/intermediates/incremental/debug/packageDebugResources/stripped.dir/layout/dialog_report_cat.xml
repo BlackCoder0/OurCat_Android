@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="24dp">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="上报猫咪位置"
+        android:textSize="20sp"
+        android:textColor="@color/text_primary"
+        android:layout_marginBottom="16dp" />
+
+    <EditText
+        android:id="@+id/report_lat"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="纬度"
+        android:inputType="numberDecimal" />
+    <EditText
+        android:id="@+id/report_lng"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="经度"
+        android:inputType="numberDecimal"
+        android:layout_marginTop="8dp" />
+    <EditText
+        android:id="@+id/report_description"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="描述"
+        android:layout_marginTop="8dp" />
+    <EditText
+        android:id="@+id/report_image_url"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="图片 URL（可选）"
+        android:layout_marginTop="8dp" />
+    <EditText
+        android:id="@+id/report_color"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="颜色（新猫建档）"
+        android:layout_marginTop="8dp" />
+    <EditText
+        android:id="@+id/report_feature"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="特征"
+        android:layout_marginTop="8dp" />
+    <EditText
+        android:id="@+id/report_personality"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="性格"
+        android:layout_marginTop="8dp" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginTop="16dp"
+        android:gravity="end">
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/report_cancel"
+            style="@style/Widget.MaterialComponents.Button.TextButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="取消" />
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/report_submit"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="提交"
+            android:layout_marginStart="8dp" />
+    </LinearLayout>
+</LinearLayout>

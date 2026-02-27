@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">OurCat</string>
+    <string name="nav_community">社区</string>
+    <string name="nav_map">地图</string>
+    <string name="nav_square">广场</string>
+    <string name="nav_me">我的</string>
+    <string name="title_community">社区</string>
+    <string name="title_map">猫咪地图</string>
+    <string name="title_square">广场</string>
+    <string name="title_me">我的</string>
+</resources>
