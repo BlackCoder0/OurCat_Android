@@ -5,19 +5,24 @@ import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.EditText;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.appcompat.app.AlertDialog;
 import androidx.fragment.app.Fragment;
 import androidx.navigation.fragment.NavHostFragment;
 
 import com.ourcat.app.R;
 import com.ourcat.app.activities.LoginActivity;
+import com.ourcat.app.repositories.AuthApi;
 import com.ourcat.app.utils.RetrofitHelper;
 import com.ourcat.app.utils.TokenStore;
 
+import java.util.HashMap;
 import java.util.Map;
 
 import retrofit2.Call;
@@ -41,9 +46,14 @@ public class ProfileFragment extends Fragment {
         btnUserManage = view.findViewById(R.id.btn_user_manage);
         view.findViewById(R.id.btn_message_center).setOnClickListener(v ->
                 NavHostFragment.findNavController(ProfileFragment.this).navigate(R.id.message_center));
+        view.findViewById(R.id.btn_my_posts).setOnClickListener(v ->
+                NavHostFragment.findNavController(ProfileFragment.this).navigate(R.id.my_posts));
+        view.findViewById(R.id.btn_my_comments).setOnClickListener(v ->
+                NavHostFragment.findNavController(ProfileFragment.this).navigate(R.id.my_comments));
         view.findViewById(R.id.btn_edit_profile).setOnClickListener(v -> {
             Toast.makeText(requireContext(), "编辑资料（可后续扩展）", Toast.LENGTH_SHORT).show();
         });
+        view.findViewById(R.id.btn_change_password).setOnClickListener(v -> showChangePasswordDialog());
         btnUserManage.setOnClickListener(v ->
                 NavHostFragment.findNavController(ProfileFragment.this).navigate(R.id.user_management));
         view.findViewById(R.id.btn_logout).setOnClickListener(v -> {
@@ -62,7 +72,7 @@ public class ProfileFragment extends Fragment {
     }
 
     private void loadProfile() {
-        RetrofitHelper.get().create(com.ourcat.app.repositories.AuthApi.class).getProfile()
+        RetrofitHelper.get().create(AuthApi.class).getProfile()
                 .enqueue(new Callback<Map<String, Object>>() {
                     @Override
                     public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
@@ -80,6 +90,82 @@ public class ProfileFragment extends Fragment {
                     public void onFailure(Call<Map<String, Object>> call, Throwable t) {
                         tvNickname.setText("--");
                         tvRole.setText("");
+                    }
+                });
+    }
+
+    private void showChangePasswordDialog() {
+        LinearLayout layout = new LinearLayout(requireContext());
+        layout.setOrientation(LinearLayout.VERTICAL);
+        int px = (int) (16 * getResources().getDisplayMetrics().density);
+        layout.setPadding(px, px, px, 0);
+
+        EditText etOld = new EditText(requireContext());
+        etOld.setHint("原密码");
+        etOld.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD);
+        layout.addView(etOld);
+
+        EditText etNew = new EditText(requireContext());
+        etNew.setHint("新密码（至少6位）");
+        etNew.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD);
+        layout.addView(etNew);
+
+        EditText etConfirm = new EditText(requireContext());
+        etConfirm.setHint("确认新密码");
+        etConfirm.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD);
+        layout.addView(etConfirm);
+
+        new AlertDialog.Builder(requireContext())
+                .setTitle("修改密码")
+                .setView(layout)
+                .setPositiveButton("确定", (dialog, which) -> {
+                    String oldPwd = etOld.getText().toString().trim();
+                    String newPwd = etNew.getText().toString().trim();
+                    String confirm = etConfirm.getText().toString().trim();
+                    if (oldPwd.isEmpty() || newPwd.isEmpty()) {
+                        Toast.makeText(requireContext(), "请填写完整", Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+                    if (newPwd.length() < 6) {
+                        Toast.makeText(requireContext(), "新密码至少6位", Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+                    if (!newPwd.equals(confirm)) {
+                        Toast.makeText(requireContext(), "两次输入的新密码不一致", Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+                    doChangePassword(oldPwd, newPwd);
+                })
+                .setNegativeButton("取消", null)
+                .show();
+    }
+
+    private void doChangePassword(String oldPwd, String newPwd) {
+        Map<String, String> body = new HashMap<>();
+        body.put("oldPassword", oldPwd);
+        body.put("newPassword", newPwd);
+        RetrofitHelper.get().create(AuthApi.class).changePassword(body)
+                .enqueue(new Callback<Map<String, Object>>() {
+                    @Override
+                    public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
+                        if (!isAdded()) return;
+                        if (response.isSuccessful()) {
+                            Toast.makeText(requireContext(), "密码修改成功", Toast.LENGTH_SHORT).show();
+                        } else {
+                            String msg = "修改失败";
+                            try {
+                                if (response.errorBody() != null) {
+                                    String err = response.errorBody().string();
+                                    if (err.contains("原密码错误")) msg = "原密码错误";
+                                }
+                            } catch (Exception ignored) {}
+                            Toast.makeText(requireContext(), msg, Toast.LENGTH_SHORT).show();
+                        }
+                    }
+                    @Override
+                    public void onFailure(Call<Map<String, Object>> call, Throwable t) {
+                        if (!isAdded()) return;
+                        Toast.makeText(requireContext(), "网络错误", Toast.LENGTH_SHORT).show();
                     }
                 });
     }

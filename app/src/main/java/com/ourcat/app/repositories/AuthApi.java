@@ -23,4 +23,7 @@ public interface AuthApi {
 
     @PUT("/api/user/profile")
     Call<Map<String, Object>> updateProfile(@Body Map<String, Object> body);
+
+    @PUT("/api/user/password")
+    Call<Map<String, Object>> changePassword(@Body Map<String, String> body);
 }

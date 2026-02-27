@@ -2,11 +2,13 @@ package com.ourcat.app.fragments;
 
 import android.os.Bundle;
 import android.view.LayoutInflater;
+import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.EditText;
-import android.widget.LinearLayout;
+import android.widget.ImageView;
+import android.widget.PopupMenu;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -23,6 +25,7 @@ import com.google.gson.reflect.TypeToken;
 import com.ourcat.app.R;
 import com.ourcat.app.adapters.CommentAdapter;
 import com.ourcat.app.adapters.ImagePagerAdapter;
+import com.ourcat.app.repositories.ForumApi;
 import com.ourcat.app.utils.RetrofitHelper;
 
 import java.util.HashMap;
@@ -45,7 +48,8 @@ public class PostDetailFragment extends Fragment {
     private CommentAdapter commentAdapter;
     private EditText commentInput;
     private Button btnLike, btnDislike;
-    private int userVote = 0; // 1=liked, -1=disliked, 0=none
+    private ImageView btnMore;
+    private int userVote = 0;
 
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
@@ -68,6 +72,7 @@ public class PostDetailFragment extends Fragment {
         imageIndicator = view.findViewById(R.id.tv_image_indicator);
         btnLike = view.findViewById(R.id.btn_like);
         btnDislike = view.findViewById(R.id.btn_dislike);
+        btnMore = view.findViewById(R.id.btn_more);
 
         imagePagerAdapter = new ImagePagerAdapter();
         imagePager.setAdapter(imagePagerAdapter);
@@ -84,21 +89,51 @@ public class PostDetailFragment extends Fragment {
         RecyclerView commentsRecycler = view.findViewById(R.id.comments_recycler);
         commentsRecycler.setLayoutManager(new LinearLayoutManager(requireContext()));
         commentAdapter = new CommentAdapter();
+        commentAdapter.setOnDeleteListener((commentId) -> deleteComment(commentId));
         commentsRecycler.setAdapter(commentAdapter);
 
-        view.findViewById(R.id.btn_like).setOnClickListener(v -> like(true));
-        view.findViewById(R.id.btn_dislike).setOnClickListener(v -> like(false));
+        btnLike.setOnClickListener(v -> like(true));
+        btnDislike.setOnClickListener(v -> like(false));
         view.findViewById(R.id.btn_send_comment).setOnClickListener(v -> sendComment());
-        view.findViewById(R.id.btn_edit).setOnClickListener(v -> {
-            Bundle args = new Bundle();
-            args.putInt("editPostId", (int) postId);
-            Navigation.findNavController(requireView()).navigate(R.id.create_edit_post, args);
-        });
-        view.findViewById(R.id.btn_delete).setOnClickListener(v -> deletePost());
-        view.findViewById(R.id.btn_pin).setOnClickListener(v -> togglePin());
+        btnMore.setOnClickListener(this::showPostMenu);
 
         loadProfileThenPost();
         return view;
+    }
+
+    private void showPostMenu(View anchor) {
+        PopupMenu popup = new PopupMenu(requireContext(), anchor);
+        popup.getMenuInflater().inflate(R.menu.menu_post_actions, popup.getMenu());
+
+        long postUserId = getLong(postData, "userId");
+        boolean isAuthor = currentUserId != 0 && currentUserId == postUserId;
+        boolean canManage = currentUserRole >= 2;
+        boolean pinned = getBool(postData, "pinned");
+
+        popup.getMenu().findItem(R.id.action_edit).setVisible(isAuthor);
+        popup.getMenu().findItem(R.id.action_delete).setVisible(isAuthor || canManage);
+
+        MenuItem pinItem = popup.getMenu().findItem(R.id.action_pin);
+        pinItem.setVisible(canManage);
+        pinItem.setTitle(pinned ? "取消置顶" : "置顶");
+
+        popup.setOnMenuItemClickListener(item -> {
+            int id = item.getItemId();
+            if (id == R.id.action_edit) {
+                Bundle args = new Bundle();
+                args.putInt("editPostId", (int) postId);
+                Navigation.findNavController(requireView()).navigate(R.id.create_edit_post, args);
+                return true;
+            } else if (id == R.id.action_delete) {
+                deletePost();
+                return true;
+            } else if (id == R.id.action_pin) {
+                togglePin(!pinned);
+                return true;
+            }
+            return false;
+        });
+        popup.show();
     }
 
     private void loadProfileThenPost() {
@@ -122,7 +157,7 @@ public class PostDetailFragment extends Fragment {
     }
 
     private void loadPost() {
-        RetrofitHelper.get().create(com.ourcat.app.repositories.ForumApi.class).getPost(postId)
+        RetrofitHelper.get().create(ForumApi.class).getPost(postId)
                 .enqueue(new Callback<Map<String, Object>>() {
                     @Override
                     public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
@@ -163,23 +198,13 @@ public class PostDetailFragment extends Fragment {
             } catch (Exception ignored) {}
         }
 
-        LinearLayout actions = requireView().findViewById(R.id.post_actions);
         long postUserId = getLong(postData, "userId");
         boolean isAuthor = currentUserId != 0 && currentUserId == postUserId;
         boolean canManage = currentUserRole >= 2;
+        btnMore.setVisibility((isAuthor || canManage) ? View.VISIBLE : View.GONE);
 
-        actions.setVisibility(View.VISIBLE);
-        requireView().findViewById(R.id.btn_edit).setVisibility(isAuthor ? View.VISIBLE : View.GONE);
-        requireView().findViewById(R.id.btn_delete).setVisibility((canManage || isAuthor) ? View.VISIBLE : View.GONE);
-        requireView().findViewById(R.id.btn_pin).setVisibility(canManage ? View.VISIBLE : View.GONE);
-
-        if (!isAuthor && !canManage) {
-            actions.setVisibility(View.GONE);
-        }
-
-        boolean pinned = getBool(postData, "pinned");
-        requireView().findViewById(R.id.btn_pin).setTag(pinned);
-        ((Button) requireView().findViewById(R.id.btn_pin)).setText(pinned ? "取消置顶" : "置顶");
+        commentAdapter.setCurrentUserId(currentUserId);
+        commentAdapter.setCurrentUserRole(currentUserRole);
 
         Object uv = postData.get("userVote");
         userVote = uv instanceof Number ? ((Number) uv).intValue() : 0;
@@ -194,15 +219,8 @@ public class PostDetailFragment extends Fragment {
         btnDislike.setAlpha(userVote == -1 ? 1f : 0.5f);
     }
 
-    private static boolean getBool(Map<String, Object> m, String key) {
-        Object o = m.get(key);
-        if (o instanceof Boolean) return (Boolean) o;
-        if (o instanceof Number) return ((Number) o).intValue() != 0;
-        return false;
-    }
-
     private void loadComments() {
-        RetrofitHelper.get().create(com.ourcat.app.repositories.ForumApi.class).getComments(postId, 0, 50)
+        RetrofitHelper.get().create(ForumApi.class).getComments(postId, 0, 50)
                 .enqueue(new Callback<List<Map<String, Object>>>() {
                     @Override
                     public void onResponse(Call<List<Map<String, Object>>> call, Response<List<Map<String, Object>>> response) {
@@ -216,7 +234,7 @@ public class PostDetailFragment extends Fragment {
     }
 
     private void like(boolean like) {
-        RetrofitHelper.get().create(com.ourcat.app.repositories.ForumApi.class).like(postId, like)
+        RetrofitHelper.get().create(ForumApi.class).like(postId, like)
                 .enqueue(new Callback<Map<String, Object>>() {
                     @Override
                     public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
@@ -241,7 +259,7 @@ public class PostDetailFragment extends Fragment {
         if (content.isEmpty()) return;
         Map<String, String> body = new HashMap<>();
         body.put("content", content);
-        RetrofitHelper.get().create(com.ourcat.app.repositories.ForumApi.class).addComment(postId, body)
+        RetrofitHelper.get().create(ForumApi.class).addComment(postId, body)
                 .enqueue(new Callback<Map<String, Object>>() {
                     @Override
                     public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
@@ -258,7 +276,7 @@ public class PostDetailFragment extends Fragment {
     }
 
     private void deletePost() {
-        RetrofitHelper.get().create(com.ourcat.app.repositories.ForumApi.class).deletePost(postId)
+        RetrofitHelper.get().create(ForumApi.class).deletePost(postId)
                 .enqueue(new Callback<Void>() {
                     @Override
                     public void onResponse(Call<Void> call, Response<Void> response) {
@@ -276,23 +294,45 @@ public class PostDetailFragment extends Fragment {
                 });
     }
 
-    private void togglePin() {
-        View btn = requireView().findViewById(R.id.btn_pin);
-        boolean currentlyPinned = Boolean.TRUE.equals(btn.getTag());
-        boolean newPinned = !currentlyPinned;
-        RetrofitHelper.get().create(com.ourcat.app.repositories.ForumApi.class).setPinned(postId, newPinned)
+    private void togglePin(boolean newPinned) {
+        RetrofitHelper.get().create(ForumApi.class).setPinned(postId, newPinned)
                 .enqueue(new Callback<Map<String, Object>>() {
                     @Override
                     public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
                         if (response.isSuccessful()) {
-                            btn.setTag(newPinned);
-                            ((android.widget.Button) btn).setText(newPinned ? "取消置顶" : "置顶");
+                            postData.put("pinned", newPinned);
                             Toast.makeText(requireContext(), newPinned ? "已置顶" : "已取消置顶", Toast.LENGTH_SHORT).show();
                         }
                     }
                     @Override
                     public void onFailure(Call<Map<String, Object>> call, Throwable t) {}
                 });
+    }
+
+    private void deleteComment(long commentId) {
+        RetrofitHelper.get().create(ForumApi.class).deleteComment(commentId)
+                .enqueue(new Callback<Void>() {
+                    @Override
+                    public void onResponse(Call<Void> call, Response<Void> response) {
+                        if (response.isSuccessful()) {
+                            Toast.makeText(requireContext(), "评论已删除", Toast.LENGTH_SHORT).show();
+                            loadComments();
+                        } else {
+                            Toast.makeText(requireContext(), "无权限", Toast.LENGTH_SHORT).show();
+                        }
+                    }
+                    @Override
+                    public void onFailure(Call<Void> call, Throwable t) {
+                        Toast.makeText(requireContext(), "删除失败", Toast.LENGTH_SHORT).show();
+                    }
+                });
+    }
+
+    private static boolean getBool(Map<String, Object> m, String key) {
+        Object o = m.get(key);
+        if (o instanceof Boolean) return (Boolean) o;
+        if (o instanceof Number) return ((Number) o).intValue() != 0;
+        return false;
     }
 
     private static String getStr(Map<String, Object> m, String key) {

@@ -46,4 +46,24 @@ public interface ForumApi {
 
     @POST("/api/forum/posts/{id}/comments")
     Call<Map<String, Object>> addComment(@Path("id") long id, @Body Map<String, String> body);
+
+    @GET("/api/forum/search")
+    Call<Map<String, Object>> search(
+            @Query("q") String q,
+            @Query("type") String type,
+            @Query("page") int page,
+            @Query("size") int size);
+
+    @DELETE("/api/forum/comments/{commentId}")
+    Call<Void> deleteComment(@Path("commentId") long commentId);
+
+    @GET("/api/forum/my/posts")
+    Call<Map<String, Object>> myPosts(
+            @Query("page") int page,
+            @Query("size") int size);
+
+    @GET("/api/forum/my/comments")
+    Call<Map<String, Object>> myComments(
+            @Query("page") int page,
+            @Query("size") int size);
 }

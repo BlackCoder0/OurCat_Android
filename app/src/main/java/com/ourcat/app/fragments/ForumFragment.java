@@ -66,7 +66,15 @@ public class ForumFragment extends Fragment {
 
         etSearch.setOnEditorActionListener((v, actionId, event) -> {
             if (actionId == EditorInfo.IME_ACTION_SEARCH) {
-                loadPosts();
+                String q = etSearch.getText() != null ? etSearch.getText().toString().trim() : "";
+                if (!q.isEmpty()) {
+                    Bundle args = new Bundle();
+                    args.putString("query", q);
+                    NavController nav = Navigation.findNavController(requireView());
+                    nav.navigate(R.id.search_result, args);
+                } else {
+                    loadPosts();
+                }
                 return true;
             }
             return false;

@@ -5,9 +5,10 @@
 *.aab
 
 # Gradle 缓存和构建输出
-/.gradle/
-**/build/
-
+.gradle/
+build/
+app/build/
+*/build/
 # NDK / CMake
 .cxx/
 .externalNativeBuild/

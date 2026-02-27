@@ -3,6 +3,8 @@ package com.ourcat.app.adapters;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ImageView;
+import android.widget.PopupMenu;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
@@ -15,12 +17,31 @@ import java.util.Map;
 
 public class CommentAdapter extends RecyclerView.Adapter<CommentAdapter.ViewHolder> {
 
+    public interface OnDeleteListener {
+        void onDelete(long commentId);
+    }
+
     private final java.util.List<Map<String, Object>> items = new ArrayList<>();
+    private long currentUserId;
+    private int currentUserRole;
+    private OnDeleteListener deleteListener;
 
     public void setItems(java.util.List<Map<String, Object>> list) {
         items.clear();
         if (list != null) items.addAll(list);
         notifyDataSetChanged();
+    }
+
+    public void setCurrentUserId(long userId) {
+        this.currentUserId = userId;
+    }
+
+    public void setCurrentUserRole(int role) {
+        this.currentUserRole = role;
+    }
+
+    public void setOnDeleteListener(OnDeleteListener listener) {
+        this.deleteListener = listener;
     }
 
     @NonNull
@@ -37,6 +58,29 @@ public class CommentAdapter extends RecyclerView.Adapter<CommentAdapter.ViewHold
         Object content = m.get("content");
         holder.author.setText(author != null ? author.toString() : "");
         holder.content.setText(content != null ? content.toString() : "");
+
+        long commentUserId = m.get("userId") instanceof Number ? ((Number) m.get("userId")).longValue() : 0;
+        long commentId = m.get("id") instanceof Number ? ((Number) m.get("id")).longValue() : 0;
+
+        boolean isOwnComment = currentUserId != 0 && currentUserId == commentUserId;
+        boolean canManage = currentUserRole >= 2;
+
+        if (isOwnComment || canManage) {
+            holder.btnMore.setVisibility(View.VISIBLE);
+            holder.btnMore.setOnClickListener(v -> {
+                PopupMenu popup = new PopupMenu(v.getContext(), v);
+                popup.getMenu().add("删除");
+                popup.setOnMenuItemClickListener(item -> {
+                    if ("删除".equals(item.getTitle()) && deleteListener != null) {
+                        deleteListener.onDelete(commentId);
+                    }
+                    return true;
+                });
+                popup.show();
+            });
+        } else {
+            holder.btnMore.setVisibility(View.GONE);
+        }
     }
 
     @Override
@@ -46,11 +90,13 @@ public class CommentAdapter extends RecyclerView.Adapter<CommentAdapter.ViewHold
 
     static class ViewHolder extends RecyclerView.ViewHolder {
         TextView author, content;
+        ImageView btnMore;
 
         ViewHolder(View itemView) {
             super(itemView);
             author = itemView.findViewById(R.id.item_comment_author);
             content = itemView.findViewById(R.id.item_comment_content);
+            btnMore = itemView.findViewById(R.id.btn_comment_more);
         }
     }
 }

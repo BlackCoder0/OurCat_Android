@@ -45,4 +45,21 @@
         android:id="@+id/user_management"
         android:name="com.ourcat.app.fragments.UserManagementFragment"
         android:label="用户管理" />
+    <fragment
+        android:id="@+id/search_result"
+        android:name="com.ourcat.app.fragments.SearchResultFragment"
+        android:label="搜索结果">
+        <argument
+            android:name="query"
+            app:argType="string"
+            android:defaultValue="" />
+    </fragment>
+    <fragment
+        android:id="@+id/my_posts"
+        android:name="com.ourcat.app.fragments.MyPostsFragment"
+        android:label="我的帖子" />
+    <fragment
+        android:id="@+id/my_comments"
+        android:name="com.ourcat.app.fragments.MyCommentsFragment"
+        android:label="我的评论" />
 </navigation>

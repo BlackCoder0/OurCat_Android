@@ -1,6 +1,10 @@
 package com.ourcat.app.activities;
 
+import android.graphics.Rect;
 import android.os.Bundle;
+import android.view.View;
+import android.view.ViewTreeObserver;
+
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.navigation.NavController;
@@ -22,6 +26,7 @@ public class MainActivity extends AppCompatActivity {
 
     private MaterialToolbar toolbar;
     private NavController navController;
+    private BottomNavigationView bottomNav;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -43,10 +48,27 @@ public class MainActivity extends AppCompatActivity {
         ).build();
         NavigationUI.setupWithNavController(toolbar, navController, appBarConfig);
 
-        BottomNavigationView bottomNav = findViewById(R.id.bottom_nav);
+        bottomNav = findViewById(R.id.bottom_nav);
         if (navController != null) {
             NavigationUI.setupWithNavController(bottomNav, navController);
         }
+
+        setupKeyboardListener();
+    }
+
+    private void setupKeyboardListener() {
+        final View rootView = findViewById(android.R.id.content);
+        rootView.getViewTreeObserver().addOnGlobalLayoutListener(() -> {
+            Rect r = new Rect();
+            rootView.getWindowVisibleDisplayFrame(r);
+            int screenHeight = rootView.getRootView().getHeight();
+            int keypadHeight = screenHeight - r.bottom;
+            if (keypadHeight > screenHeight * 0.15) {
+                bottomNav.setVisibility(View.GONE);
+            } else {
+                bottomNav.setVisibility(View.VISIBLE);
+            }
+        });
     }
 
     private void fetchWeatherWarning() {
