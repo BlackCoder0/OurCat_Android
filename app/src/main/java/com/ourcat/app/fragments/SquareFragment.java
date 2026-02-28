@@ -14,8 +14,8 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
-import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.ourcat.app.R;
+import com.ourcat.app.repositories.SquareApi;
 import com.ourcat.app.utils.RetrofitHelper;
 
 import java.util.ArrayList;
@@ -41,55 +41,77 @@ public class SquareFragment extends Fragment {
         recyclerView = view.findViewById(R.id.square_recycler);
         refreshLayout = view.findViewById(R.id.square_swipe);
         recyclerView.setLayoutManager(new LinearLayoutManager(requireContext()));
+
         adapter = new RecyclerView.Adapter<RecyclerView.ViewHolder>() {
             @NonNull
             @Override
             public RecyclerView.ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-                View v = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_square_post, parent, false);
+                View v = LayoutInflater.from(parent.getContext())
+                        .inflate(R.layout.item_square_post, parent, false);
                 return new RecyclerView.ViewHolder(v) {};
             }
+
             @Override
             public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder, int position) {
                 Map<String, Object> item = items.get(position);
                 TextView text = holder.itemView.findViewById(R.id.item_square_text);
                 TextView type = holder.itemView.findViewById(R.id.item_square_type);
                 TextView status = holder.itemView.findViewById(R.id.item_square_status);
-                text.setText(item.get("text") != null ? item.get("text").toString() : "");
-                type.setText("询问".equals(item.get("type")) ? "询问" : "救助");
-                status.setText("resolved".equals(item.get("status")) ? "已解决" : "进行中");
+
+                Object textObj = item.get("text");
+                text.setText(textObj != null ? textObj.toString() : "");
+
+                Object typeObj = item.get("type");
+                String typeStr = typeObj != null ? typeObj.toString() : "";
+                type.setText("inquiry".equals(typeStr) ? "询问" : "救助");
+
+                Object statusObj = item.get("status");
+                String statusStr = statusObj != null ? statusObj.toString() : "";
+                status.setText("resolved".equals(statusStr) ? "已解决" : "进行中");
             }
+
             @Override
-            public int getItemCount() { return items.size(); }
+            public int getItemCount() {
+                return items.size();
+            }
         };
         recyclerView.setAdapter(adapter);
 
         refreshLayout.setOnRefreshListener(this::loadPosts);
-        view.findViewById(R.id.square_fab).setOnClickListener(v ->
-                Toast.makeText(requireContext(), "发布广播（可后续实现）", Toast.LENGTH_SHORT).show());
+        view.findViewById(R.id.square_fab)
+                .setOnClickListener(v ->
+                        Toast.makeText(requireContext(), "发布广播（待实现）", Toast.LENGTH_SHORT).show());
         loadPosts();
         return view;
     }
 
     private void loadPosts() {
+        if (!isAdded()) return;
         refreshLayout.setRefreshing(true);
-        RetrofitHelper.get().create(com.ourcat.app.repositories.SquareApi.class).listPosts(0, 20, null)
+        RetrofitHelper.get().create(SquareApi.class).listPosts(0, 20, null)
                 .enqueue(new Callback<Map<String, Object>>() {
                     @Override
-                    public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
+                    public void onResponse(Call<Map<String, Object>> call,
+                                           Response<Map<String, Object>> response) {
+                        if (!isAdded()) return;
                         refreshLayout.setRefreshing(false);
                         if (response.isSuccessful() && response.body() != null) {
                             Object content = response.body().get("content");
                             if (content instanceof List) {
                                 items.clear();
                                 for (Object o : (List<?>) content) {
-                                    if (o instanceof Map) items.add((Map<String, Object>) o);
+                                    if (o instanceof Map) {
+                                        items.add((Map<String, Object>) o);
+                                    }
                                 }
                                 adapter.notifyDataSetChanged();
                             }
                         }
                     }
+
                     @Override
                     public void onFailure(Call<Map<String, Object>> call, Throwable t) {
+                        if (!isAdded()) return;
                         refreshLayout.setRefreshing(false);
                         Toast.makeText(requireContext(), "加载失败", Toast.LENGTH_SHORT).show();
                     }

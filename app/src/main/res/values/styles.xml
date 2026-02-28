@@ -9,4 +9,13 @@
         <item name="android:statusBarColor">@color/primary_variant</item>
         <item name="android:windowLightStatusBar">false</item>
     </style>
+
+    <style name="FullScreenDialog" parent="Theme.MaterialComponents.Light.Dialog">
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowFullscreen">false</item>
+        <item name="android:windowIsFloating">false</item>
+        <item name="android:windowBackground">@android:color/white</item>
+        <item name="android:windowAnimationStyle">@android:style/Animation.Dialog</item>
+        <item name="android:statusBarColor">@color/primary_variant</item>
+    </style>
 </resources>

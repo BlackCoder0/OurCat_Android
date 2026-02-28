@@ -3,17 +3,20 @@ package com.ourcat.app.activities;
 import android.graphics.Rect;
 import android.os.Bundle;
 import android.view.View;
-import android.view.ViewTreeObserver;
 
+import androidx.activity.OnBackPressedCallback;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.navigation.NavController;
+import androidx.navigation.NavOptions;
 import androidx.navigation.fragment.NavHostFragment;
 import androidx.navigation.ui.AppBarConfiguration;
 import androidx.navigation.ui.NavigationUI;
+
 import com.google.android.material.appbar.MaterialToolbar;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.ourcat.app.R;
+import com.ourcat.app.fragments.MapFragment;
 import com.ourcat.app.utils.RetrofitHelper;
 
 import java.util.List;
@@ -27,6 +30,10 @@ public class MainActivity extends AppCompatActivity {
     private MaterialToolbar toolbar;
     private NavController navController;
     private BottomNavigationView bottomNav;
+    private View mapContainer;
+    private View navHostView;
+    private MapFragment mapFragment;
+    private boolean isMapVisible = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -37,6 +44,9 @@ public class MainActivity extends AppCompatActivity {
         toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
 
+        mapContainer = findViewById(R.id.map_container);
+        navHostView = findViewById(R.id.nav_host_fragment);
+
         NavHostFragment navHostFragment = (NavHostFragment) getSupportFragmentManager()
                 .findFragmentById(R.id.nav_host_fragment);
         if (navHostFragment != null) {
@@ -44,16 +54,86 @@ public class MainActivity extends AppCompatActivity {
         }
 
         AppBarConfiguration appBarConfig = new AppBarConfiguration.Builder(
-                R.id.nav_community, R.id.nav_map, R.id.nav_square, R.id.nav_me
+                R.id.nav_community, R.id.nav_square, R.id.nav_me
         ).build();
         NavigationUI.setupWithNavController(toolbar, navController, appBarConfig);
 
-        bottomNav = findViewById(R.id.bottom_nav);
-        if (navController != null) {
-            NavigationUI.setupWithNavController(bottomNav, navController);
+        if (savedInstanceState == null) {
+            mapFragment = new MapFragment();
+            getSupportFragmentManager().beginTransaction()
+                    .add(R.id.map_container, mapFragment, "persistent_map")
+                    .commit();
+        } else {
+            mapFragment = (MapFragment) getSupportFragmentManager().findFragmentByTag("persistent_map");
+            isMapVisible = savedInstanceState.getBoolean("is_map_visible", false);
+            if (isMapVisible) {
+                mapContainer.setVisibility(View.VISIBLE);
+                navHostView.setVisibility(View.GONE);
+            }
         }
 
+        bottomNav = findViewById(R.id.bottom_nav);
+        bottomNav.setOnItemSelectedListener(item -> {
+            int id = item.getItemId();
+            if (id == R.id.nav_map) {
+                showMap();
+                return true;
+            }
+            hideMap();
+            try {
+                NavOptions options = new NavOptions.Builder()
+                        .setLaunchSingleTop(true)
+                        .setPopUpTo(navController.getGraph().getStartDestinationId(), false, true)
+                        .build();
+                navController.navigate(id, null, options);
+                return true;
+            } catch (Exception e) {
+                return false;
+            }
+        });
+
+        navController.addOnDestinationChangedListener((controller, dest, args) -> {
+            if (!isMapVisible) {
+                int destId = dest.getId();
+                if (destId == R.id.nav_community || destId == R.id.nav_square || destId == R.id.nav_me) {
+                    bottomNav.getMenu().findItem(destId).setChecked(true);
+                }
+            }
+        });
+
+        getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
+            @Override
+            public void handleOnBackPressed() {
+                if (isMapVisible) {
+                    bottomNav.setSelectedItemId(R.id.nav_community);
+                } else {
+                    setEnabled(false);
+                    getOnBackPressedDispatcher().onBackPressed();
+                    setEnabled(true);
+                }
+            }
+        });
+
         setupKeyboardListener();
+    }
+
+    @Override
+    protected void onSaveInstanceState(Bundle outState) {
+        super.onSaveInstanceState(outState);
+        outState.putBoolean("is_map_visible", isMapVisible);
+    }
+
+    private void showMap() {
+        isMapVisible = true;
+        mapContainer.setVisibility(View.VISIBLE);
+        navHostView.setVisibility(View.GONE);
+        toolbar.setTitle(R.string.title_map);
+    }
+
+    private void hideMap() {
+        isMapVisible = false;
+        mapContainer.setVisibility(View.GONE);
+        navHostView.setVisibility(View.VISIBLE);
     }
 
     private void setupKeyboardListener() {

@@ -9,29 +9,71 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent">
 
-        <TextView
-            android:id="@+id/map_placeholder"
+        <!-- 高德地图（TextureMapView 避免 GLThread 崩溃） -->
+        <com.amap.api.maps.TextureMapView
+            android:id="@+id/map_view"
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:gravity="center"
-            android:text="猫咪地图（集成高德 SDK 后显示地图）"
-            android:textColor="@color/text_secondary"
-            android:padding="24dp" />
+            android:layout_height="match_parent" />
 
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/map_locations_list"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:padding="8dp"
-            android:visibility="gone" />
+        <!-- 右侧工具栏 -->
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="top|end"
+            android:orientation="vertical"
+            android:layout_marginTop="16dp"
+            android:layout_marginEnd="16dp">
+
+            <!-- 定位按钮 -->
+            <com.google.android.material.floatingactionbutton.FloatingActionButton
+                android:id="@+id/fab_location"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:contentDescription="定位"
+                android:src="@android:drawable/ic_menu_mylocation"
+                app:fabSize="mini"
+                app:backgroundTint="@android:color/white"
+                app:tint="@color/primary" />
+
+            <!-- 刷新按钮 -->
+            <com.google.android.material.floatingactionbutton.FloatingActionButton
+                android:id="@+id/fab_refresh"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:contentDescription="刷新"
+                android:src="@android:drawable/ic_popup_sync"
+                app:fabSize="mini"
+                app:backgroundTint="@android:color/white"
+                app:tint="@color/primary" />
+        </LinearLayout>
+
+        <!-- 猫咪数量指示 -->
+        <TextView
+            android:id="@+id/map_cat_count"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="top|start"
+            android:layout_marginTop="16dp"
+            android:layout_marginStart="16dp"
+            android:background="@android:color/white"
+            android:paddingHorizontal="12dp"
+            android:paddingVertical="6dp"
+            android:textSize="12sp"
+            android:textColor="@color/text_primary"
+            android:elevation="4dp"
+            android:text="加载中..." />
+
     </FrameLayout>
 
+    <!-- 上报按钮 -->
     <com.google.android.material.floatingactionbutton.FloatingActionButton
         android:id="@+id/map_fab_report"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="bottom|end"
         android:layout_margin="16dp"
-        android:contentDescription="上报位置"
+        android:contentDescription="上报猫咪位置"
         app:srcCompat="@android:drawable/ic_input_add" />
+
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

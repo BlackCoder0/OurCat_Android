@@ -1,23 +1,48 @@
 package com.ourcat.app.fragments;
 
+import android.Manifest;
 import android.app.Dialog;
+import android.content.ContentValues;
+import android.content.pm.PackageManager;
+import android.net.Uri;
 import android.os.Bundle;
+import android.provider.MediaStore;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.Window;
 import android.widget.EditText;
+import android.widget.ImageView;
+import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.core.content.ContextCompat;
 import androidx.fragment.app.DialogFragment;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
-import com.google.android.material.button.MaterialButton;
+import com.bumptech.glide.Glide;
+import com.google.android.material.chip.Chip;
+import com.google.android.material.chip.ChipGroup;
+import com.google.android.material.textfield.TextInputLayout;
 import com.ourcat.app.R;
+import com.ourcat.app.repositories.CatApi;
+import com.ourcat.app.repositories.OssApi;
+import com.ourcat.app.utils.OssUploader;
 import com.ourcat.app.utils.RetrofitHelper;
 
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.InputStream;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 import retrofit2.Call;
 import retrofit2.Callback;
@@ -25,23 +50,121 @@ import retrofit2.Response;
 
 public class ReportCatDialogFragment extends DialogFragment {
 
-    private Runnable onReportSuccess;
+    private static final String ARG_LAT = "lat";
+    private static final String ARG_LNG = "lng";
 
-    public void setOnReportSuccess(Runnable r) {
-        onReportSuccess = r;
+    private Runnable onReportSuccess;
+    private double initialLat = 0;
+    private double initialLng = 0;
+
+    private final List<Uri> selectedImages = new ArrayList<>();
+    private ImageAdapter imageAdapter;
+    private Uri cameraUri;
+
+    public static ReportCatDialogFragment newInstance(double lat, double lng) {
+        ReportCatDialogFragment f = new ReportCatDialogFragment();
+        Bundle args = new Bundle();
+        args.putDouble(ARG_LAT, lat);
+        args.putDouble(ARG_LNG, lng);
+        f.setArguments(args);
+        return f;
+    }
+
+    public void setOnReportSuccess(Runnable r) { onReportSuccess = r; }
+
+    private final ActivityResultLauncher<String[]> galleryLauncher =
+            registerForActivityResult(new ActivityResultContracts.OpenMultipleDocuments(), uris -> {
+                if (uris != null) {
+                    for (Uri uri : uris) {
+                        requireContext().getContentResolver()
+                                .takePersistableUriPermission(uri,
+                                        android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                        selectedImages.add(uri);
+                    }
+                    imageAdapter.notifyDataSetChanged();
+                }
+            });
+
+    private final ActivityResultLauncher<Uri> cameraLauncher =
+            registerForActivityResult(new ActivityResultContracts.TakePicture(), success -> {
+                if (success && cameraUri != null) {
+                    selectedImages.add(cameraUri);
+                    imageAdapter.notifyDataSetChanged();
+                }
+            });
+
+    private final ActivityResultLauncher<String> cameraPermLauncher =
+            registerForActivityResult(new ActivityResultContracts.RequestPermission(), granted -> {
+                if (granted) launchCamera();
+                else if (isAdded()) Toast.makeText(requireContext(), "需要相机权限", Toast.LENGTH_SHORT).show();
+            });
+
+    @Override
+    public void onCreate(@Nullable Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setStyle(STYLE_NORMAL, R.style.FullScreenDialog);
+        if (getArguments() != null) {
+            initialLat = getArguments().getDouble(ARG_LAT, 0);
+            initialLng = getArguments().getDouble(ARG_LNG, 0);
+        }
+    }
+
+    @NonNull
+    @Override
+    public Dialog onCreateDialog(@Nullable Bundle savedInstanceState) {
+        Dialog dialog = super.onCreateDialog(savedInstanceState);
+        if (dialog.getWindow() != null) {
+            dialog.getWindow().requestFeature(Window.FEATURE_NO_TITLE);
+        }
+        return dialog;
     }
 
     @Nullable
     @Override
-    public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
+    public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,
+                             @Nullable Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.dialog_report_cat, container, false);
+
         EditText etLat = view.findViewById(R.id.report_lat);
         EditText etLng = view.findViewById(R.id.report_lng);
         EditText etDesc = view.findViewById(R.id.report_description);
-        EditText etImageUrl = view.findViewById(R.id.report_image_url);
-        EditText etColor = view.findViewById(R.id.report_color);
-        EditText etFeature = view.findViewById(R.id.report_feature);
-        EditText etPersonality = view.findViewById(R.id.report_personality);
+        TextView locationHint = view.findViewById(R.id.report_location_hint);
+
+        if (initialLat != 0 && initialLng != 0) {
+            etLat.setText(String.format("%.6f", initialLat));
+            etLng.setText(String.format("%.6f", initialLng));
+            locationHint.setText("已自动获取当前位置 ✓");
+        } else {
+            locationHint.setText("未获取到位置，请手动输入或返回地图先点击定位");
+            locationHint.setTextColor(0xFFE65100);
+        }
+
+        RecyclerView imageList = view.findViewById(R.id.report_image_list);
+        imageList.setLayoutManager(new LinearLayoutManager(requireContext(), LinearLayoutManager.HORIZONTAL, false));
+        imageAdapter = new ImageAdapter();
+        imageList.setAdapter(imageAdapter);
+
+        view.findViewById(R.id.report_btn_gallery).setOnClickListener(v ->
+                galleryLauncher.launch(new String[]{"image/*"}));
+
+        view.findViewById(R.id.report_btn_camera).setOnClickListener(v -> {
+            if (ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.CAMERA)
+                    == PackageManager.PERMISSION_GRANTED) {
+                launchCamera();
+            } else {
+                cameraPermLauncher.launch(Manifest.permission.CAMERA);
+            }
+        });
+
+        setupChipGroup(view, R.id.chip_group_color,
+                new String[]{"橘色", "黑色", "白色", "灰色", "花色", "三花", "玳瑁", "狸花", "奶牛"},
+                R.id.report_color_input_layout, true);
+        setupChipGroup(view, R.id.chip_group_feature,
+                new String[]{"短毛", "长毛", "折耳", "立耳", "断尾", "有项圈", "有耳标"},
+                R.id.report_feature_input_layout, false);
+        setupChipGroup(view, R.id.chip_group_personality,
+                new String[]{"亲人", "胆小", "凶", "活泼", "安静"},
+                R.id.report_personality_input_layout, false);
 
         view.findViewById(R.id.report_submit).setOnClickListener(v -> {
             String latS = etLat.getText().toString().trim();
@@ -58,36 +181,26 @@ public class ReportCatDialogFragment extends DialogFragment {
                 Toast.makeText(requireContext(), "经纬度格式错误", Toast.LENGTH_SHORT).show();
                 return;
             }
+
             Map<String, Object> body = new HashMap<>();
             body.put("lat", lat);
             body.put("lng", lng);
             body.put("description", etDesc.getText().toString().trim());
-            body.put("imageUrl", etImageUrl.getText().toString().trim());
-            String color = etColor.getText().toString().trim();
-            String feature = etFeature.getText().toString().trim();
-            String personality = etPersonality.getText().toString().trim();
+
+            String color = getChipValues(view, R.id.chip_group_color, R.id.report_color_input, true);
+            String feature = getChipValues(view, R.id.chip_group_feature, R.id.report_feature_input, false);
+            String personality = getChipValues(view, R.id.chip_group_personality, R.id.report_personality_input, false);
             if (!color.isEmpty()) body.put("color", color);
             if (!feature.isEmpty()) body.put("feature", feature);
             if (!personality.isEmpty()) body.put("personality", personality);
 
-            RetrofitHelper.get().create(com.ourcat.app.repositories.CatApi.class).report(body)
-                    .enqueue(new Callback<Map<String, Object>>() {
-                        @Override
-                        public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
-                            if (response.isSuccessful()) {
-                                Toast.makeText(requireContext(), "上报成功", Toast.LENGTH_SHORT).show();
-                                dismiss();
-                                if (onReportSuccess != null) onReportSuccess.run();
-                            } else {
-                                Toast.makeText(requireContext(), "上报失败", Toast.LENGTH_SHORT).show();
-                            }
-                        }
-                        @Override
-                        public void onFailure(Call<Map<String, Object>> call, Throwable t) {
-                            Toast.makeText(requireContext(), "网络错误", Toast.LENGTH_SHORT).show();
-                        }
-                    });
+            if (!selectedImages.isEmpty()) {
+                uploadImagesThenReport(body);
+            } else {
+                submitReport(body);
+            }
         });
+
         view.findViewById(R.id.report_cancel).setOnClickListener(v -> dismiss());
         return view;
     }
@@ -97,7 +210,187 @@ public class ReportCatDialogFragment extends DialogFragment {
         super.onStart();
         Dialog d = getDialog();
         if (d != null && d.getWindow() != null) {
-            d.getWindow().setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            d.getWindow().setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
         }
+    }
+
+    private void setupChipGroup(View root, int chipGroupId, String[] options,
+                                int inputLayoutId, boolean singleSelection) {
+        ChipGroup group = root.findViewById(chipGroupId);
+        group.setSingleSelection(singleSelection);
+        TextInputLayout inputLayout = root.findViewById(inputLayoutId);
+
+        for (String option : options) {
+            Chip chip = new Chip(requireContext());
+            chip.setText(option);
+            chip.setCheckable(true);
+            chip.setChipBackgroundColorResource(android.R.color.white);
+            chip.setChipStrokeWidth(2f);
+            chip.setChipStrokeColorResource(R.color.text_secondary);
+            chip.setTextSize(13);
+            chip.setCheckedIconVisible(true);
+            group.addView(chip);
+        }
+
+        Chip otherChip = new Chip(requireContext());
+        otherChip.setText("其他");
+        otherChip.setCheckable(true);
+        otherChip.setChipBackgroundColorResource(android.R.color.white);
+        otherChip.setChipStrokeWidth(2f);
+        otherChip.setChipStrokeColorResource(R.color.text_secondary);
+        otherChip.setTextSize(13);
+        otherChip.setCheckedIconVisible(true);
+        otherChip.setOnCheckedChangeListener((btn, checked) ->
+                inputLayout.setVisibility(checked ? View.VISIBLE : View.GONE));
+        group.addView(otherChip);
+    }
+
+    private String getChipValues(View root, int chipGroupId, int inputEditId, boolean singleMode) {
+        ChipGroup group = root.findViewById(chipGroupId);
+        List<String> values = new ArrayList<>();
+
+        for (int i = 0; i < group.getChildCount(); i++) {
+            View child = group.getChildAt(i);
+            if (child instanceof Chip) {
+                Chip chip = (Chip) child;
+                if (chip.isChecked()) {
+                    if ("其他".equals(chip.getText().toString())) {
+                        EditText input = root.findViewById(inputEditId);
+                        String custom = input != null ? input.getText().toString().trim() : "";
+                        if (!custom.isEmpty()) values.add(custom);
+                    } else {
+                        values.add(chip.getText().toString());
+                    }
+                }
+            }
+        }
+        return String.join("、", values);
+    }
+
+    private void launchCamera() {
+        ContentValues values = new ContentValues();
+        values.put(MediaStore.Images.Media.TITLE, "cat_" + System.currentTimeMillis());
+        values.put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg");
+        cameraUri = requireContext().getContentResolver()
+                .insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values);
+        if (cameraUri != null) cameraLauncher.launch(cameraUri);
+    }
+
+    private void uploadImagesThenReport(Map<String, Object> body) {
+        Toast.makeText(requireContext(), "正在上传图片...", Toast.LENGTH_SHORT).show();
+
+        Uri firstUri = selectedImages.get(0);
+        String filename = "cat_report/" + UUID.randomUUID() + ".jpg";
+
+        RetrofitHelper.get().create(OssApi.class)
+                .getUploadUrl(filename, "image/jpeg")
+                .enqueue(new Callback<Map<String, String>>() {
+                    @Override
+                    public void onResponse(Call<Map<String, String>> call,
+                                           Response<Map<String, String>> response) {
+                        if (!isAdded()) return;
+                        if (!response.isSuccessful() || response.body() == null) {
+                            Toast.makeText(requireContext(), "获取上传链接失败", Toast.LENGTH_SHORT).show();
+                            return;
+                        }
+                        String uploadUrl = response.body().get("uploadUrl");
+                        String publicUrl = response.body().get("publicUrl");
+
+                        new Thread(() -> {
+                            try {
+                                File temp = uriToTempFile(firstUri);
+                                new OssUploader().uploadWithPresign(uploadUrl, publicUrl, temp, "image/jpeg");
+                                if (getActivity() != null) {
+                                    getActivity().runOnUiThread(() -> {
+                                        if (isAdded()) {
+                                            body.put("imageUrl", publicUrl);
+                                            submitReport(body);
+                                        }
+                                    });
+                                }
+                            } catch (Exception e) {
+                                if (getActivity() != null) {
+                                    getActivity().runOnUiThread(() -> {
+                                        if (isAdded())
+                                            Toast.makeText(requireContext(), "上传失败", Toast.LENGTH_SHORT).show();
+                                    });
+                                }
+                            }
+                        }).start();
+                    }
+
+                    @Override
+                    public void onFailure(Call<Map<String, String>> call, Throwable t) {
+                        if (isAdded()) Toast.makeText(requireContext(), "网络错误", Toast.LENGTH_SHORT).show();
+                    }
+                });
+    }
+
+    private File uriToTempFile(Uri uri) throws Exception {
+        InputStream is = requireContext().getContentResolver().openInputStream(uri);
+        File temp = File.createTempFile("upload_", ".jpg", requireContext().getCacheDir());
+        FileOutputStream fos = new FileOutputStream(temp);
+        byte[] buf = new byte[4096];
+        int len;
+        while ((len = is.read(buf)) != -1) fos.write(buf, 0, len);
+        fos.close();
+        is.close();
+        return temp;
+    }
+
+    private void submitReport(Map<String, Object> body) {
+        RetrofitHelper.get().create(CatApi.class).report(body)
+                .enqueue(new Callback<Map<String, Object>>() {
+                    @Override
+                    public void onResponse(Call<Map<String, Object>> call,
+                                           Response<Map<String, Object>> response) {
+                        if (!isAdded()) return;
+                        if (response.isSuccessful()) {
+                            Toast.makeText(requireContext(), "上报成功!", Toast.LENGTH_SHORT).show();
+                            dismiss();
+                            if (onReportSuccess != null) onReportSuccess.run();
+                        } else {
+                            Toast.makeText(requireContext(), "上报失败", Toast.LENGTH_SHORT).show();
+                        }
+                    }
+
+                    @Override
+                    public void onFailure(Call<Map<String, Object>> call, Throwable t) {
+                        if (isAdded()) Toast.makeText(requireContext(), "网络错误", Toast.LENGTH_SHORT).show();
+                    }
+                });
+    }
+
+    private class ImageAdapter extends RecyclerView.Adapter<ImageAdapter.VH> {
+        class VH extends RecyclerView.ViewHolder {
+            ImageView preview, delete;
+            VH(View v) {
+                super(v);
+                preview = v.findViewById(R.id.report_img_preview);
+                delete = v.findViewById(R.id.report_img_delete);
+            }
+        }
+
+        @NonNull
+        @Override
+        public VH onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+            return new VH(LayoutInflater.from(parent.getContext())
+                    .inflate(R.layout.item_report_image, parent, false));
+        }
+
+        @Override
+        public void onBindViewHolder(@NonNull VH h, int position) {
+            Glide.with(h.preview).load(selectedImages.get(position)).centerCrop().into(h.preview);
+            h.delete.setOnClickListener(v -> {
+                int pos = h.getAdapterPosition();
+                if (pos >= 0 && pos < selectedImages.size()) {
+                    selectedImages.remove(pos);
+                    notifyItemRemoved(pos);
+                }
+            });
+        }
+
+        @Override
+        public int getItemCount() { return selectedImages.size(); }
     }
 }

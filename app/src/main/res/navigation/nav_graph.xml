@@ -8,10 +8,7 @@
         android:id="@+id/nav_community"
         android:name="com.ourcat.app.fragments.ForumFragment"
         android:label="@string/title_community" />
-    <fragment
-        android:id="@+id/nav_map"
-        android:name="com.ourcat.app.fragments.MapFragment"
-        android:label="@string/title_map" />
+
     <fragment
         android:id="@+id/nav_square"
         android:name="com.ourcat.app.fragments.SquareFragment"
