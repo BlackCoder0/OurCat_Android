@@ -7,6 +7,6 @@ public class OurCatApp extends Application {
     @Override
     public void onCreate() {
         super.onCreate();
-        RetrofitHelper.init(this);
+        RetrofitHelper.init(this, BuildConfig.BASE_URL);
     }
 }

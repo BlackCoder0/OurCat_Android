@@ -11,7 +11,8 @@ import retrofit2.converter.gson.GsonConverterFactory;
 
 public class RetrofitHelper {
 
-    private static final String DEFAULT_BASE_URL = "http://10.0.2.2:8080/"; // Android emulator -> localhost
+    // 改为云端地址
+    private static final String DEFAULT_BASE_URL = "http://8.138.154.101:8080/";
 
     private static Retrofit retrofit;
     private static String baseUrl = DEFAULT_BASE_URL;
