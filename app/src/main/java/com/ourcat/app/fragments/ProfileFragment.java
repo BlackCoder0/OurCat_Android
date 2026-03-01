@@ -44,20 +44,21 @@ public class ProfileFragment extends Fragment {
         tvNickname = view.findViewById(R.id.tv_nickname);
         tvRole = view.findViewById(R.id.tv_role);
         btnUserManage = view.findViewById(R.id.btn_user_manage);
-        view.findViewById(R.id.btn_message_center).setOnClickListener(v ->
+
+        setupOption(view, R.id.btn_message_center, "消息中心", v ->
                 NavHostFragment.findNavController(ProfileFragment.this).navigate(R.id.message_center));
-        view.findViewById(R.id.btn_my_posts).setOnClickListener(v ->
+        setupOption(view, R.id.btn_my_posts, "我的帖子", v ->
                 NavHostFragment.findNavController(ProfileFragment.this).navigate(R.id.my_posts));
-        view.findViewById(R.id.btn_my_comments).setOnClickListener(v ->
+        setupOption(view, R.id.btn_my_comments, "我的评论", v ->
                 NavHostFragment.findNavController(ProfileFragment.this).navigate(R.id.my_comments));
-        view.findViewById(R.id.btn_my_cat_reports).setOnClickListener(v ->
+        setupOption(view, R.id.btn_my_cat_reports, "我的上报", v ->
                 NavHostFragment.findNavController(ProfileFragment.this).navigate(R.id.my_cat_reports));
-        view.findViewById(R.id.btn_edit_profile).setOnClickListener(v -> {
-            Toast.makeText(requireContext(), "编辑资料（可后续扩展）", Toast.LENGTH_SHORT).show();
-        });
-        view.findViewById(R.id.btn_change_password).setOnClickListener(v -> showChangePasswordDialog());
-        btnUserManage.setOnClickListener(v ->
+        setupOption(view, R.id.btn_edit_profile, "编辑资料", v ->
+                Toast.makeText(requireContext(), "编辑资料（可后续扩展）", Toast.LENGTH_SHORT).show());
+        setupOption(view, R.id.btn_change_password, "修改密码", v -> showChangePasswordDialog());
+        setupOption(view, R.id.btn_user_manage, "用户管理", v ->
                 NavHostFragment.findNavController(ProfileFragment.this).navigate(R.id.user_management));
+
         view.findViewById(R.id.btn_logout).setOnClickListener(v -> {
             new TokenStore(requireContext()).clear();
             startActivity(new Intent(requireContext(), LoginActivity.class));
@@ -65,6 +66,13 @@ public class ProfileFragment extends Fragment {
         });
         loadProfile();
         return view;
+    }
+
+    private void setupOption(View root, int id, String text, View.OnClickListener listener) {
+        View optionView = root.findViewById(id);
+        TextView tv = optionView.findViewById(R.id.option_text);
+        tv.setText(text);
+        optionView.setOnClickListener(listener);
     }
 
     @Override

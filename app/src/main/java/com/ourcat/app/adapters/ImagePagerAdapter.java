@@ -1,5 +1,6 @@
 package com.ourcat.app.adapters;
 
+import android.app.AlertDialog;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -9,6 +10,7 @@ import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.bumptech.glide.Glide;
+import com.ourcat.app.utils.ImageUtils;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -35,9 +37,21 @@ public class ImagePagerAdapter extends RecyclerView.Adapter<ImagePagerAdapter.Vi
 
     @Override
     public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
+        String url = urls.get(position);
         Glide.with(holder.itemView.getContext())
-                .load(urls.get(position))
+                .load(url)
                 .into((ImageView) holder.itemView);
+
+        holder.itemView.setOnLongClickListener(v -> {
+            new AlertDialog.Builder(v.getContext())
+                    .setItems(new String[]{"保存图片"}, (dialog, which) -> {
+                        if (which == 0) {
+                            ImageUtils.saveImage(v.getContext(), url);
+                        }
+                    })
+                    .show();
+            return true;
+        });
     }
 
     @Override
