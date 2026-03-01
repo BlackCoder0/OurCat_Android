@@ -62,6 +62,12 @@ import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
 
+import com.amap.api.maps.model.HeatmapTileProvider;
+import com.amap.api.maps.model.TileOverlay;
+import com.amap.api.maps.model.TileOverlayOptions;
+import com.google.android.material.bottomsheet.BottomSheetBehavior;
+import com.google.android.material.chip.Chip;
+
 public class MapFragment extends Fragment implements AMapLocationListener {
 
     private static final String TAG = "MapFragment";
@@ -72,6 +78,7 @@ public class MapFragment extends Fragment implements AMapLocationListener {
     private AMap aMap;
     private AMapLocationClient locationClient;
     private TextView catCountText;
+    private TextView modeIndicator;
     private final List<Map<String, Object>> allLocations = new ArrayList<>();
     private final java.util.Map<String, Object> markerDataMap = new HashMap<>();
 
@@ -80,8 +87,23 @@ public class MapFragment extends Fragment implements AMapLocationListener {
     private boolean firstLocate = true;
     private float density;
 
-    private final ActivityResultLauncher<String[]> permissionLauncher =
-            registerForActivityResult(new ActivityResultContracts.RequestMultiplePermissions(), result -> {
+    private boolean isHeatmapMode = false;
+    private TileOverlay heatmapOverlay;
+    private final List<Map<String, Object>> heatmapData = new ArrayList<>();
+    private final List<Map<String, Object>> recommendData = new ArrayList<>();
+
+    private BottomSheetBehavior<View> bottomSheetBehavior;
+    private RecyclerView recommendList;
+    private TextView recommendEmpty;
+    private boolean isHighRecommend = true;
+
+    private boolean lastWasPreciseMode = false;
+    private android.os.Handler heatmapHandler = new android.os.Handler(android.os.Looper.getMainLooper());
+    private Runnable heatmapRunnable;
+    private static final long HEATMAP_DEBOUNCE_MS = 300;
+
+    private final ActivityResultLauncher<String[]> permissionLauncher = registerForActivityResult(
+            new ActivityResultContracts.RequestMultiplePermissions(), result -> {
                 Boolean fine = result.get(Manifest.permission.ACCESS_FINE_LOCATION);
                 Boolean coarse = result.get(Manifest.permission.ACCESS_COARSE_LOCATION);
                 if (Boolean.TRUE.equals(fine) || Boolean.TRUE.equals(coarse)) {
@@ -95,25 +117,38 @@ public class MapFragment extends Fragment implements AMapLocationListener {
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,
-                             @Nullable Bundle savedInstanceState) {
+            @Nullable Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_map, container, false);
         density = getResources().getDisplayMetrics().density;
 
         mapView = view.findViewById(R.id.map_view);
         mapView.onCreate(savedInstanceState);
         catCountText = view.findViewById(R.id.map_cat_count);
+        modeIndicator = view.findViewById(R.id.map_mode_indicator);
 
         initMap();
         checkPermissionAndLocate();
+        initBottomSheet(view);
 
         FloatingActionButton fabLocation = view.findViewById(R.id.fab_location);
         fabLocation.setOnClickListener(v -> moveToCurrentLocation());
 
         FloatingActionButton fabRefresh = view.findViewById(R.id.fab_refresh);
         fabRefresh.setOnClickListener(v -> {
-            if (isAdded()) Toast.makeText(requireContext(), "刷新中...", Toast.LENGTH_SHORT).show();
-            loadLocations();
+            if (isAdded())
+                Toast.makeText(requireContext(), "刷新中...", Toast.LENGTH_SHORT).show();
+            if (isHeatmapMode) {
+                loadHeatmapData();
+            } else {
+                loadLocations();
+            }
         });
+
+        FloatingActionButton fabHeatmap = view.findViewById(R.id.fab_heatmap);
+        fabHeatmap.setOnClickListener(v -> toggleHeatmapMode());
+
+        FloatingActionButton fabRecommend = view.findViewById(R.id.fab_recommend);
+        fabRecommend.setOnClickListener(v -> toggleRecommendSheet());
 
         FloatingActionButton fabReport = view.findViewById(R.id.map_fab_report);
         fabReport.setOnClickListener(v -> {
@@ -126,8 +161,90 @@ public class MapFragment extends Fragment implements AMapLocationListener {
         return view;
     }
 
+    private void initBottomSheet(View view) {
+        View bottomSheet = view.findViewById(R.id.bottom_sheet_recommend);
+        bottomSheetBehavior = BottomSheetBehavior.from(bottomSheet);
+        bottomSheetBehavior.setState(BottomSheetBehavior.STATE_HIDDEN);
+
+        recommendList = view.findViewById(R.id.recommend_list);
+        recommendList.setLayoutManager(new LinearLayoutManager(requireContext()));
+        recommendEmpty = view.findViewById(R.id.recommend_empty);
+
+        Chip chipHigh = view.findViewById(R.id.chip_high);
+        Chip chipLow = view.findViewById(R.id.chip_low);
+        TextView recommendTitle = view.findViewById(R.id.recommend_title);
+
+        chipHigh.setOnCheckedChangeListener((btn, checked) -> {
+            if (checked) {
+                isHighRecommend = true;
+                recommendTitle.setText("附近猫咪活跃区域");
+                loadRecommendData();
+            }
+        });
+
+        chipLow.setOnCheckedChangeListener((btn, checked) -> {
+            if (checked) {
+                isHighRecommend = false;
+                recommendTitle.setText("附近猫咪活跃区域");
+                loadRecommendData();
+            }
+        });
+    }
+
+    private void toggleHeatmapMode() {
+        isHeatmapMode = !isHeatmapMode;
+        if (isHeatmapMode) {
+            modeIndicator.setVisibility(View.VISIBLE);
+            modeIndicator.setText("🔥 热力图模式");
+            lastWasPreciseMode = false;
+            loadHeatmapData();
+        } else {
+            modeIndicator.setVisibility(View.GONE);
+            if (heatmapRunnable != null) {
+                heatmapHandler.removeCallbacks(heatmapRunnable);
+            }
+            removeHeatmap();
+            clusterAndDisplay();
+        }
+        if (isAdded()) {
+            Toast.makeText(requireContext(),
+                    isHeatmapMode ? "已切换到热力图模式" : "已切换到标记模式",
+                    Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void toggleRecommendSheet() {
+        if (bottomSheetBehavior.getState() == BottomSheetBehavior.STATE_EXPANDED) {
+            bottomSheetBehavior.setState(BottomSheetBehavior.STATE_HIDDEN);
+        } else {
+            loadRecommendData();
+            bottomSheetBehavior.setState(BottomSheetBehavior.STATE_EXPANDED);
+        }
+    }
+
+    private void scheduleHeatmapUpdate(float zoom) {
+        boolean shouldBePrecise = zoom >= 15;
+
+        if (shouldBePrecise == lastWasPreciseMode && heatmapOverlay != null) {
+            return;
+        }
+
+        if (heatmapRunnable != null) {
+            heatmapHandler.removeCallbacks(heatmapRunnable);
+        }
+
+        heatmapRunnable = () -> {
+            if (!isAdded() || !isHeatmapMode)
+                return;
+            lastWasPreciseMode = shouldBePrecise;
+            renderHeatmap();
+        };
+        heatmapHandler.postDelayed(heatmapRunnable, HEATMAP_DEBOUNCE_MS);
+    }
+
     private void initMap() {
-        if (aMap != null) return;
+        if (aMap != null)
+            return;
         aMap = mapView.getMap();
         aMap.getUiSettings().setZoomControlsEnabled(false);
         aMap.getUiSettings().setCompassEnabled(true);
@@ -139,8 +256,11 @@ public class MapFragment extends Fragment implements AMapLocationListener {
             public View getInfoWindow(Marker marker) {
                 return createInfoWindowView(marker);
             }
+
             @Override
-            public View getInfoContents(Marker marker) { return null; }
+            public View getInfoContents(Marker marker) {
+                return null;
+            }
         });
 
         aMap.setOnMarkerClickListener(marker -> {
@@ -162,10 +282,16 @@ public class MapFragment extends Fragment implements AMapLocationListener {
 
         aMap.setOnCameraChangeListener(new AMap.OnCameraChangeListener() {
             @Override
-            public void onCameraChange(CameraPosition pos) {}
+            public void onCameraChange(CameraPosition pos) {
+            }
+
             @Override
             public void onCameraChangeFinish(CameraPosition pos) {
-                if (!allLocations.isEmpty()) clusterAndDisplay();
+                if (isHeatmapMode) {
+                    scheduleHeatmapUpdate(pos.zoom);
+                } else if (!allLocations.isEmpty()) {
+                    clusterAndDisplay();
+                }
             }
         });
 
@@ -173,7 +299,8 @@ public class MapFragment extends Fragment implements AMapLocationListener {
     }
 
     private void showClusterListDialog(List<Map<String, Object>> cluster) {
-        if (!isAdded() || cluster.isEmpty()) return;
+        if (!isAdded() || cluster.isEmpty())
+            return;
 
         View dialogView = LayoutInflater.from(requireContext())
                 .inflate(R.layout.dialog_cluster_list, null);
@@ -237,7 +364,9 @@ public class MapFragment extends Fragment implements AMapLocationListener {
             }
 
             @Override
-            public int getItemCount() { return cluster.size(); }
+            public int getItemCount() {
+                return cluster.size();
+            }
         });
 
         dialog.show();
@@ -247,6 +376,7 @@ public class MapFragment extends Fragment implements AMapLocationListener {
         ImageView image;
         TextView color, feature, location, time;
         View delete;
+
         ClusterVH(View v) {
             super(v);
             image = v.findViewById(R.id.item_image);
@@ -259,7 +389,8 @@ public class MapFragment extends Fragment implements AMapLocationListener {
     }
 
     private void zoomToCluster(List<Map<String, Object>> cluster) {
-        if (cluster.size() < 2) return;
+        if (cluster.size() < 2)
+            return;
         LatLngBounds.Builder builder = new LatLngBounds.Builder();
         for (Map<String, Object> loc : cluster) {
             double lat = ((Number) loc.get("lat")).doubleValue();
@@ -306,7 +437,8 @@ public class MapFragment extends Fragment implements AMapLocationListener {
     }
 
     private void enableMyLocation() {
-        if (aMap == null) return;
+        if (aMap == null)
+            return;
         MyLocationStyle style = new MyLocationStyle();
         style.myLocationType(MyLocationStyle.LOCATION_TYPE_LOCATION_ROTATE_NO_CENTER);
         style.interval(5000);
@@ -317,13 +449,14 @@ public class MapFragment extends Fragment implements AMapLocationListener {
     }
 
     private void checkPermissionAndLocate() {
-        if (!isAdded()) return;
-        if (ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.ACCESS_FINE_LOCATION)
-                == PackageManager.PERMISSION_GRANTED) {
+        if (!isAdded())
+            return;
+        if (ContextCompat.checkSelfPermission(requireContext(),
+                Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
             enableMyLocation();
             startLocation();
         } else {
-            permissionLauncher.launch(new String[]{
+            permissionLauncher.launch(new String[] {
                     Manifest.permission.ACCESS_FINE_LOCATION,
                     Manifest.permission.ACCESS_COARSE_LOCATION
             });
@@ -357,7 +490,8 @@ public class MapFragment extends Fragment implements AMapLocationListener {
 
     @Override
     public void onLocationChanged(AMapLocation loc) {
-        if (loc == null) return;
+        if (loc == null)
+            return;
         if (loc.getErrorCode() != 0) {
             Log.e(TAG, "定位错误 code=" + loc.getErrorCode() + " info=" + loc.getErrorInfo());
             if (isAdded() && firstLocate) {
@@ -400,12 +534,15 @@ public class MapFragment extends Fragment implements AMapLocationListener {
                 .enqueue(new Callback<List<Map<String, Object>>>() {
                     @Override
                     public void onResponse(Call<List<Map<String, Object>>> call,
-                                           Response<List<Map<String, Object>>> response) {
-                        if (!isAdded()) return;
+                            Response<List<Map<String, Object>>> response) {
+                        if (!isAdded())
+                            return;
                         if (response.isSuccessful() && response.body() != null) {
                             allLocations.clear();
                             allLocations.addAll(response.body());
-                            clusterAndDisplay();
+                            if (!isHeatmapMode) {
+                                clusterAndDisplay();
+                            }
                             catCountText.setText("共发现 " + allLocations.size() + " 只猫咪");
                         } else {
                             catCountText.setText("暂无记录");
@@ -414,53 +551,512 @@ public class MapFragment extends Fragment implements AMapLocationListener {
 
                     @Override
                     public void onFailure(Call<List<Map<String, Object>>> call, Throwable t) {
-                        if (isAdded()) catCountText.setText("加载失败");
+                        if (isAdded())
+                            catCountText.setText("加载失败");
                     }
                 });
     }
 
-    private void clusterAndDisplay() {
-        if (aMap == null || allLocations.isEmpty()) return;
+    private void loadHeatmapData() {
+        if (allLocations.isEmpty()) {
+            RetrofitHelper.get().create(CatApi.class).getLocations()
+                    .enqueue(new Callback<List<Map<String, Object>>>() {
+                        @Override
+                        public void onResponse(Call<List<Map<String, Object>>> call,
+                                Response<List<Map<String, Object>>> response) {
+                            if (!isAdded())
+                                return;
+                            if (response.isSuccessful() && response.body() != null) {
+                                allLocations.clear();
+                                allLocations.addAll(response.body());
+                            }
+                            loadHeatmapAggregated();
+                        }
+
+                        @Override
+                        public void onFailure(Call<List<Map<String, Object>>> call, Throwable t) {
+                            loadHeatmapAggregated();
+                        }
+                    });
+        } else {
+            loadHeatmapAggregated();
+        }
+    }
+
+    private void loadHeatmapAggregated() {
+        RetrofitHelper.get().create(CatApi.class).getHeatmap()
+                .enqueue(new Callback<List<Map<String, Object>>>() {
+                    @Override
+                    public void onResponse(Call<List<Map<String, Object>>> call,
+                            Response<List<Map<String, Object>>> response) {
+                        if (!isAdded())
+                            return;
+                        if (response.isSuccessful() && response.body() != null) {
+                            heatmapData.clear();
+                            heatmapData.addAll(response.body());
+                            renderHeatmap();
+                        } else {
+                            catCountText.setText("热力数据为空");
+                        }
+                    }
+
+                    @Override
+                    public void onFailure(Call<List<Map<String, Object>>> call, Throwable t) {
+                        if (isAdded()) {
+                            catCountText.setText("热力数据加载失败");
+                            Toast.makeText(requireContext(), "加载热力图失败: " + t.getMessage(), Toast.LENGTH_SHORT).show();
+                        }
+                    }
+                });
+    }
+
+    private void renderHeatmap() {
+        if (aMap == null)
+            return;
+
+        removeHeatmap();
         aMap.clear();
         markerDataMap.clear();
 
         float zoom = aMap.getCameraPosition().zoom;
-        double clusterDistPx = CLUSTER_DISTANCE_DP * density;
-        double metersPerPx = 156543.03392 * Math.cos(Math.toRadians(
-                aMap.getCameraPosition().target.latitude)) / Math.pow(2, zoom);
-        double clusterMeters = clusterDistPx * metersPerPx;
 
-        List<List<Map<String, Object>>> clusters = new ArrayList<>();
-        boolean[] used = new boolean[allLocations.size()];
+        if (zoom >= 15) {
+            renderHeatmapFromLocations();
+        } else {
+            renderHeatmapFromAggregated();
+        }
+    }
 
-        for (int i = 0; i < allLocations.size(); i++) {
-            if (used[i]) continue;
-            List<Map<String, Object>> cluster = new ArrayList<>();
-            cluster.add(allLocations.get(i));
-            used[i] = true;
+    private void renderHeatmapFromLocations() {
+        if (allLocations.isEmpty()) {
+            loadLocations();
+            return;
+        }
 
-            double lat1 = ((Number) allLocations.get(i).get("lat")).doubleValue();
-            double lng1 = ((Number) allLocations.get(i).get("lng")).doubleValue();
+        List<LatLng> latLngList = new ArrayList<>();
+        for (Map<String, Object> loc : allLocations) {
+            Object latObj = loc.get("lat");
+            Object lngObj = loc.get("lng");
+            if (latObj != null && lngObj != null) {
+                double lat = ((Number) latObj).doubleValue();
+                double lng = ((Number) lngObj).doubleValue();
+                latLngList.add(new LatLng(lat, lng));
+            }
+        }
 
-            for (int j = i + 1; j < allLocations.size(); j++) {
-                if (used[j]) continue;
-                double lat2 = ((Number) allLocations.get(j).get("lat")).doubleValue();
-                double lng2 = ((Number) allLocations.get(j).get("lng")).doubleValue();
-                if (haversineMeters(lat1, lng1, lat2, lng2) < clusterMeters) {
-                    cluster.add(allLocations.get(j));
-                    used[j] = true;
+        if (latLngList.isEmpty())
+            return;
+
+        try {
+            int radius = calculateHeatmapRadius(aMap.getCameraPosition().zoom);
+
+            HeatmapTileProvider.Builder builder = new HeatmapTileProvider.Builder();
+            builder.data(latLngList);
+
+            int[] colors = {
+                    Color.argb(0, 102, 255, 0),
+                    Color.argb(120, 147, 255, 0),
+                    Color.argb(180, 255, 215, 0),
+                    Color.argb(220, 255, 140, 0),
+                    Color.argb(255, 255, 69, 0)
+            };
+            float[] startPoints = { 0f, 0.15f, 0.4f, 0.7f, 1.0f };
+            builder.gradient(new com.amap.api.maps.model.Gradient(colors, startPoints));
+            builder.radius(radius);
+            builder.transparency(0.5);
+
+            HeatmapTileProvider provider = builder.build();
+
+            TileOverlayOptions options = new TileOverlayOptions();
+            options.tileProvider(provider);
+            options.zIndex(5);
+
+            heatmapOverlay = aMap.addTileOverlay(options);
+
+            catCountText.setText("热力图（精确）: " + latLngList.size() + " 个点");
+        } catch (Exception e) {
+            Log.e(TAG, "Render precise heatmap failed", e);
+        }
+    }
+
+    private void renderHeatmapFromAggregated() {
+        if (heatmapData.isEmpty())
+            return;
+
+        List<LatLng> latLngList = new ArrayList<>();
+        java.util.Map<LatLng, Float> weightMap = new HashMap<>();
+
+        for (Map<String, Object> point : heatmapData) {
+            Object latObj = point.get("lat");
+            Object lngObj = point.get("lng");
+            Object weightObj = point.get("weight");
+            if (latObj != null && lngObj != null) {
+                double lat = ((Number) latObj).doubleValue();
+                double lng = ((Number) lngObj).doubleValue();
+                float weight = weightObj != null ? ((Number) weightObj).floatValue() : 1f;
+                LatLng ll = new LatLng(lat, lng);
+                latLngList.add(ll);
+                weightMap.put(ll, weight);
+            }
+        }
+
+        if (latLngList.isEmpty())
+            return;
+
+        try {
+            int radius = calculateHeatmapRadius(aMap.getCameraPosition().zoom);
+
+            HeatmapTileProvider.Builder builder = new HeatmapTileProvider.Builder();
+            builder.weightedData(createWeightedData(latLngList, weightMap));
+
+            int[] colors = {
+                    Color.argb(0, 102, 255, 0),
+                    Color.argb(120, 147, 255, 0),
+                    Color.argb(180, 255, 215, 0),
+                    Color.argb(220, 255, 140, 0),
+                    Color.argb(255, 255, 69, 0)
+            };
+            float[] startPoints = { 0f, 0.15f, 0.4f, 0.7f, 1.0f };
+            builder.gradient(new com.amap.api.maps.model.Gradient(colors, startPoints));
+            builder.radius(radius);
+            builder.transparency(0.5);
+
+            HeatmapTileProvider provider = builder.build();
+
+            TileOverlayOptions options = new TileOverlayOptions();
+            options.tileProvider(provider);
+            options.zIndex(5);
+
+            heatmapOverlay = aMap.addTileOverlay(options);
+
+            int total = 0;
+            for (Map<String, Object> p : heatmapData) {
+                Object w = p.get("weight");
+                if (w instanceof Number)
+                    total += ((Number) w).intValue();
+            }
+            catCountText.setText("热力图: " + heatmapData.size() + " 区域, " + total + " 次上报");
+        } catch (Exception e) {
+            Log.e(TAG, "Render aggregated heatmap failed", e);
+            if (isAdded()) {
+                Toast.makeText(requireContext(), "热力图渲染失败", Toast.LENGTH_SHORT).show();
+            }
+        }
+    }
+
+    private int calculateHeatmapRadius(float zoom) {
+        if (zoom >= 18)
+            return 20;
+        if (zoom >= 16)
+            return 28;
+        if (zoom >= 14)
+            return 38;
+        if (zoom >= 12)
+            return 48;
+        return 55;
+    }
+
+    private List<com.amap.api.maps.model.WeightedLatLng> createWeightedData(
+            List<LatLng> latLngList, java.util.Map<LatLng, Float> weightMap) {
+        List<com.amap.api.maps.model.WeightedLatLng> result = new ArrayList<>();
+        for (LatLng ll : latLngList) {
+            float weight = weightMap.getOrDefault(ll, 1f);
+            result.add(new com.amap.api.maps.model.WeightedLatLng(ll, weight));
+        }
+        return result;
+    }
+
+    private void removeHeatmap() {
+        if (heatmapOverlay != null) {
+            heatmapOverlay.remove();
+            heatmapOverlay = null;
+        }
+    }
+
+    private void loadRecommendData() {
+        if (allLocations.isEmpty()) {
+            RetrofitHelper.get().create(CatApi.class).getLocations()
+                    .enqueue(new Callback<List<Map<String, Object>>>() {
+                        @Override
+                        public void onResponse(Call<List<Map<String, Object>>> call,
+                                Response<List<Map<String, Object>>> response) {
+                            if (!isAdded()) return;
+                            if (response.isSuccessful() && response.body() != null) {
+                                allLocations.clear();
+                                allLocations.addAll(response.body());
+                            }
+                            buildRecommendFromLocal();
+                        }
+
+                        @Override
+                        public void onFailure(Call<List<Map<String, Object>>> call, Throwable t) {
+                            if (isAdded()) {
+                                recommendList.setVisibility(View.GONE);
+                                recommendEmpty.setVisibility(View.VISIBLE);
+                                recommendEmpty.setText("加载失败");
+                            }
+                        }
+                    });
+        } else {
+            buildRecommendFromLocal();
+        }
+    }
+
+    private void buildRecommendFromLocal() {
+        if (aMap == null || allLocations.isEmpty()) {
+            recommendList.setVisibility(View.GONE);
+            recommendEmpty.setVisibility(View.VISIBLE);
+            recommendEmpty.setText("暂无数据");
+            return;
+        }
+
+        LatLngBounds bounds = aMap.getProjection().getVisibleRegion().latLngBounds;
+
+        java.util.Map<String, List<Map<String, Object>>> gridMap = new HashMap<>();
+        for (Map<String, Object> loc : allLocations) {
+            Object latObj = loc.get("lat");
+            Object lngObj = loc.get("lng");
+            if (latObj == null || lngObj == null) continue;
+
+            double lat = ((Number) latObj).doubleValue();
+            double lng = ((Number) lngObj).doubleValue();
+            LatLng ll = new LatLng(lat, lng);
+
+            if (!bounds.contains(ll)) continue;
+
+            String gridKey = String.format("%.3f,%.3f", lat, lng);
+            if (!gridMap.containsKey(gridKey)) {
+                gridMap.put(gridKey, new ArrayList<>());
+            }
+            gridMap.get(gridKey).add(loc);
+        }
+
+        if (gridMap.isEmpty()) {
+            recommendList.setVisibility(View.GONE);
+            recommendEmpty.setVisibility(View.VISIBLE);
+            recommendEmpty.setText("当前视野内暂无数据");
+            return;
+        }
+
+        List<Map<String, Object>> aggregated = new ArrayList<>();
+        for (java.util.Map.Entry<String, List<Map<String, Object>>> entry : gridMap.entrySet()) {
+            String[] parts = entry.getKey().split(",");
+            double lat = Double.parseDouble(parts[0]);
+            double lng = Double.parseDouble(parts[1]);
+            int count = entry.getValue().size();
+
+            Map<String, Object> item = new HashMap<>();
+            item.put("lat", lat);
+            item.put("lng", lng);
+            item.put("count", count);
+            item.put("name", "");
+            aggregated.add(item);
+        }
+
+        if (isHighRecommend) {
+            aggregated.sort((a, b) -> ((Integer) b.get("count")).compareTo((Integer) a.get("count")));
+        } else {
+            aggregated.sort((a, b) -> ((Integer) a.get("count")).compareTo((Integer) b.get("count")));
+        }
+
+        recommendData.clear();
+        recommendData.addAll(aggregated.subList(0, Math.min(5, aggregated.size())));
+
+        recommendList.setVisibility(View.VISIBLE);
+        recommendEmpty.setVisibility(View.GONE);
+        recommendList.setAdapter(new RecommendAdapter());
+
+        loadAddressesForRecommend();
+    }
+
+    private void loadAddressesForRecommend() {
+        for (int i = 0; i < recommendData.size(); i++) {
+            final int index = i;
+            Map<String, Object> item = recommendData.get(i);
+            double lat = ((Number) item.get("lat")).doubleValue();
+            double lng = ((Number) item.get("lng")).doubleValue();
+
+            try {
+                com.amap.api.services.geocoder.GeocodeSearch geocodeSearch =
+                        new com.amap.api.services.geocoder.GeocodeSearch(requireContext());
+                geocodeSearch.setOnGeocodeSearchListener(new com.amap.api.services.geocoder.GeocodeSearch.OnGeocodeSearchListener() {
+                    @Override
+                    public void onRegeocodeSearched(com.amap.api.services.geocoder.RegeocodeResult result, int rCode) {
+                        if (!isAdded()) return;
+                        if (rCode == 1000 && result != null && result.getRegeocodeAddress() != null) {
+                            String address = result.getRegeocodeAddress().getFormatAddress();
+                            if (address != null && !address.isEmpty()) {
+                                String shortAddr = simplifyAddress(address);
+                                if (index < recommendData.size()) {
+                                    recommendData.get(index).put("name", shortAddr);
+                                    if (recommendList.getAdapter() != null) {
+                                        recommendList.getAdapter().notifyItemChanged(index);
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    @Override
+                    public void onGeocodeSearched(com.amap.api.services.geocoder.GeocodeResult result, int rCode) {}
+                });
+
+                com.amap.api.services.geocoder.RegeocodeQuery query =
+                        new com.amap.api.services.geocoder.RegeocodeQuery(
+                                new com.amap.api.services.core.LatLonPoint(lat, lng), 100, com.amap.api.services.geocoder.GeocodeSearch.AMAP);
+                geocodeSearch.getFromLocationAsyn(query);
+            } catch (Exception e) {
+                Log.e(TAG, "Geocode failed for index " + index, e);
+            }
+        }
+    }
+
+    private String simplifyAddress(String fullAddress) {
+        if (fullAddress == null) return "";
+        String result = fullAddress
+                .replaceAll("^中国", "")
+                .replaceAll("^广东省|^北京市|^上海市|^天津市|^重庆市", "");
+        if (result.length() > 20) {
+            int districtIdx = result.indexOf("区");
+            if (districtIdx > 0 && districtIdx < result.length() - 1) {
+                result = result.substring(districtIdx + 1);
+            }
+        }
+        if (result.length() > 25) {
+            result = result.substring(0, 22) + "...";
+        }
+        return result;
+    }
+
+    private class RecommendAdapter extends RecyclerView.Adapter<RecommendAdapter.VH> {
+        @NonNull
+        @Override
+        public VH onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+            return new VH(LayoutInflater.from(parent.getContext())
+                    .inflate(R.layout.item_recommend, parent, false));
+        }
+
+        @Override
+        public void onBindViewHolder(@NonNull VH h, int position) {
+            Map<String, Object> item = recommendData.get(position);
+
+            h.rank.setText(String.valueOf(position + 1));
+
+            int bgColor;
+            if (position == 0)
+                bgColor = 0xFFFF6D00;
+            else if (position == 1)
+                bgColor = 0xFFFF9800;
+            else if (position == 2)
+                bgColor = 0xFFFFC107;
+            else
+                bgColor = 0xFFBDBDBD;
+            h.rank.getBackground().setTint(bgColor);
+
+            String name = str(item.get("name"));
+            h.name.setText(name.isEmpty() ? "📍 获取地址中..." : name);
+
+            Object latObj = item.get("lat");
+            Object lngObj = item.get("lng");
+            if (latObj != null && lngObj != null) {
+                double lat = ((Number) latObj).doubleValue();
+                double lng = ((Number) lngObj).doubleValue();
+                if (name.isEmpty()) {
+                    h.location.setText(String.format("%.5f, %.5f", lat, lng));
+                } else {
+                    h.location.setText(String.format("%.5f, %.5f", lat, lng));
                 }
             }
-            clusters.add(cluster);
+
+            Object countObj = item.get("count");
+            h.count.setText(countObj != null ? String.valueOf(((Number) countObj).intValue()) : "0");
+
+            h.itemView.setOnClickListener(v -> {
+                if (latObj != null && lngObj != null) {
+                    double lat = ((Number) latObj).doubleValue();
+                    double lng = ((Number) lngObj).doubleValue();
+                    bottomSheetBehavior.setState(BottomSheetBehavior.STATE_HIDDEN);
+                    aMap.animateCamera(CameraUpdateFactory.newLatLngZoom(new LatLng(lat, lng), 16));
+                }
+            });
         }
 
-        for (List<Map<String, Object>> cluster : clusters) {
-            if (cluster.size() == 1) {
-                addSingleMarker(cluster.get(0));
-            } else {
-                addClusterMarker(cluster);
+        @Override
+        public int getItemCount() {
+            return recommendData.size();
+        }
+
+        class VH extends RecyclerView.ViewHolder {
+            TextView rank, name, location, count;
+
+            VH(View v) {
+                super(v);
+                rank = v.findViewById(R.id.item_rank);
+                name = v.findViewById(R.id.item_name);
+                location = v.findViewById(R.id.item_location);
+                count = v.findViewById(R.id.item_count);
             }
         }
+    }
+
+    private void clusterAndDisplay() {
+        if (aMap == null || allLocations.isEmpty())
+            return;
+
+        new Thread(() -> {
+            List<Map<String, Object>> locationsSnapshot = new ArrayList<>(allLocations);
+
+            // 在子线程计算
+            float zoom = aMap.getCameraPosition().zoom;
+            double clusterDistPx = CLUSTER_DISTANCE_DP * density;
+            double metersPerPx = 156543.03392 * Math.cos(Math.toRadians(
+                    aMap.getCameraPosition().target.latitude)) / Math.pow(2, zoom);
+            double clusterMeters = clusterDistPx * metersPerPx;
+
+            List<List<Map<String, Object>>> clusters = new ArrayList<>();
+            boolean[] used = new boolean[locationsSnapshot.size()];
+
+            for (int i = 0; i < locationsSnapshot.size(); i++) {
+                if (used[i])
+                    continue;
+                List<Map<String, Object>> cluster = new ArrayList<>();
+                cluster.add(locationsSnapshot.get(i));
+                used[i] = true;
+
+                double lat1 = ((Number) locationsSnapshot.get(i).get("lat")).doubleValue();
+                double lng1 = ((Number) locationsSnapshot.get(i).get("lng")).doubleValue();
+
+                for (int j = i + 1; j < locationsSnapshot.size(); j++) {
+                    if (used[j])
+                        continue;
+                    double lat2 = ((Number) locationsSnapshot.get(j).get("lat")).doubleValue();
+                    double lng2 = ((Number) locationsSnapshot.get(j).get("lng")).doubleValue();
+                    if (haversineMeters(lat1, lng1, lat2, lng2) < clusterMeters) {
+                        cluster.add(locationsSnapshot.get(j));
+                        used[j] = true;
+                    }
+                }
+                clusters.add(cluster);
+            }
+
+            // 切回主线程更新 UI
+            if (getActivity() != null) {
+                getActivity().runOnUiThread(() -> {
+                    if (aMap == null || isHeatmapMode)
+                        return;
+                    aMap.clear();
+                    markerDataMap.clear();
+
+                    for (List<Map<String, Object>> cluster : clusters) {
+                        if (cluster.size() == 1) {
+                            addSingleMarker(cluster.get(0));
+                        } else {
+                            addClusterMarker(cluster);
+                        }
+                    }
+                });
+            }
+        }).start();
     }
 
     private void addSingleMarker(Map<String, Object> loc) {
@@ -474,13 +1070,16 @@ public class MapFragment extends Fragment implements AMapLocationListener {
 
         String title = color.isEmpty() ? "猫咪" : color + "猫";
         StringBuilder snippet = new StringBuilder();
-        if (!feature.isEmpty()) snippet.append("特征: ").append(feature);
+        if (!feature.isEmpty())
+            snippet.append("特征: ").append(feature);
         if (!desc.isEmpty()) {
-            if (snippet.length() > 0) snippet.append("\n");
+            if (snippet.length() > 0)
+                snippet.append("\n");
             snippet.append(desc);
         }
         if (!time.isEmpty()) {
-            if (snippet.length() > 0) snippet.append("\n");
+            if (snippet.length() > 0)
+                snippet.append("\n");
             snippet.append("上报: ").append(time);
         }
 
@@ -496,8 +1095,9 @@ public class MapFragment extends Fragment implements AMapLocationListener {
                     .into(new SimpleTarget<Bitmap>() {
                         @Override
                         public void onResourceReady(@NonNull Bitmap resource,
-                                                    @Nullable Transition<? super Bitmap> transition) {
-                            if (!isAdded() || aMap == null) return;
+                                @Nullable Transition<? super Bitmap> transition) {
+                            if (!isAdded() || aMap == null)
+                                return;
                             BitmapDescriptor icon = createImagePinMarker(resource, markerColor);
                             Marker marker = aMap.addMarker(new MarkerOptions()
                                     .position(pos)
@@ -681,15 +1281,24 @@ public class MapFragment extends Fragment implements AMapLocationListener {
     }
 
     private int getMarkerColor(String color) {
-        if (color == null || color.isEmpty()) return 0xFFFF6D00;
-        if (color.contains("橘")) return 0xFFFF6D00;
-        if (color.contains("黑")) return 0xFF37474F;
-        if (color.contains("白")) return 0xFF78909C;
-        if (color.contains("灰")) return 0xFF546E7A;
-        if (color.contains("花") || color.contains("三花")) return 0xFFD81B60;
-        if (color.contains("玳瑁")) return 0xFF6D4C41;
-        if (color.contains("狸花")) return 0xFF2E7D32;
-        if (color.contains("奶牛")) return 0xFF263238;
+        if (color == null || color.isEmpty())
+            return 0xFFFF6D00;
+        if (color.contains("橘"))
+            return 0xFFFF6D00;
+        if (color.contains("黑"))
+            return 0xFF37474F;
+        if (color.contains("白"))
+            return 0xFF78909C;
+        if (color.contains("灰"))
+            return 0xFF546E7A;
+        if (color.contains("花") || color.contains("三花"))
+            return 0xFFD81B60;
+        if (color.contains("玳瑁"))
+            return 0xFF6D4C41;
+        if (color.contains("狸花"))
+            return 0xFF2E7D32;
+        if (color.contains("奶牛"))
+            return 0xFF263238;
         return 0xFFFF6D00;
     }
 
@@ -699,7 +1308,7 @@ public class MapFragment extends Fragment implements AMapLocationListener {
         double dLng = Math.toRadians(lng2 - lng1);
         double a = Math.sin(dLat / 2) * Math.sin(dLat / 2)
                 + Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2))
-                * Math.sin(dLng / 2) * Math.sin(dLng / 2);
+                        * Math.sin(dLng / 2) * Math.sin(dLng / 2);
         return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     }
 
@@ -710,34 +1319,53 @@ public class MapFragment extends Fragment implements AMapLocationListener {
     @Override
     public void onResume() {
         super.onResume();
-        if (mapView != null) mapView.onResume();
+        if (mapView != null)
+            mapView.onResume();
     }
 
     @Override
     public void onPause() {
         super.onPause();
-        if (locationClient != null) locationClient.stopLocation();
-        if (mapView != null) mapView.onPause();
+        if (locationClient != null)
+            locationClient.stopLocation();
+        if (mapView != null)
+            mapView.onPause();
     }
 
     @Override
     public void onSaveInstanceState(@NonNull Bundle outState) {
         super.onSaveInstanceState(outState);
-        if (mapView != null) mapView.onSaveInstanceState(outState);
+        if (mapView != null)
+            mapView.onSaveInstanceState(outState);
     }
 
     @Override
     public void onDestroyView() {
+        if (heatmapRunnable != null) {
+            heatmapHandler.removeCallbacks(heatmapRunnable);
+            heatmapRunnable = null;
+        }
         if (locationClient != null) {
-            try { locationClient.stopLocation(); locationClient.onDestroy(); } catch (Exception ignored) {}
+            try {
+                locationClient.stopLocation();
+                locationClient.onDestroy();
+            } catch (Exception ignored) {
+            }
             locationClient = null;
         }
+        removeHeatmap();
         if (aMap != null) {
-            try { aMap.setMyLocationEnabled(false); } catch (Exception ignored) {}
+            try {
+                aMap.setMyLocationEnabled(false);
+            } catch (Exception ignored) {
+            }
             aMap = null;
         }
         if (mapView != null) {
-            try { mapView.onDestroy(); } catch (Exception ignored) {}
+            try {
+                mapView.onDestroy();
+            } catch (Exception ignored) {
+            }
             mapView = null;
         }
         super.onDestroyView();

@@ -46,25 +46,155 @@
                 app:fabSize="mini"
                 app:backgroundTint="@android:color/white"
                 app:tint="@color/primary" />
+
+            <!-- 热力图切换按钮 -->
+            <com.google.android.material.floatingactionbutton.FloatingActionButton
+                android:id="@+id/fab_heatmap"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:contentDescription="热力图"
+                android:src="@android:drawable/ic_menu_view"
+                app:fabSize="mini"
+                app:backgroundTint="@android:color/white"
+                app:tint="@color/primary" />
+
+            <!-- 推荐按钮 -->
+            <com.google.android.material.floatingactionbutton.FloatingActionButton
+                android:id="@+id/fab_recommend"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:contentDescription="推荐区域"
+                android:src="@android:drawable/ic_menu_compass"
+                app:fabSize="mini"
+                app:backgroundTint="@android:color/white"
+                app:tint="@color/primary" />
         </LinearLayout>
 
-        <!-- 猫咪数量指示 -->
-        <TextView
-            android:id="@+id/map_cat_count"
+        <!-- 左上角信息面板 -->
+        <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="top|start"
+            android:orientation="vertical"
             android:layout_marginTop="16dp"
-            android:layout_marginStart="16dp"
-            android:background="@android:color/white"
-            android:paddingHorizontal="12dp"
-            android:paddingVertical="6dp"
-            android:textSize="12sp"
-            android:textColor="@color/text_primary"
-            android:elevation="4dp"
-            android:text="加载中..." />
+            android:layout_marginStart="16dp">
+
+            <!-- 猫咪数量指示 -->
+            <TextView
+                android:id="@+id/map_cat_count"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="@drawable/bg_map_info_card"
+                android:paddingHorizontal="12dp"
+                android:paddingVertical="6dp"
+                android:textSize="12sp"
+                android:textColor="@color/text_primary"
+                android:elevation="4dp"
+                android:text="加载中..." />
+
+            <!-- 当前模式指示 -->
+            <TextView
+                android:id="@+id/map_mode_indicator"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:background="@drawable/bg_map_mode_chip"
+                android:paddingHorizontal="10dp"
+                android:paddingVertical="4dp"
+                android:textSize="11sp"
+                android:textColor="@android:color/white"
+                android:elevation="4dp"
+                android:visibility="gone"
+                android:text="🔥 热力图模式" />
+        </LinearLayout>
 
     </FrameLayout>
+
+    <!-- 推荐面板 BottomSheet -->
+    <LinearLayout
+        android:id="@+id/bottom_sheet_recommend"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:background="@drawable/bg_bottom_sheet"
+        android:padding="16dp"
+        android:elevation="16dp"
+        app:layout_behavior="com.google.android.material.bottomsheet.BottomSheetBehavior"
+        app:behavior_hideable="true"
+        app:behavior_peekHeight="0dp">
+
+        <!-- 拖动指示条 -->
+        <View
+            android:layout_width="40dp"
+            android:layout_height="4dp"
+            android:layout_gravity="center_horizontal"
+            android:background="@drawable/bg_sheet_handle"
+            android:layout_marginBottom="12dp" />
+
+        <!-- 标题和切换 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <TextView
+                android:id="@+id/recommend_title"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="🐱 猫咪活跃区域 Top5"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:textColor="@color/text_primary" />
+
+            <com.google.android.material.chip.ChipGroup
+                android:id="@+id/recommend_type_group"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                app:singleSelection="true"
+                app:selectionRequired="true">
+
+                <com.google.android.material.chip.Chip
+                    android:id="@+id/chip_high"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="正序"
+                    style="@style/Widget.MaterialComponents.Chip.Choice"
+                    android:checked="true" />
+
+                <com.google.android.material.chip.Chip
+                    android:id="@+id/chip_low"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="倒序"
+                    style="@style/Widget.MaterialComponents.Chip.Choice" />
+            </com.google.android.material.chip.ChipGroup>
+        </LinearLayout>
+
+        <!-- 推荐列表 -->
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/recommend_list"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:maxHeight="280dp"
+            android:nestedScrollingEnabled="true" />
+
+        <!-- 空状态 -->
+        <TextView
+            android:id="@+id/recommend_empty"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="暂无数据，请先上报猫咪位置"
+            android:textSize="14sp"
+            android:textColor="@color/text_secondary"
+            android:gravity="center"
+            android:padding="24dp"
+            android:visibility="gone" />
+    </LinearLayout>
 
     <!-- 上报按钮 -->
     <com.google.android.material.floatingactionbutton.FloatingActionButton

@@ -50,4 +50,6 @@ dependencies {
 
     // 高德地图 SDK（已包含定位功能，无需单独引入 location SDK）
     implementation 'com.amap.api:3dmap:9.6.0'
+    // 高德搜索服务（逆地理编码）
+    implementation 'com.amap.api:search:9.7.0'
 }

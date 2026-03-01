@@ -61,6 +61,9 @@ public class ReportCatDialogFragment extends DialogFragment {
     private Runnable onReportSuccess;
     private double currentLat = 0;
     private double currentLng = 0;
+    // 新增：记录初始定位，用于“回到我的位置”
+    private double initialLat = 0;
+    private double initialLng = 0;
 
     private TextureMapView mapView;
     private AMap aMap;
@@ -83,8 +86,8 @@ public class ReportCatDialogFragment extends DialogFragment {
         onReportSuccess = r;
     }
 
-    private final ActivityResultLauncher<String[]> galleryLauncher = registerForActivityResult(
-            new ActivityResultContracts.OpenMultipleDocuments(), uris -> {
+    private final ActivityResultLauncher<androidx.activity.result.PickVisualMediaRequest> galleryLauncher = registerForActivityResult(
+            new ActivityResultContracts.PickMultipleVisualMedia(), uris -> {
                 if (uris != null) {
                     for (Uri uri : uris) {
                         requireContext().getContentResolver()
@@ -119,6 +122,8 @@ public class ReportCatDialogFragment extends DialogFragment {
         if (getArguments() != null) {
             currentLat = getArguments().getDouble(ARG_LAT, 0);
             currentLng = getArguments().getDouble(ARG_LNG, 0);
+            initialLat = currentLat;
+            initialLng = currentLng;
         }
     }
 
@@ -169,13 +174,35 @@ public class ReportCatDialogFragment extends DialogFragment {
             });
         }
 
+        // 绑定“我的位置”按钮
+        view.findViewById(R.id.report_fab_my_location).setOnClickListener(v -> {
+            if (aMap != null && currentLat != 0 && currentLng != 0) {
+                // 如果已有初始定位，直接回到该位置（假设初始位置即为用户当前位置）
+                // 更好的做法是重新请求一次定位，但为了简化逻辑且避免再次请求权限，这里先复用传入的经纬度或当前中心点
+                // 实际上，这个 Dialog 启动时传入的 lat/lng 就是用户当前定位
+                // 所以我们这里回到初始传入的坐标，或者如果地图移动了，我们希望它能回到“我”的位置
+                // 由于 ReportCatDialogFragment 启动时是接收了当前定位的，我们可以认为 initialLat/Lng (这里被 currentLat
+                // 复用了，需要修正逻辑) 是准的
+                // 但因为 currentLat 会随地图移动而改变，我们需要一个 final 或 member 变量存储“初始定位”
+
+                // 修正：我们需要单独存一下进入页面时的初始定位
+                if (initialLat != 0 && initialLng != 0) {
+                    aMap.animateCamera(CameraUpdateFactory.newLatLngZoom(new LatLng(initialLat, initialLng), 17));
+                }
+            }
+        });
+
         RecyclerView imageList = view.findViewById(R.id.report_image_list);
         imageList.setLayoutManager(new LinearLayoutManager(requireContext(), LinearLayoutManager.HORIZONTAL, false));
         imageAdapter = new ImageAdapter();
         imageList.setAdapter(imageAdapter);
 
         view.findViewById(R.id.report_btn_gallery)
-                .setOnClickListener(v -> galleryLauncher.launch(new String[] { "image/*" }));
+                .setOnClickListener(v -> galleryLauncher.launch(
+                        new androidx.activity.result.PickVisualMediaRequest.Builder()
+                                .setMediaType(
+                                        androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia.ImageOnly.INSTANCE)
+                                .build()));
 
         view.findViewById(R.id.report_btn_camera).setOnClickListener(v -> {
             if (ContextCompat.checkSelfPermission(requireContext(),
