@@ -66,6 +66,15 @@
             app:cornerRadius="8dp" />
 
         <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_my_cat_reports"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="我的上报"
+            android:layout_marginTop="8dp"
+            app:cornerRadius="8dp" />
+
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/btn_edit_profile"
             style="@style/Widget.MaterialComponents.Button.OutlinedButton"
             android:layout_width="match_parent"

@@ -59,4 +59,8 @@
         android:id="@+id/my_comments"
         android:name="com.ourcat.app.fragments.MyCommentsFragment"
         android:label="我的评论" />
+    <fragment
+        android:id="@+id/my_cat_reports"
+        android:name="com.ourcat.app.fragments.MyCatReportsFragment"
+        android:label="我的上报" />
 </navigation>

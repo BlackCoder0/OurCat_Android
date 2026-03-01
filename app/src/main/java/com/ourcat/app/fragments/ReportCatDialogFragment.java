@@ -25,6 +25,11 @@ import androidx.fragment.app.DialogFragment;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.amap.api.maps.AMap;
+import com.amap.api.maps.CameraUpdateFactory;
+import com.amap.api.maps.TextureMapView;
+import com.amap.api.maps.model.CameraPosition;
+import com.amap.api.maps.model.LatLng;
 import com.bumptech.glide.Glide;
 import com.google.android.material.chip.Chip;
 import com.google.android.material.chip.ChipGroup;
@@ -54,8 +59,12 @@ public class ReportCatDialogFragment extends DialogFragment {
     private static final String ARG_LNG = "lng";
 
     private Runnable onReportSuccess;
-    private double initialLat = 0;
-    private double initialLng = 0;
+    private double currentLat = 0;
+    private double currentLng = 0;
+
+    private TextureMapView mapView;
+    private AMap aMap;
+    private TextView locationText;
 
     private final List<Uri> selectedImages = new ArrayList<>();
     private ImageAdapter imageAdapter;
@@ -70,10 +79,12 @@ public class ReportCatDialogFragment extends DialogFragment {
         return f;
     }
 
-    public void setOnReportSuccess(Runnable r) { onReportSuccess = r; }
+    public void setOnReportSuccess(Runnable r) {
+        onReportSuccess = r;
+    }
 
-    private final ActivityResultLauncher<String[]> galleryLauncher =
-            registerForActivityResult(new ActivityResultContracts.OpenMultipleDocuments(), uris -> {
+    private final ActivityResultLauncher<String[]> galleryLauncher = registerForActivityResult(
+            new ActivityResultContracts.OpenMultipleDocuments(), uris -> {
                 if (uris != null) {
                     for (Uri uri : uris) {
                         requireContext().getContentResolver()
@@ -85,18 +96,20 @@ public class ReportCatDialogFragment extends DialogFragment {
                 }
             });
 
-    private final ActivityResultLauncher<Uri> cameraLauncher =
-            registerForActivityResult(new ActivityResultContracts.TakePicture(), success -> {
+    private final ActivityResultLauncher<Uri> cameraLauncher = registerForActivityResult(
+            new ActivityResultContracts.TakePicture(), success -> {
                 if (success && cameraUri != null) {
                     selectedImages.add(cameraUri);
                     imageAdapter.notifyDataSetChanged();
                 }
             });
 
-    private final ActivityResultLauncher<String> cameraPermLauncher =
-            registerForActivityResult(new ActivityResultContracts.RequestPermission(), granted -> {
-                if (granted) launchCamera();
-                else if (isAdded()) Toast.makeText(requireContext(), "需要相机权限", Toast.LENGTH_SHORT).show();
+    private final ActivityResultLauncher<String> cameraPermLauncher = registerForActivityResult(
+            new ActivityResultContracts.RequestPermission(), granted -> {
+                if (granted)
+                    launchCamera();
+                else if (isAdded())
+                    Toast.makeText(requireContext(), "需要相机权限", Toast.LENGTH_SHORT).show();
             });
 
     @Override
@@ -104,8 +117,8 @@ public class ReportCatDialogFragment extends DialogFragment {
         super.onCreate(savedInstanceState);
         setStyle(STYLE_NORMAL, R.style.FullScreenDialog);
         if (getArguments() != null) {
-            initialLat = getArguments().getDouble(ARG_LAT, 0);
-            initialLng = getArguments().getDouble(ARG_LNG, 0);
+            currentLat = getArguments().getDouble(ARG_LAT, 0);
+            currentLng = getArguments().getDouble(ARG_LNG, 0);
         }
     }
 
@@ -122,21 +135,38 @@ public class ReportCatDialogFragment extends DialogFragment {
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,
-                             @Nullable Bundle savedInstanceState) {
+            @Nullable Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.dialog_report_cat, container, false);
 
-        EditText etLat = view.findViewById(R.id.report_lat);
-        EditText etLng = view.findViewById(R.id.report_lng);
         EditText etDesc = view.findViewById(R.id.report_description);
-        TextView locationHint = view.findViewById(R.id.report_location_hint);
 
-        if (initialLat != 0 && initialLng != 0) {
-            etLat.setText(String.format("%.6f", initialLat));
-            etLng.setText(String.format("%.6f", initialLng));
-            locationHint.setText("已自动获取当前位置 ✓");
-        } else {
-            locationHint.setText("未获取到位置，请手动输入或返回地图先点击定位");
-            locationHint.setTextColor(0xFFE65100);
+        // 初始化地图
+        mapView = view.findViewById(R.id.report_map_view);
+        mapView.onCreate(savedInstanceState);
+        locationText = view.findViewById(R.id.report_location_text);
+
+        if (aMap == null) {
+            aMap = mapView.getMap();
+            aMap.getUiSettings().setZoomControlsEnabled(false);
+            aMap.getUiSettings().setMyLocationButtonEnabled(false);
+
+            if (currentLat != 0 && currentLng != 0) {
+                aMap.moveCamera(CameraUpdateFactory.newLatLngZoom(new LatLng(currentLat, currentLng), 17));
+                updateLocationText(currentLat, currentLng);
+            }
+
+            aMap.setOnCameraChangeListener(new AMap.OnCameraChangeListener() {
+                @Override
+                public void onCameraChange(CameraPosition cameraPosition) {
+                }
+
+                @Override
+                public void onCameraChangeFinish(CameraPosition cameraPosition) {
+                    currentLat = cameraPosition.target.latitude;
+                    currentLng = cameraPosition.target.longitude;
+                    updateLocationText(currentLat, currentLng);
+                }
+            });
         }
 
         RecyclerView imageList = view.findViewById(R.id.report_image_list);
@@ -144,12 +174,12 @@ public class ReportCatDialogFragment extends DialogFragment {
         imageAdapter = new ImageAdapter();
         imageList.setAdapter(imageAdapter);
 
-        view.findViewById(R.id.report_btn_gallery).setOnClickListener(v ->
-                galleryLauncher.launch(new String[]{"image/*"}));
+        view.findViewById(R.id.report_btn_gallery)
+                .setOnClickListener(v -> galleryLauncher.launch(new String[] { "image/*" }));
 
         view.findViewById(R.id.report_btn_camera).setOnClickListener(v -> {
-            if (ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.CAMERA)
-                    == PackageManager.PERMISSION_GRANTED) {
+            if (ContextCompat.checkSelfPermission(requireContext(),
+                    Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
                 launchCamera();
             } else {
                 cameraPermLauncher.launch(Manifest.permission.CAMERA);
@@ -157,42 +187,35 @@ public class ReportCatDialogFragment extends DialogFragment {
         });
 
         setupChipGroup(view, R.id.chip_group_color,
-                new String[]{"橘色", "黑色", "白色", "灰色", "花色", "三花", "玳瑁", "狸花", "奶牛"},
+                new String[] { "橘色", "黑色", "白色", "灰色", "花色", "三花", "玳瑁", "狸花", "奶牛" },
                 R.id.report_color_input_layout, true);
         setupChipGroup(view, R.id.chip_group_feature,
-                new String[]{"短毛", "长毛", "折耳", "立耳", "断尾", "有项圈", "有耳标"},
+                new String[] { "短毛", "长毛", "折耳", "立耳", "断尾", "有项圈", "有耳标" },
                 R.id.report_feature_input_layout, false);
         setupChipGroup(view, R.id.chip_group_personality,
-                new String[]{"亲人", "胆小", "凶", "活泼", "安静"},
+                new String[] { "亲人", "胆小", "凶", "活泼", "安静" },
                 R.id.report_personality_input_layout, false);
 
         view.findViewById(R.id.report_submit).setOnClickListener(v -> {
-            String latS = etLat.getText().toString().trim();
-            String lngS = etLng.getText().toString().trim();
-            if (latS.isEmpty() || lngS.isEmpty()) {
-                Toast.makeText(requireContext(), "请填写经纬度", Toast.LENGTH_SHORT).show();
-                return;
-            }
-            double lat, lng;
-            try {
-                lat = Double.parseDouble(latS);
-                lng = Double.parseDouble(lngS);
-            } catch (NumberFormatException e) {
-                Toast.makeText(requireContext(), "经纬度格式错误", Toast.LENGTH_SHORT).show();
+            if (currentLat == 0 || currentLng == 0) {
+                Toast.makeText(requireContext(), "请拖动地图选择有效位置", Toast.LENGTH_SHORT).show();
                 return;
             }
 
             Map<String, Object> body = new HashMap<>();
-            body.put("lat", lat);
-            body.put("lng", lng);
+            body.put("lat", currentLat);
+            body.put("lng", currentLng);
             body.put("description", etDesc.getText().toString().trim());
 
             String color = getChipValues(view, R.id.chip_group_color, R.id.report_color_input, true);
             String feature = getChipValues(view, R.id.chip_group_feature, R.id.report_feature_input, false);
             String personality = getChipValues(view, R.id.chip_group_personality, R.id.report_personality_input, false);
-            if (!color.isEmpty()) body.put("color", color);
-            if (!feature.isEmpty()) body.put("feature", feature);
-            if (!personality.isEmpty()) body.put("personality", personality);
+            if (!color.isEmpty())
+                body.put("color", color);
+            if (!feature.isEmpty())
+                body.put("feature", feature);
+            if (!personality.isEmpty())
+                body.put("personality", personality);
 
             if (!selectedImages.isEmpty()) {
                 uploadImagesThenReport(body);
@@ -205,6 +228,40 @@ public class ReportCatDialogFragment extends DialogFragment {
         return view;
     }
 
+    private void updateLocationText(double lat, double lng) {
+        if (locationText != null) {
+            locationText.setText(String.format("已选: %.5f, %.5f", lat, lng));
+        }
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        if (mapView != null)
+            mapView.onResume();
+    }
+
+    @Override
+    public void onPause() {
+        super.onPause();
+        if (mapView != null)
+            mapView.onPause();
+    }
+
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+        if (mapView != null)
+            mapView.onDestroy();
+    }
+
+    @Override
+    public void onSaveInstanceState(@NonNull Bundle outState) {
+        super.onSaveInstanceState(outState);
+        if (mapView != null)
+            mapView.onSaveInstanceState(outState);
+    }
+
     @Override
     public void onStart() {
         super.onStart();
@@ -215,7 +272,7 @@ public class ReportCatDialogFragment extends DialogFragment {
     }
 
     private void setupChipGroup(View root, int chipGroupId, String[] options,
-                                int inputLayoutId, boolean singleSelection) {
+            int inputLayoutId, boolean singleSelection) {
         ChipGroup group = root.findViewById(chipGroupId);
         group.setSingleSelection(singleSelection);
         TextInputLayout inputLayout = root.findViewById(inputLayoutId);
@@ -240,8 +297,8 @@ public class ReportCatDialogFragment extends DialogFragment {
         otherChip.setChipStrokeColorResource(R.color.text_secondary);
         otherChip.setTextSize(13);
         otherChip.setCheckedIconVisible(true);
-        otherChip.setOnCheckedChangeListener((btn, checked) ->
-                inputLayout.setVisibility(checked ? View.VISIBLE : View.GONE));
+        otherChip.setOnCheckedChangeListener(
+                (btn, checked) -> inputLayout.setVisibility(checked ? View.VISIBLE : View.GONE));
         group.addView(otherChip);
     }
 
@@ -257,7 +314,8 @@ public class ReportCatDialogFragment extends DialogFragment {
                     if ("其他".equals(chip.getText().toString())) {
                         EditText input = root.findViewById(inputEditId);
                         String custom = input != null ? input.getText().toString().trim() : "";
-                        if (!custom.isEmpty()) values.add(custom);
+                        if (!custom.isEmpty())
+                            values.add(custom);
                     } else {
                         values.add(chip.getText().toString());
                     }
@@ -273,7 +331,8 @@ public class ReportCatDialogFragment extends DialogFragment {
         values.put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg");
         cameraUri = requireContext().getContentResolver()
                 .insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values);
-        if (cameraUri != null) cameraLauncher.launch(cameraUri);
+        if (cameraUri != null)
+            cameraLauncher.launch(cameraUri);
     }
 
     private void uploadImagesThenReport(Map<String, Object> body) {
@@ -287,8 +346,9 @@ public class ReportCatDialogFragment extends DialogFragment {
                 .enqueue(new Callback<Map<String, String>>() {
                     @Override
                     public void onResponse(Call<Map<String, String>> call,
-                                           Response<Map<String, String>> response) {
-                        if (!isAdded()) return;
+                            Response<Map<String, String>> response) {
+                        if (!isAdded())
+                            return;
                         if (!response.isSuccessful() || response.body() == null) {
                             Toast.makeText(requireContext(), "获取上传链接失败", Toast.LENGTH_SHORT).show();
                             return;
@@ -321,7 +381,8 @@ public class ReportCatDialogFragment extends DialogFragment {
 
                     @Override
                     public void onFailure(Call<Map<String, String>> call, Throwable t) {
-                        if (isAdded()) Toast.makeText(requireContext(), "网络错误", Toast.LENGTH_SHORT).show();
+                        if (isAdded())
+                            Toast.makeText(requireContext(), "网络错误", Toast.LENGTH_SHORT).show();
                     }
                 });
     }
@@ -332,7 +393,8 @@ public class ReportCatDialogFragment extends DialogFragment {
         FileOutputStream fos = new FileOutputStream(temp);
         byte[] buf = new byte[4096];
         int len;
-        while ((len = is.read(buf)) != -1) fos.write(buf, 0, len);
+        while ((len = is.read(buf)) != -1)
+            fos.write(buf, 0, len);
         fos.close();
         is.close();
         return temp;
@@ -343,12 +405,14 @@ public class ReportCatDialogFragment extends DialogFragment {
                 .enqueue(new Callback<Map<String, Object>>() {
                     @Override
                     public void onResponse(Call<Map<String, Object>> call,
-                                           Response<Map<String, Object>> response) {
-                        if (!isAdded()) return;
+                            Response<Map<String, Object>> response) {
+                        if (!isAdded())
+                            return;
                         if (response.isSuccessful()) {
                             Toast.makeText(requireContext(), "上报成功!", Toast.LENGTH_SHORT).show();
                             dismiss();
-                            if (onReportSuccess != null) onReportSuccess.run();
+                            if (onReportSuccess != null)
+                                onReportSuccess.run();
                         } else {
                             Toast.makeText(requireContext(), "上报失败", Toast.LENGTH_SHORT).show();
                         }
@@ -356,7 +420,8 @@ public class ReportCatDialogFragment extends DialogFragment {
 
                     @Override
                     public void onFailure(Call<Map<String, Object>> call, Throwable t) {
-                        if (isAdded()) Toast.makeText(requireContext(), "网络错误", Toast.LENGTH_SHORT).show();
+                        if (isAdded())
+                            Toast.makeText(requireContext(), "网络错误", Toast.LENGTH_SHORT).show();
                     }
                 });
     }
@@ -364,6 +429,7 @@ public class ReportCatDialogFragment extends DialogFragment {
     private class ImageAdapter extends RecyclerView.Adapter<ImageAdapter.VH> {
         class VH extends RecyclerView.ViewHolder {
             ImageView preview, delete;
+
             VH(View v) {
                 super(v);
                 preview = v.findViewById(R.id.report_img_preview);
@@ -391,6 +457,8 @@ public class ReportCatDialogFragment extends DialogFragment {
         }
 
         @Override
-        public int getItemCount() { return selectedImages.size(); }
+        public int getItemCount() {
+            return selectedImages.size();
+        }
     }
 }

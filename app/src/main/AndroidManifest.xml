@@ -21,6 +21,7 @@
     <application
         android:name=".OurCatApp"
         android:allowBackup="true"
+        android:allowNativeHeapPointerTagging="false"
         android:icon="@drawable/ic_launcher_foreground"
         android:label="@string/app_name"
         android:roundIcon="@drawable/ic_launcher_foreground"

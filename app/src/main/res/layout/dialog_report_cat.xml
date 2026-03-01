@@ -63,65 +63,42 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="📍 位置信息"
+                android:text="📍 拖动地图选择位置"
                 android:textSize="15sp"
                 android:textStyle="bold"
                 android:textColor="@color/text_primary" />
 
-            <TextView
-                android:id="@+id/report_location_hint"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
-                android:text="定位中..."
-                android:textSize="12sp"
-                android:textColor="@color/text_secondary" />
-
-            <LinearLayout
+            <com.ourcat.app.views.MapTouchWrapper
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
+                android:layout_height="250dp"
                 android:layout_marginTop="8dp">
 
-                <com.google.android.material.textfield.TextInputLayout
-                    android:layout_width="0dp"
+                <com.amap.api.maps.TextureMapView
+                    android:id="@+id/report_map_view"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent" />
+
+                <ImageView
+                    android:layout_width="60dp"
+                    android:layout_height="60dp"
+                    android:layout_gravity="center"
+                    android:elevation="6dp"
+                    android:src="@drawable/ic_launcher_foreground"
+                    app:tint="@color/primary" />
+
+                <TextView
+                    android:id="@+id/report_location_text"
+                    android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:layout_marginEnd="8dp"
-                    android:hint="纬度"
-                    app:boxBackgroundMode="outline"
-                    app:boxCornerRadiusTopStart="8dp"
-                    app:boxCornerRadiusTopEnd="8dp"
-                    app:boxCornerRadiusBottomStart="8dp"
-                    app:boxCornerRadiusBottomEnd="8dp">
+                    android:layout_gravity="bottom|center_horizontal"
+                    android:layout_marginBottom="8dp"
+                    android:background="#80000000"
+                    android:padding="4dp"
+                    android:textColor="@android:color/white"
+                    android:textSize="12sp"
+                    android:text="加载中..." />
 
-                    <com.google.android.material.textfield.TextInputEditText
-                        android:id="@+id/report_lat"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:inputType="numberDecimal|numberSigned"
-                        android:textSize="14sp" />
-                </com.google.android.material.textfield.TextInputLayout>
-
-                <com.google.android.material.textfield.TextInputLayout
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:hint="经度"
-                    app:boxBackgroundMode="outline"
-                    app:boxCornerRadiusTopStart="8dp"
-                    app:boxCornerRadiusTopEnd="8dp"
-                    app:boxCornerRadiusBottomStart="8dp"
-                    app:boxCornerRadiusBottomEnd="8dp">
-
-                    <com.google.android.material.textfield.TextInputEditText
-                        android:id="@+id/report_lng"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:inputType="numberDecimal|numberSigned"
-                        android:textSize="14sp" />
-                </com.google.android.material.textfield.TextInputLayout>
-            </LinearLayout>
+            </com.ourcat.app.views.MapTouchWrapper>
 
             <!-- 分隔线 -->
             <View

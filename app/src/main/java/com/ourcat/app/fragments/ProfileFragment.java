@@ -50,6 +50,8 @@ public class ProfileFragment extends Fragment {
                 NavHostFragment.findNavController(ProfileFragment.this).navigate(R.id.my_posts));
         view.findViewById(R.id.btn_my_comments).setOnClickListener(v ->
                 NavHostFragment.findNavController(ProfileFragment.this).navigate(R.id.my_comments));
+        view.findViewById(R.id.btn_my_cat_reports).setOnClickListener(v ->
+                NavHostFragment.findNavController(ProfileFragment.this).navigate(R.id.my_cat_reports));
         view.findViewById(R.id.btn_edit_profile).setOnClickListener(v -> {
             Toast.makeText(requireContext(), "编辑资料（可后续扩展）", Toast.LENGTH_SHORT).show();
         });

@@ -21,4 +21,10 @@ public interface CatApi {
 
     @POST("/api/cat/report")
     Call<Map<String, Object>> report(@Body Map<String, Object> body);
+
+    @GET("/api/cat/my-reports")
+    Call<List<Map<String, Object>>> getMyReports();
+
+    @retrofit2.http.DELETE("/api/cat/reports/{id}")
+    Call<Map<String, Object>> deleteReport(@retrofit2.http.Path("id") long id);
 }

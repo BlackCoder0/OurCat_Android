@@ -3,11 +3,13 @@ package com.ourcat.app.fragments;
 import android.Manifest;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
+import android.graphics.BitmapShader;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Path;
 import android.graphics.RectF;
+import android.graphics.Shader;
 import android.graphics.Typeface;
 import android.os.Bundle;
 import android.util.Log;
@@ -22,8 +24,11 @@ import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.appcompat.app.AlertDialog;
 import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
 import com.amap.api.location.AMapLocation;
 import com.amap.api.location.AMapLocationClient;
@@ -41,6 +46,8 @@ import com.amap.api.maps.model.Marker;
 import com.amap.api.maps.model.MarkerOptions;
 import com.amap.api.maps.model.MyLocationStyle;
 import com.bumptech.glide.Glide;
+import com.bumptech.glide.request.target.SimpleTarget;
+import com.bumptech.glide.request.transition.Transition;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.ourcat.app.R;
 import com.ourcat.app.repositories.CatApi;
@@ -59,6 +66,7 @@ public class MapFragment extends Fragment implements AMapLocationListener {
 
     private static final String TAG = "MapFragment";
     private static final double CLUSTER_DISTANCE_DP = 22;
+    private static final float MAX_ZOOM = 20f;
 
     private TextureMapView mapView;
     private AMap aMap;
@@ -140,7 +148,12 @@ public class MapFragment extends Fragment implements AMapLocationListener {
             if (data instanceof List) {
                 @SuppressWarnings("unchecked")
                 List<Map<String, Object>> cluster = (List<Map<String, Object>>) data;
-                zoomToCluster(cluster);
+                float zoom = aMap.getCameraPosition().zoom;
+                if (zoom >= MAX_ZOOM - 0.5f) {
+                    showClusterListDialog(cluster);
+                } else {
+                    zoomToCluster(cluster);
+                }
                 return true;
             }
             marker.showInfoWindow();
@@ -157,6 +170,92 @@ public class MapFragment extends Fragment implements AMapLocationListener {
         });
 
         aMap.moveCamera(CameraUpdateFactory.newLatLngZoom(new LatLng(23.13, 113.26), 14));
+    }
+
+    private void showClusterListDialog(List<Map<String, Object>> cluster) {
+        if (!isAdded() || cluster.isEmpty()) return;
+
+        View dialogView = LayoutInflater.from(requireContext())
+                .inflate(R.layout.dialog_cluster_list, null);
+        RecyclerView rv = dialogView.findViewById(R.id.cluster_list);
+        rv.setLayoutManager(new LinearLayoutManager(requireContext()));
+
+        AlertDialog dialog = new AlertDialog.Builder(requireContext())
+                .setTitle("附近发现 " + cluster.size() + " 只猫咪")
+                .setView(dialogView)
+                .setNegativeButton("关闭", null)
+                .create();
+
+        rv.setAdapter(new RecyclerView.Adapter<ClusterVH>() {
+            @NonNull
+            @Override
+            public ClusterVH onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+                return new ClusterVH(LayoutInflater.from(parent.getContext())
+                        .inflate(R.layout.item_cat_report, parent, false));
+            }
+
+            @Override
+            public void onBindViewHolder(@NonNull ClusterVH h, int position) {
+                Map<String, Object> item = cluster.get(position);
+                String colorStr = str(item.get("color"));
+                h.color.setText(colorStr.isEmpty() ? "猫咪" : colorStr + "猫");
+
+                String featureStr = str(item.get("feature"));
+                String personalityStr = str(item.get("personality"));
+                String combined = featureStr;
+                if (!personalityStr.isEmpty()) {
+                    combined = combined.isEmpty() ? personalityStr : combined + " · " + personalityStr;
+                }
+                h.feature.setText(combined.isEmpty() ? "暂无描述" : combined);
+
+                Object latObj = item.get("lat");
+                Object lngObj = item.get("lng");
+                if (latObj != null && lngObj != null) {
+                    h.location.setText(String.format("📍 %.4f, %.4f",
+                            ((Number) latObj).doubleValue(), ((Number) lngObj).doubleValue()));
+                }
+
+                String timeStr = str(item.get("reportTime"));
+                h.time.setText(timeStr.isEmpty() ? "" : "🕐 " + timeStr);
+
+                String imageUrl = str(item.get("imageUrl"));
+                if (!imageUrl.isEmpty()) {
+                    Glide.with(h.image).load(imageUrl).centerCrop().into(h.image);
+                } else {
+                    h.image.setImageResource(android.R.color.darker_gray);
+                }
+
+                h.delete.setVisibility(View.GONE);
+                h.itemView.setOnClickListener(v -> {
+                    dialog.dismiss();
+                    if (latObj != null && lngObj != null) {
+                        aMap.animateCamera(CameraUpdateFactory.newLatLngZoom(
+                                new LatLng(((Number) latObj).doubleValue(), ((Number) lngObj).doubleValue()),
+                                MAX_ZOOM));
+                    }
+                });
+            }
+
+            @Override
+            public int getItemCount() { return cluster.size(); }
+        });
+
+        dialog.show();
+    }
+
+    static class ClusterVH extends RecyclerView.ViewHolder {
+        ImageView image;
+        TextView color, feature, location, time;
+        View delete;
+        ClusterVH(View v) {
+            super(v);
+            image = v.findViewById(R.id.item_image);
+            color = v.findViewById(R.id.item_color);
+            feature = v.findViewById(R.id.item_feature);
+            location = v.findViewById(R.id.item_location);
+            time = v.findViewById(R.id.item_time);
+            delete = v.findViewById(R.id.item_delete);
+        }
     }
 
     private void zoomToCluster(List<Map<String, Object>> cluster) {
@@ -320,8 +419,6 @@ public class MapFragment extends Fragment implements AMapLocationListener {
                 });
     }
 
-    // ────────────────── Clustering ──────────────────
-
     private void clusterAndDisplay() {
         if (aMap == null || allLocations.isEmpty()) return;
         aMap.clear();
@@ -366,8 +463,6 @@ public class MapFragment extends Fragment implements AMapLocationListener {
         }
     }
 
-    // ────────────────── Single Marker (pin shape) ──────────────────
-
     private void addSingleMarker(Map<String, Object> loc) {
         double lat = ((Number) loc.get("lat")).doubleValue();
         double lng = ((Number) loc.get("lng")).doubleValue();
@@ -375,6 +470,7 @@ public class MapFragment extends Fragment implements AMapLocationListener {
         String desc = str(loc.get("description"));
         String time = str(loc.get("reportTime"));
         String feature = str(loc.get("feature"));
+        String imageUrl = str(loc.get("imageUrl"));
 
         String title = color.isEmpty() ? "猫咪" : color + "猫";
         StringBuilder snippet = new StringBuilder();
@@ -388,20 +484,88 @@ public class MapFragment extends Fragment implements AMapLocationListener {
             snippet.append("上报: ").append(time);
         }
 
-        BitmapDescriptor icon = createPinMarker(getMarkerColor(color));
+        LatLng pos = new LatLng(lat, lng);
+        int markerColor = getMarkerColor(color);
 
-        Marker marker = aMap.addMarker(new MarkerOptions()
-                .position(new LatLng(lat, lng))
-                .title(title)
-                .snippet(snippet.toString())
-                .icon(icon)
-                .anchor(0.5f, 1.0f)
-                .zIndex(10));
-
-        markerDataMap.put(marker.getId(), loc);
+        if (!imageUrl.isEmpty()) {
+            Glide.with(this)
+                    .asBitmap()
+                    .load(imageUrl)
+                    .circleCrop()
+                    .override((int) (44 * density), (int) (44 * density))
+                    .into(new SimpleTarget<Bitmap>() {
+                        @Override
+                        public void onResourceReady(@NonNull Bitmap resource,
+                                                    @Nullable Transition<? super Bitmap> transition) {
+                            if (!isAdded() || aMap == null) return;
+                            BitmapDescriptor icon = createImagePinMarker(resource, markerColor);
+                            Marker marker = aMap.addMarker(new MarkerOptions()
+                                    .position(pos)
+                                    .title(title)
+                                    .snippet(snippet.toString())
+                                    .icon(icon)
+                                    .anchor(0.5f, 1.0f)
+                                    .zIndex(10));
+                            markerDataMap.put(marker.getId(), loc);
+                        }
+                    });
+        } else {
+            BitmapDescriptor icon = createDefaultPinMarker(markerColor);
+            Marker marker = aMap.addMarker(new MarkerOptions()
+                    .position(pos)
+                    .title(title)
+                    .snippet(snippet.toString())
+                    .icon(icon)
+                    .anchor(0.5f, 1.0f)
+                    .zIndex(10));
+            markerDataMap.put(marker.getId(), loc);
+        }
     }
 
-    private BitmapDescriptor createPinMarker(int fillColor) {
+    private BitmapDescriptor createImagePinMarker(Bitmap photo, int borderColor) {
+        int w = (int) (48 * density);
+        int h = (int) (58 * density);
+        int circleR = (int) (20 * density);
+        int cx = w / 2;
+        int cy = (int) (22 * density);
+        float border = 3f * density;
+
+        Bitmap bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
+        Canvas c = new Canvas(bmp);
+
+        Paint shadowP = new Paint(Paint.ANTI_ALIAS_FLAG);
+        shadowP.setColor(0x40000000);
+        Path shadowPath = new Path();
+        shadowPath.moveTo(cx - 6 * density, cy + circleR * 0.5f);
+        shadowPath.lineTo(cx + 1 * density, h);
+        shadowPath.lineTo(cx + 8 * density, cy + circleR * 0.5f);
+        shadowPath.close();
+        c.drawPath(shadowPath, shadowP);
+        c.drawCircle(cx + 1 * density, cy + 1 * density, circleR + border / 2, shadowP);
+
+        Paint borderP = new Paint(Paint.ANTI_ALIAS_FLAG);
+        borderP.setColor(borderColor);
+        Path pinPath = new Path();
+        pinPath.moveTo(cx - 6 * density, cy + circleR * 0.5f);
+        pinPath.lineTo(cx, h - 2 * density);
+        pinPath.lineTo(cx + 6 * density, cy + circleR * 0.5f);
+        pinPath.close();
+        c.drawPath(pinPath, borderP);
+        c.drawCircle(cx, cy, circleR + border / 2, borderP);
+
+        Bitmap scaled = Bitmap.createScaledBitmap(photo, circleR * 2, circleR * 2, true);
+        BitmapShader shader = new BitmapShader(scaled, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP);
+        Paint imgP = new Paint(Paint.ANTI_ALIAS_FLAG);
+        imgP.setShader(shader);
+        c.save();
+        c.translate(cx - circleR, cy - circleR);
+        c.drawCircle(circleR, circleR, circleR - 1, imgP);
+        c.restore();
+
+        return BitmapDescriptorFactory.fromBitmap(bmp);
+    }
+
+    private BitmapDescriptor createDefaultPinMarker(int fillColor) {
         int w = (int) (36 * density);
         int h = (int) (48 * density);
         int circleR = (int) (14 * density);
@@ -457,8 +621,6 @@ public class MapFragment extends Fragment implements AMapLocationListener {
         return BitmapDescriptorFactory.fromBitmap(bmp);
     }
 
-    // ────────────────── Cluster Marker (badge) ──────────────────
-
     private void addClusterMarker(List<Map<String, Object>> cluster) {
         double sumLat = 0, sumLng = 0;
         for (Map<String, Object> loc : cluster) {
@@ -472,7 +634,7 @@ public class MapFragment extends Fragment implements AMapLocationListener {
 
         Marker marker = aMap.addMarker(new MarkerOptions()
                 .position(new LatLng(avgLat, avgLng))
-                .title(cluster.size() + " 只猫咪（点击放大查看）")
+                .title(cluster.size() + " 只猫咪")
                 .icon(icon)
                 .anchor(0.5f, 0.5f)
                 .zIndex(20));
@@ -518,8 +680,6 @@ public class MapFragment extends Fragment implements AMapLocationListener {
         return BitmapDescriptorFactory.fromBitmap(bmp);
     }
 
-    // ────────────────── Helpers ──────────────────
-
     private int getMarkerColor(String color) {
         if (color == null || color.isEmpty()) return 0xFFFF6D00;
         if (color.contains("橘")) return 0xFFFF6D00;
@@ -546,8 +706,6 @@ public class MapFragment extends Fragment implements AMapLocationListener {
     private String str(Object o) {
         return o != null ? o.toString() : "";
     }
-
-    // ────────────────── Lifecycle ──────────────────
 
     @Override
     public void onResume() {
