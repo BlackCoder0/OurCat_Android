@@ -9,6 +9,7 @@
     app:cardElevation="2dp">
 
     <LinearLayout
+        android:id="@+id/item_square_container"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
@@ -25,10 +26,10 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:textSize="12sp"
-                android:textColor="@color/primary"
+                android:textColor="@android:color/white"
                 android:paddingHorizontal="8dp"
                 android:paddingVertical="2dp"
-                android:background="@color/secondary" />
+                android:background="@drawable/bg_map_mode_chip" />
             <TextView
                 android:id="@+id/item_square_status"
                 android:layout_width="wrap_content"
@@ -47,5 +48,19 @@
             android:textColor="@color/text_primary"
             android:maxLines="3"
             android:ellipsize="end" />
+
+        <TextView
+            android:id="@+id/item_square_location"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:textSize="12sp"
+            android:textColor="@color/text_secondary"
+            android:drawableStart="@android:drawable/ic_menu_mylocation"
+            android:drawablePadding="4dp"
+            android:gravity="center_vertical"
+            android:maxLines="1"
+            android:ellipsize="end"
+            android:visibility="gone" />
     </LinearLayout>
 </com.google.android.material.card.MaterialCardView>

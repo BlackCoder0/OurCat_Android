@@ -14,6 +14,18 @@
         android:name="com.ourcat.app.fragments.SquareFragment"
         android:label="@string/title_square" />
     <fragment
+        android:id="@+id/square_detail"
+        android:name="com.ourcat.app.fragments.SquareDetailFragment"
+        android:label="广播详情">
+        <argument
+            android:name="squarePostId"
+            app:argType="long" />
+    </fragment>
+    <fragment
+        android:id="@+id/create_square_post"
+        android:name="com.ourcat.app.fragments.CreateSquarePostFragment"
+        android:label="发布广播" />
+    <fragment
         android:id="@+id/nav_me"
         android:name="com.ourcat.app.fragments.ProfileFragment"
         android:label="@string/title_me" />
