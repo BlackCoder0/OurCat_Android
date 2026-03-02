@@ -56,6 +56,7 @@ import com.ourcat.app.utils.RetrofitHelper;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 import retrofit2.Call;
@@ -98,6 +99,7 @@ public class MapFragment extends Fragment implements AMapLocationListener {
     private boolean isHighRecommend = true;
 
     private boolean lastWasPreciseMode = false;
+    private Marker currentMarker;
     private android.os.Handler heatmapHandler = new android.os.Handler(android.os.Looper.getMainLooper());
     private Runnable heatmapRunnable;
     private static final long HEATMAP_DEBOUNCE_MS = 300;
@@ -276,8 +278,19 @@ public class MapFragment extends Fragment implements AMapLocationListener {
                 }
                 return true;
             }
+            if (currentMarker != null && currentMarker.isInfoWindowShown()) {
+                currentMarker.hideInfoWindow();
+            }
+            currentMarker = marker;
             marker.showInfoWindow();
             return true;
+        });
+
+        aMap.setOnMapClickListener(latLng -> {
+            if (currentMarker != null && currentMarker.isInfoWindowShown()) {
+                currentMarker.hideInfoWindow();
+                currentMarker = null;
+            }
         });
 
         aMap.setOnCameraChangeListener(new AMap.OnCameraChangeListener() {
@@ -291,6 +304,7 @@ public class MapFragment extends Fragment implements AMapLocationListener {
                     scheduleHeatmapUpdate(pos.zoom);
                 } else if (!allLocations.isEmpty()) {
                     clusterAndDisplay();
+                    buildRecommendFromLocal();
                 }
             }
         });
@@ -780,7 +794,8 @@ public class MapFragment extends Fragment implements AMapLocationListener {
                         @Override
                         public void onResponse(Call<List<Map<String, Object>>> call,
                                 Response<List<Map<String, Object>>> response) {
-                            if (!isAdded()) return;
+                            if (!isAdded())
+                                return;
                             if (response.isSuccessful() && response.body() != null) {
                                 allLocations.clear();
                                 allLocations.addAll(response.body());
@@ -811,20 +826,26 @@ public class MapFragment extends Fragment implements AMapLocationListener {
         }
 
         LatLngBounds bounds = aMap.getProjection().getVisibleRegion().latLngBounds;
+        float zoom = aMap.getCameraPosition().zoom;
+        int precision = getRecommendGridPrecision(zoom);
 
         java.util.Map<String, List<Map<String, Object>>> gridMap = new HashMap<>();
         for (Map<String, Object> loc : allLocations) {
             Object latObj = loc.get("lat");
             Object lngObj = loc.get("lng");
-            if (latObj == null || lngObj == null) continue;
+            if (latObj == null || lngObj == null)
+                continue;
 
             double lat = ((Number) latObj).doubleValue();
             double lng = ((Number) lngObj).doubleValue();
             LatLng ll = new LatLng(lat, lng);
 
-            if (!bounds.contains(ll)) continue;
+            if (!bounds.contains(ll))
+                continue;
 
-            String gridKey = String.format("%.3f,%.3f", lat, lng);
+            double gridLat = roundTo(lat, precision);
+            double gridLng = roundTo(lng, precision);
+            String gridKey = String.format(Locale.US, "%." + precision + "f,%." + precision + "f", gridLat, gridLng);
             if (!gridMap.containsKey(gridKey)) {
                 gridMap.put(gridKey, new ArrayList<>());
             }
@@ -869,7 +890,26 @@ public class MapFragment extends Fragment implements AMapLocationListener {
         loadAddressesForRecommend();
     }
 
+    private int getRecommendGridPrecision(float zoom) {
+        if (zoom < 9f)
+            return 1;
+        if (zoom < 13f)
+            return 2;
+        return 3;
+    }
+
+    private double roundTo(double value, int precision) {
+        double p = Math.pow(10, precision);
+        return Math.round(value * p) / p;
+    }
+
     private void loadAddressesForRecommend() {
+        if (aMap == null)
+            return;
+        float zoom = aMap.getCameraPosition().zoom;
+        int precision = getRecommendGridPrecision(zoom);
+        float radius = (precision == 1) ? 5000f : (precision == 2 ? 1000f : 200f);
+
         for (int i = 0; i < recommendData.size(); i++) {
             final int index = i;
             Map<String, Object> item = recommendData.get(i);
@@ -877,33 +917,37 @@ public class MapFragment extends Fragment implements AMapLocationListener {
             double lng = ((Number) item.get("lng")).doubleValue();
 
             try {
-                com.amap.api.services.geocoder.GeocodeSearch geocodeSearch =
-                        new com.amap.api.services.geocoder.GeocodeSearch(requireContext());
-                geocodeSearch.setOnGeocodeSearchListener(new com.amap.api.services.geocoder.GeocodeSearch.OnGeocodeSearchListener() {
-                    @Override
-                    public void onRegeocodeSearched(com.amap.api.services.geocoder.RegeocodeResult result, int rCode) {
-                        if (!isAdded()) return;
-                        if (rCode == 1000 && result != null && result.getRegeocodeAddress() != null) {
-                            String address = result.getRegeocodeAddress().getFormatAddress();
-                            if (address != null && !address.isEmpty()) {
-                                String shortAddr = simplifyAddress(address);
-                                if (index < recommendData.size()) {
-                                    recommendData.get(index).put("name", shortAddr);
-                                    if (recommendList.getAdapter() != null) {
-                                        recommendList.getAdapter().notifyItemChanged(index);
+                com.amap.api.services.geocoder.GeocodeSearch geocodeSearch = new com.amap.api.services.geocoder.GeocodeSearch(
+                        requireContext());
+                geocodeSearch.setOnGeocodeSearchListener(
+                        new com.amap.api.services.geocoder.GeocodeSearch.OnGeocodeSearchListener() {
+                            @Override
+                            public void onRegeocodeSearched(com.amap.api.services.geocoder.RegeocodeResult result,
+                                    int rCode) {
+                                if (!isAdded())
+                                    return;
+                                if (rCode == 1000 && result != null && result.getRegeocodeAddress() != null) {
+                                    String shortAddr = getAddressByPrecision(result.getRegeocodeAddress(), precision);
+                                    if (shortAddr != null && !shortAddr.isEmpty()) {
+                                        if (index < recommendData.size()) {
+                                            recommendData.get(index).put("name", shortAddr);
+                                            if (recommendList.getAdapter() != null) {
+                                                recommendList.getAdapter().notifyItemChanged(index);
+                                            }
+                                        }
                                     }
                                 }
                             }
-                        }
-                    }
 
-                    @Override
-                    public void onGeocodeSearched(com.amap.api.services.geocoder.GeocodeResult result, int rCode) {}
-                });
+                            @Override
+                            public void onGeocodeSearched(com.amap.api.services.geocoder.GeocodeResult result,
+                                    int rCode) {
+                            }
+                        });
 
-                com.amap.api.services.geocoder.RegeocodeQuery query =
-                        new com.amap.api.services.geocoder.RegeocodeQuery(
-                                new com.amap.api.services.core.LatLonPoint(lat, lng), 100, com.amap.api.services.geocoder.GeocodeSearch.AMAP);
+                com.amap.api.services.geocoder.RegeocodeQuery query = new com.amap.api.services.geocoder.RegeocodeQuery(
+                        new com.amap.api.services.core.LatLonPoint(lat, lng), radius,
+                        com.amap.api.services.geocoder.GeocodeSearch.AMAP);
                 geocodeSearch.getFromLocationAsyn(query);
             } catch (Exception e) {
                 Log.e(TAG, "Geocode failed for index " + index, e);
@@ -911,8 +955,49 @@ public class MapFragment extends Fragment implements AMapLocationListener {
         }
     }
 
+    private String getAddressByPrecision(com.amap.api.services.geocoder.RegeocodeAddress address, int precision) {
+        if (address == null)
+            return "";
+
+        // precision 1: Zoom < 9 (10km+), prefer District/City
+        if (precision == 1) {
+            String district = address.getDistrict();
+            if (district != null && !district.isEmpty())
+                return district + "附近";
+            return address.getCity();
+        }
+
+        // precision 2: Zoom < 13 (1km+), prefer Township/Neighborhood/AOI
+        if (precision == 2) {
+            // Try AOI first (e.g. University, Park)
+            if (address.getAois() != null && !address.getAois().isEmpty()) {
+                return address.getAois().get(0).getAoiName() + "附近";
+            }
+            // Fallback to township/neighborhood
+            String township = address.getTownship();
+            String neighborhood = address.getNeighborhood();
+            if (neighborhood != null && !neighborhood.isEmpty())
+                return neighborhood;
+            if (township != null && !township.isEmpty())
+                return township;
+            // Last resort: format address but simplified
+            return simplifyAddress(address.getFormatAddress());
+        }
+
+        // precision 3: Zoom >= 13 (100m), prefer specific building or POI
+        // Try POI first if available (not directly in RegeocodeAddress root, usually
+        // need POI search,
+        // but let's use building/format address)
+        String building = address.getBuilding();
+        if (building != null && !building.isEmpty())
+            return building;
+
+        return simplifyAddress(address.getFormatAddress());
+    }
+
     private String simplifyAddress(String fullAddress) {
-        if (fullAddress == null) return "";
+        if (fullAddress == null)
+            return "";
         String result = fullAddress
                 .replaceAll("^中国", "")
                 .replaceAll("^广东省|^北京市|^上海市|^天津市|^重庆市", "");
@@ -976,7 +1061,12 @@ public class MapFragment extends Fragment implements AMapLocationListener {
                     double lat = ((Number) latObj).doubleValue();
                     double lng = ((Number) lngObj).doubleValue();
                     bottomSheetBehavior.setState(BottomSheetBehavior.STATE_HIDDEN);
-                    aMap.animateCamera(CameraUpdateFactory.newLatLngZoom(new LatLng(lat, lng), 16));
+
+                    float currentZoom = aMap.getCameraPosition().zoom;
+                    int precision = getRecommendGridPrecision(currentZoom);
+                    float targetZoom = (precision == 1) ? 10f : (precision == 2 ? 14f : 17f);
+
+                    aMap.animateCamera(CameraUpdateFactory.newLatLngZoom(new LatLng(lat, lng), targetZoom));
                 }
             });
         }

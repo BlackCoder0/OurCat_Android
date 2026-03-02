@@ -38,26 +38,26 @@ public class ProfileFragment extends Fragment {
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,
-                             @Nullable Bundle savedInstanceState) {
+            @Nullable Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_profile, container, false);
         avatar = view.findViewById(R.id.avatar);
         tvNickname = view.findViewById(R.id.tv_nickname);
         tvRole = view.findViewById(R.id.tv_role);
         btnUserManage = view.findViewById(R.id.btn_user_manage);
 
-        setupOption(view, R.id.btn_message_center, "消息中心", v ->
-                NavHostFragment.findNavController(ProfileFragment.this).navigate(R.id.message_center));
-        setupOption(view, R.id.btn_my_posts, "我的帖子", v ->
-                NavHostFragment.findNavController(ProfileFragment.this).navigate(R.id.my_posts));
-        setupOption(view, R.id.btn_my_comments, "我的评论", v ->
-                NavHostFragment.findNavController(ProfileFragment.this).navigate(R.id.my_comments));
-        setupOption(view, R.id.btn_my_cat_reports, "我的上报", v ->
-                NavHostFragment.findNavController(ProfileFragment.this).navigate(R.id.my_cat_reports));
-        setupOption(view, R.id.btn_edit_profile, "编辑资料", v ->
-                Toast.makeText(requireContext(), "编辑资料（可后续扩展）", Toast.LENGTH_SHORT).show());
+        setupOption(view, R.id.btn_message_center, "消息中心",
+                v -> NavHostFragment.findNavController(ProfileFragment.this).navigate(R.id.message_center));
+        setupOption(view, R.id.btn_my_posts, "我的帖子",
+                v -> NavHostFragment.findNavController(ProfileFragment.this).navigate(R.id.my_posts));
+        setupOption(view, R.id.btn_my_comments, "我的评论",
+                v -> NavHostFragment.findNavController(ProfileFragment.this).navigate(R.id.my_comments));
+        setupOption(view, R.id.btn_my_cat_reports, "我的上报",
+                v -> NavHostFragment.findNavController(ProfileFragment.this).navigate(R.id.my_cat_reports));
+        setupOption(view, R.id.btn_edit_profile, "编辑资料",
+                v -> Toast.makeText(requireContext(), "编辑资料（可后续扩展）", Toast.LENGTH_SHORT).show());
         setupOption(view, R.id.btn_change_password, "修改密码", v -> showChangePasswordDialog());
-        setupOption(view, R.id.btn_user_manage, "用户管理", v ->
-                NavHostFragment.findNavController(ProfileFragment.this).navigate(R.id.user_management));
+        setupOption(view, R.id.btn_user_manage, "用户管理",
+                v -> NavHostFragment.findNavController(ProfileFragment.this).navigate(R.id.user_management));
 
         view.findViewById(R.id.btn_logout).setOnClickListener(v -> {
             new TokenStore(requireContext()).clear();
@@ -96,6 +96,7 @@ public class ProfileFragment extends Fragment {
                             btnUserManage.setVisibility(r >= 3 ? View.VISIBLE : View.GONE);
                         }
                     }
+
                     @Override
                     public void onFailure(Call<Map<String, Object>> call, Throwable t) {
                         tvNickname.setText("--");
@@ -112,17 +113,20 @@ public class ProfileFragment extends Fragment {
 
         EditText etOld = new EditText(requireContext());
         etOld.setHint("原密码");
-        etOld.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD);
+        etOld.setInputType(
+                android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD);
         layout.addView(etOld);
 
         EditText etNew = new EditText(requireContext());
         etNew.setHint("新密码（至少6位）");
-        etNew.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD);
+        etNew.setInputType(
+                android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD);
         layout.addView(etNew);
 
         EditText etConfirm = new EditText(requireContext());
         etConfirm.setHint("确认新密码");
-        etConfirm.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD);
+        etConfirm.setInputType(
+                android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD);
         layout.addView(etConfirm);
 
         new AlertDialog.Builder(requireContext())
@@ -158,7 +162,8 @@ public class ProfileFragment extends Fragment {
                 .enqueue(new Callback<Map<String, Object>>() {
                     @Override
                     public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
-                        if (!isAdded()) return;
+                        if (!isAdded())
+                            return;
                         if (response.isSuccessful()) {
                             Toast.makeText(requireContext(), "密码修改成功", Toast.LENGTH_SHORT).show();
                         } else {
@@ -166,15 +171,19 @@ public class ProfileFragment extends Fragment {
                             try {
                                 if (response.errorBody() != null) {
                                     String err = response.errorBody().string();
-                                    if (err.contains("原密码错误")) msg = "原密码错误";
+                                    if (err.contains("原密码错误"))
+                                        msg = "原密码错误";
                                 }
-                            } catch (Exception ignored) {}
+                            } catch (Exception ignored) {
+                            }
                             Toast.makeText(requireContext(), msg, Toast.LENGTH_SHORT).show();
                         }
                     }
+
                     @Override
                     public void onFailure(Call<Map<String, Object>> call, Throwable t) {
-                        if (!isAdded()) return;
+                        if (!isAdded())
+                            return;
                         Toast.makeText(requireContext(), "网络错误", Toast.LENGTH_SHORT).show();
                     }
                 });
