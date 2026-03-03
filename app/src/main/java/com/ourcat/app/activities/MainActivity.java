@@ -1,22 +1,36 @@
 package com.ourcat.app.activities;
 
+import android.Manifest;
 import android.graphics.Rect;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
+import android.view.Menu;
+import android.view.MenuItem;
 import android.view.View;
 
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.activity.OnBackPressedCallback;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.content.ContextCompat;
 import androidx.navigation.NavController;
 import androidx.navigation.NavOptions;
 import androidx.navigation.fragment.NavHostFragment;
 import androidx.navigation.ui.AppBarConfiguration;
 import androidx.navigation.ui.NavigationUI;
 
+import com.amap.api.location.AMapLocationClient;
+import com.amap.api.location.AMapLocationClientOption;
 import com.google.android.material.appbar.MaterialToolbar;
+import com.google.android.material.badge.BadgeDrawable;
+import com.google.android.material.badge.BadgeUtils;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.ourcat.app.R;
 import com.ourcat.app.fragments.MapFragment;
+import com.ourcat.app.repositories.MessageApi;
+import com.ourcat.app.repositories.WeatherApi;
 import com.ourcat.app.utils.RetrofitHelper;
 
 import java.util.List;
@@ -34,12 +48,30 @@ public class MainActivity extends AppCompatActivity {
     private View navHostView;
     private MapFragment mapFragment;
     private boolean isMapVisible = false;
+    private AMapLocationClient weatherLocationClient;
+    private AMapLocationClientOption weatherLocationOption;
+    private ActivityResultLauncher<String[]> weatherPermissionLauncher;
+    private BadgeDrawable messageBadge;
+    private Handler badgeHandler;
+    private Runnable badgeRunnable;
+    private boolean badgeMenuReady = false;
+    private int lastDestId = 0;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        fetchWeatherWarning();
+        weatherPermissionLauncher = registerForActivityResult(
+                new ActivityResultContracts.RequestMultiplePermissions(), result -> {
+                    Boolean fine = result.get(Manifest.permission.ACCESS_FINE_LOCATION);
+                    Boolean coarse = result.get(Manifest.permission.ACCESS_COARSE_LOCATION);
+                    if (Boolean.TRUE.equals(fine) || Boolean.TRUE.equals(coarse)) {
+                        startWeatherLocation();
+                    } else {
+                        fetchWeatherWarning(31.23, 121.47);
+                    }
+                });
+        requestWeatherWarning();
 
         toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
@@ -54,8 +86,7 @@ public class MainActivity extends AppCompatActivity {
         }
 
         AppBarConfiguration appBarConfig = new AppBarConfiguration.Builder(
-                R.id.nav_community, R.id.nav_square, R.id.nav_me
-        ).build();
+                R.id.nav_community, R.id.nav_square, R.id.nav_me).build();
         NavigationUI.setupWithNavController(toolbar, navController, appBarConfig);
 
         if (savedInstanceState == null) {
@@ -99,6 +130,14 @@ public class MainActivity extends AppCompatActivity {
                     bottomNav.getMenu().findItem(destId).setChecked(true);
                 }
             }
+            int destId = dest.getId();
+            if (lastDestId == R.id.message_center && destId != R.id.message_center) {
+                updateMessageBadge();
+            } else {
+                updateMessageBadge();
+            }
+            lastDestId = destId;
+            invalidateOptionsMenu();
         });
 
         getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
@@ -115,6 +154,7 @@ public class MainActivity extends AppCompatActivity {
         });
 
         setupKeyboardListener();
+        initBadgeRefresh();
     }
 
     @Override
@@ -151,27 +191,218 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
-    private void fetchWeatherWarning() {
-        String location = "31.23,121.47";
-        RetrofitHelper.get().create(com.ourcat.app.repositories.WeatherApi.class).getWarning(location)
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        getMenuInflater().inflate(R.menu.menu_top_bar, menu);
+        badgeMenuReady = true;
+        ensureBadge(menu);
+        updateMessageBadge();
+        return true;
+    }
+
+    @Override
+    public boolean onPrepareOptionsMenu(Menu menu) {
+        MenuItem item = menu.findItem(R.id.action_message_center);
+        boolean show = true;
+        if (navController != null && navController.getCurrentDestination() != null) {
+            show = navController.getCurrentDestination().getId() != R.id.message_center;
+        }
+        if (item != null) {
+            item.setVisible(show);
+        }
+        if (!show && messageBadge != null) {
+            messageBadge.setVisible(false);
+        }
+        return super.onPrepareOptionsMenu(menu);
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        if (item.getItemId() == R.id.action_message_center) {
+            hideMap();
+            if (navController != null) {
+                navController.navigate(R.id.message_center);
+            }
+            return true;
+        }
+        return super.onOptionsItemSelected(item);
+    }
+
+    private void ensureBadge(Menu menu) {
+        if (messageBadge == null) {
+            messageBadge = BadgeDrawable.create(this);
+            messageBadge.setVisible(false);
+            messageBadge.setBadgeGravity(BadgeDrawable.BOTTOM_END);
+            messageBadge.setHorizontalOffset(getResources().getDimensionPixelOffset(R.dimen.badge_offset_x));
+            messageBadge.setVerticalOffset(getResources().getDimensionPixelOffset(R.dimen.badge_offset_y));
+        }
+        if (toolbar != null && menu.findItem(R.id.action_message_center) != null) {
+            BadgeUtils.attachBadgeDrawable(messageBadge, toolbar, R.id.action_message_center);
+        }
+    }
+
+    private void initBadgeRefresh() {
+        badgeHandler = new Handler(Looper.getMainLooper());
+        badgeRunnable = new Runnable() {
+            @Override
+            public void run() {
+                updateMessageBadge();
+                badgeHandler.postDelayed(this, 60000);
+            }
+        };
+    }
+
+    private void updateMessageBadge() {
+        if (!badgeMenuReady)
+            return;
+        if (navController != null && navController.getCurrentDestination() != null
+                && navController.getCurrentDestination().getId() == R.id.message_center) {
+            return;
+        }
+        RetrofitHelper.get().create(MessageApi.class).list(0, 50)
                 .enqueue(new Callback<java.util.Map<String, Object>>() {
                     @Override
-                    public void onResponse(Call<java.util.Map<String, Object>> call, Response<java.util.Map<String, Object>> response) {
+                    public void onResponse(Call<java.util.Map<String, Object>> call,
+                            Response<java.util.Map<String, Object>> response) {
+                        if (response.isSuccessful() && response.body() != null) {
+                            Object content = response.body().get("content");
+                            int unread = 0;
+                            if (content instanceof List) {
+                                for (Object o : (List<?>) content) {
+                                    if (o instanceof java.util.Map) {
+                                        Object readObj = ((java.util.Map<?, ?>) o).get("read");
+                                        boolean read = readObj instanceof Boolean && (Boolean) readObj;
+                                        if (!read)
+                                            unread++;
+                                    }
+                                }
+                            }
+                            if (messageBadge == null) {
+                                messageBadge = BadgeDrawable.create(MainActivity.this);
+                            }
+                            if (unread <= 0) {
+                                messageBadge.setVisible(false);
+                            } else {
+                                messageBadge.setVisible(true);
+                                messageBadge.setNumber(Math.min(unread, 99));
+                            }
+                            if (toolbar != null) {
+                                BadgeUtils.attachBadgeDrawable(messageBadge, toolbar, R.id.action_message_center);
+                            }
+                        }
+                    }
+
+                    @Override
+                    public void onFailure(Call<java.util.Map<String, Object>> call, Throwable t) {
+                    }
+                });
+    }
+
+    private void requestWeatherWarning() {
+        if (ContextCompat.checkSelfPermission(this,
+                Manifest.permission.ACCESS_FINE_LOCATION) == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            startWeatherLocation();
+        } else {
+            weatherPermissionLauncher.launch(new String[] {
+                    Manifest.permission.ACCESS_FINE_LOCATION,
+                    Manifest.permission.ACCESS_COARSE_LOCATION
+            });
+        }
+    }
+
+    private void startWeatherLocation() {
+        try {
+            if (weatherLocationClient == null) {
+                AMapLocationClient.updatePrivacyShow(this, true, true);
+                AMapLocationClient.updatePrivacyAgree(this, true);
+                weatherLocationClient = new AMapLocationClient(getApplicationContext());
+                weatherLocationOption = new AMapLocationClientOption();
+                weatherLocationOption.setLocationMode(AMapLocationClientOption.AMapLocationMode.Hight_Accuracy);
+                weatherLocationOption.setOnceLocation(true);
+                weatherLocationOption.setNeedAddress(false);
+                weatherLocationClient.setLocationOption(weatherLocationOption);
+                weatherLocationClient.setLocationListener(aMapLocation -> {
+                    if (aMapLocation != null && aMapLocation.getErrorCode() == 0) {
+                        fetchWeatherWarning(aMapLocation.getLatitude(), aMapLocation.getLongitude());
+                    } else {
+                        fetchWeatherWarning(31.23, 121.47);
+                    }
+                });
+            }
+            weatherLocationClient.startLocation();
+        } catch (Exception e) {
+            fetchWeatherWarning(31.23, 121.47);
+        }
+    }
+
+    private void fetchWeatherWarning(double lat, double lng) {
+        String location = lat + "," + lng;
+        RetrofitHelper.get().create(WeatherApi.class).getWarning(location)
+                .enqueue(new Callback<java.util.Map<String, Object>>() {
+                    @Override
+                    public void onResponse(Call<java.util.Map<String, Object>> call,
+                            Response<java.util.Map<String, Object>> response) {
                         if (response.isSuccessful() && response.body() != null) {
                             Object w = response.body().get("warnings");
                             if (w instanceof List && !((List<?>) w).isEmpty()) {
                                 StringBuilder sb = new StringBuilder();
-                                for (Object o : (List<?>) w) sb.append(o).append("\n");
+                                for (Object o : (List<?>) w)
+                                    sb.append(o).append("\n");
+                                Object msgIdObj = response.body().get("messageId");
                                 new AlertDialog.Builder(MainActivity.this)
                                         .setTitle("天气预警")
                                         .setMessage(sb.toString())
-                                        .setPositiveButton("确定", null)
+                                        .setPositiveButton("确定", (d, which) -> {
+                                            if (msgIdObj instanceof Number) {
+                                                long msgId = ((Number) msgIdObj).longValue();
+                                                RetrofitHelper.get().create(MessageApi.class).markRead(msgId)
+                                                        .enqueue(new Callback<Void>() {
+                                                            @Override
+                                                            public void onResponse(Call<Void> call,
+                                                                    Response<Void> response) {
+                                                            }
+
+                                                            @Override
+                                                            public void onFailure(Call<Void> call, Throwable t) {
+                                                            }
+                                                        });
+                                            }
+                                        })
                                         .show();
                             }
                         }
                     }
+
                     @Override
-                    public void onFailure(Call<java.util.Map<String, Object>> call, Throwable t) {}
+                    public void onFailure(Call<java.util.Map<String, Object>> call, Throwable t) {
+                    }
                 });
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if (weatherLocationClient != null) {
+            weatherLocationClient.onDestroy();
+        }
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (badgeHandler != null && badgeRunnable != null) {
+            badgeHandler.removeCallbacks(badgeRunnable);
+            badgeHandler.post(badgeRunnable);
+        } else {
+            updateMessageBadge();
+        }
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        if (badgeHandler != null && badgeRunnable != null) {
+            badgeHandler.removeCallbacks(badgeRunnable);
+        }
     }
 }

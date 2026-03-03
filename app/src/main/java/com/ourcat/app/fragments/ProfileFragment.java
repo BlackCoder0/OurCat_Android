@@ -45,8 +45,6 @@ public class ProfileFragment extends Fragment {
         tvRole = view.findViewById(R.id.tv_role);
         btnUserManage = view.findViewById(R.id.btn_user_manage);
 
-        setupOption(view, R.id.btn_message_center, "消息中心",
-                v -> NavHostFragment.findNavController(ProfileFragment.this).navigate(R.id.message_center));
         setupOption(view, R.id.btn_my_posts, "我的帖子",
                 v -> NavHostFragment.findNavController(ProfileFragment.this).navigate(R.id.my_posts));
         setupOption(view, R.id.btn_my_comments, "我的评论",

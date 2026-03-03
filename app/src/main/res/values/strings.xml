@@ -9,4 +9,5 @@
     <string name="title_map">猫咪地图</string>
     <string name="title_square">广场</string>
     <string name="title_me">我的</string>
+    <string name="action_message_center">消息中心</string>
 </resources>
