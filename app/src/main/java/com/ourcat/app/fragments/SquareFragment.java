@@ -50,53 +50,76 @@ public class SquareFragment extends Fragment {
         recyclerView.setLayoutManager(new LinearLayoutManager(requireContext()));
 
         adapter = new RecyclerView.Adapter<RecyclerView.ViewHolder>() {
+            class ViewHolder extends RecyclerView.ViewHolder {
+                TextView type, status, text, location, author;
+                android.widget.ImageView avatar;
+
+                ViewHolder(View itemView) {
+                    super(itemView);
+                    type = itemView.findViewById(R.id.item_square_type);
+                    status = itemView.findViewById(R.id.item_square_status);
+                    text = itemView.findViewById(R.id.item_square_text);
+                    location = itemView.findViewById(R.id.item_square_location);
+                    author = itemView.findViewById(R.id.item_square_author);
+                    avatar = itemView.findViewById(R.id.item_square_avatar);
+                }
+            }
+
             @NonNull
             @Override
             public RecyclerView.ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-                View v = LayoutInflater.from(parent.getContext())
-                        .inflate(R.layout.item_square_post, parent, false);
-                return new RecyclerView.ViewHolder(v) {
-                };
+                View v = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_square_post, parent, false);
+                return new ViewHolder(v);
             }
 
             @Override
-            public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder, int position) {
+            public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holderRaw, int position) {
+                ViewHolder holder = (ViewHolder) holderRaw;
                 Map<String, Object> item = items.get(position);
-                TextView text = holder.itemView.findViewById(R.id.item_square_text);
-                TextView type = holder.itemView.findViewById(R.id.item_square_type);
-                TextView status = holder.itemView.findViewById(R.id.item_square_status);
-                TextView location = holder.itemView.findViewById(R.id.item_square_location);
+                String t = (String) item.get("type");
+                String s = (String) item.get("status");
+                String txt = (String) item.get("text");
+                Object loc = item.get("location");
+                Object author = item.get("authorName");
+                Object avatarUrl = item.get("authorAvatar");
 
-                Object textObj = item.get("text");
-                text.setText(textObj != null ? textObj.toString() : "");
+                holder.type.setText("rescue".equals(t) ? "求助" : "询问");
+                holder.type.setBackgroundResource(
+                        "rescue".equals(t) ? R.drawable.bg_map_mode_chip : R.drawable.bg_map_mode_chip); // Simplify color logic
+                holder.status.setText("resolved".equals(s) ? "已解决" : "进行中");
+                holder.status.setTextColor("resolved".equals(s) ? 0xFF4CAF50 : 0xFFFF9800);
+                holder.text.setText(txt);
+                holder.author.setText(author != null ? author.toString() : "匿名");
 
-                Object typeObj = item.get("type");
-                String typeStr = typeObj != null ? typeObj.toString() : "";
-                if ("rescue".equals(typeStr)) {
-                    type.setText("救助");
-                    type.setBackgroundTintList(android.content.res.ColorStateList.valueOf(0xFFFF5252)); // Red for
-                                                                                                        // Rescue
+                if (avatarUrl != null && !avatarUrl.toString().isEmpty()) {
+                    com.bumptech.glide.Glide.with(holder.itemView.getContext())
+                            .load(avatarUrl.toString())
+                            .circleCrop() 
+                            .placeholder(R.drawable.ic_default_avatar)
+                            .into(holder.avatar);
                 } else {
-                    type.setText("询问");
-                    type.setBackgroundTintList(android.content.res.ColorStateList.valueOf(0xFF448AFF)); // Blue for
-                                                                                                        // Inquiry
+                    holder.avatar.setImageResource(R.drawable.ic_default_avatar);
                 }
 
-                Object statusObj = item.get("status");
-                String statusStr = statusObj != null ? statusObj.toString() : "";
-                status.setText("resolved".equals(statusStr) ? "已解决" : "进行中");
-
-                Object locationObj = item.get("location");
-                if (locationObj != null && !locationObj.toString().trim().isEmpty()) {
-                    location.setText(locationObj.toString());
-                    location.setVisibility(View.VISIBLE);
+                if (loc != null) {
+                    holder.location.setVisibility(View.VISIBLE);
+                    holder.location.setText(loc.toString());
                 } else {
-                    location.setVisibility(View.GONE);
+                    holder.location.setVisibility(View.GONE);
                 }
 
-                boolean resolved = "resolved".equals(statusStr);
-                // Increase brightness difference: 0.5f for resolved, 1f for unresolved
-                holder.itemView.setAlpha(resolved ? 0.5f : 1f);
+                Object userIdObj = item.get("userId");
+                long userId = userIdObj instanceof Number ? ((Number) userIdObj).longValue() : 0;
+                View.OnClickListener profileListener = v -> {
+                    if (userId != 0) {
+                        Bundle args = new Bundle();
+                        args.putLong("userId", userId);
+                        Navigation.findNavController(v).navigate(R.id.user_profile, args);
+                    }
+                };
+                holder.avatar.setOnClickListener(profileListener);
+                holder.author.setOnClickListener(profileListener);
+
                 holder.itemView.setOnClickListener(v -> {
                     Object idObj = item.get("id");
                     if (idObj instanceof Number) {

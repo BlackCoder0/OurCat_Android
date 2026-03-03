@@ -43,6 +43,7 @@ public class PostDetailFragment extends Fragment {
     private long currentUserId;
     private int currentUserRole;
     private TextView titleView, authorView, contentView, likesCount, dislikesCount, imageIndicator;
+    private ImageView postAvatar;
     private ViewPager2 imagePager;
     private ImagePagerAdapter imagePagerAdapter;
     private CommentAdapter commentAdapter;
@@ -54,16 +55,18 @@ public class PostDetailFragment extends Fragment {
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        if (getArguments() != null) postId = getArguments().getLong("postId", 0L);
+        if (getArguments() != null)
+            postId = getArguments().getLong("postId", 0L);
     }
 
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,
-                             @Nullable Bundle savedInstanceState) {
+            @Nullable Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_post_detail, container, false);
         titleView = view.findViewById(R.id.post_title);
         authorView = view.findViewById(R.id.post_author);
+        postAvatar = view.findViewById(R.id.post_avatar);
         contentView = view.findViewById(R.id.post_content);
         likesCount = view.findViewById(R.id.post_likes_count);
         dislikesCount = view.findViewById(R.id.post_dislikes_count);
@@ -149,6 +152,7 @@ public class PostDetailFragment extends Fragment {
                         }
                         loadPost();
                     }
+
                     @Override
                     public void onFailure(Call<Map<String, Object>> call, Throwable t) {
                         loadPost();
@@ -167,6 +171,7 @@ public class PostDetailFragment extends Fragment {
                             loadComments();
                         }
                     }
+
                     @Override
                     public void onFailure(Call<Map<String, Object>> call, Throwable t) {
                         Toast.makeText(requireContext(), "加载失败", Toast.LENGTH_SHORT).show();
@@ -175,18 +180,38 @@ public class PostDetailFragment extends Fragment {
     }
 
     private void bindPost() {
-        if (postData == null || getView() == null) return;
+        if (postData == null || getView() == null)
+            return;
         titleView.setText(getStr(postData, "title"));
         authorView.setText("作者: " + getStr(postData, "authorName"));
         contentView.setText(getStr(postData, "content"));
         likesCount.setText(String.valueOf(getInt(postData, "likes")));
         dislikesCount.setText(String.valueOf(getInt(postData, "dislikes")));
 
+        String avatarUrl = getStr(postData, "authorAvatar");
+        if (!avatarUrl.isEmpty()) {
+            com.bumptech.glide.Glide.with(this).load(avatarUrl).circleCrop().placeholder(R.drawable.ic_default_avatar).into(postAvatar);
+        } else {
+            postAvatar.setImageResource(R.drawable.ic_default_avatar);
+        }
+
+        View.OnClickListener profileListener = v -> {
+            long userId = getLong(postData, "userId");
+            if (userId != 0) {
+                Bundle args = new Bundle();
+                args.putLong("userId", userId);
+                Navigation.findNavController(requireView()).navigate(R.id.user_profile, args);
+            }
+        };
+        postAvatar.setOnClickListener(profileListener);
+        authorView.setOnClickListener(profileListener);
+
         Object imgs = postData.get("images");
         if (imgs != null) {
             try {
                 List<String> urls = new Gson().fromJson(imgs.toString(),
-                        new TypeToken<List<String>>() {}.getType());
+                        new TypeToken<List<String>>() {
+                        }.getType());
                 if (urls != null && !urls.isEmpty()) {
                     imagePager.setVisibility(View.VISIBLE);
                     imagePagerAdapter.setUrls(urls);
@@ -194,8 +219,12 @@ public class PostDetailFragment extends Fragment {
                         imageIndicator.setVisibility(View.VISIBLE);
                         imageIndicator.setText("1 / " + urls.size());
                     }
+                } else {
+                    imagePager.setVisibility(View.GONE);
+                    imageIndicator.setVisibility(View.GONE);
                 }
-            } catch (Exception ignored) {}
+            } catch (Exception ignored) {
+            }
         }
 
         long postUserId = getLong(postData, "userId");
@@ -212,7 +241,8 @@ public class PostDetailFragment extends Fragment {
     }
 
     private void updateLikeDislikeButtons() {
-        if (btnLike == null || btnDislike == null) return;
+        if (btnLike == null || btnDislike == null)
+            return;
         btnLike.setText(userVote == 1 ? "👍 已赞" : "👍 赞");
         btnDislike.setText(userVote == -1 ? "👎 已踩" : "👎 踩");
         btnLike.setAlpha(userVote == 1 ? 1f : 0.5f);
@@ -223,13 +253,16 @@ public class PostDetailFragment extends Fragment {
         RetrofitHelper.get().create(ForumApi.class).getComments(postId, 0, 50)
                 .enqueue(new Callback<List<Map<String, Object>>>() {
                     @Override
-                    public void onResponse(Call<List<Map<String, Object>>> call, Response<List<Map<String, Object>>> response) {
+                    public void onResponse(Call<List<Map<String, Object>>> call,
+                            Response<List<Map<String, Object>>> response) {
                         if (response.isSuccessful() && response.body() != null) {
                             commentAdapter.setItems(response.body());
                         }
                     }
+
                     @Override
-                    public void onFailure(Call<List<Map<String, Object>>> call, Throwable t) {}
+                    public void onFailure(Call<List<Map<String, Object>>> call, Throwable t) {
+                    }
                 });
     }
 
@@ -243,20 +276,25 @@ public class PostDetailFragment extends Fragment {
                             Object likes = body.get("likes");
                             Object dislikes = body.get("dislikes");
                             Object uv = body.get("userVote");
-                            if (likes != null) likesCount.setText(String.valueOf(((Number) likes).intValue()));
-                            if (dislikes != null) dislikesCount.setText(String.valueOf(((Number) dislikes).intValue()));
+                            if (likes != null)
+                                likesCount.setText(String.valueOf(((Number) likes).intValue()));
+                            if (dislikes != null)
+                                dislikesCount.setText(String.valueOf(((Number) dislikes).intValue()));
                             userVote = uv instanceof Number ? ((Number) uv).intValue() : 0;
                             updateLikeDislikeButtons();
                         }
                     }
+
                     @Override
-                    public void onFailure(Call<Map<String, Object>> call, Throwable t) {}
+                    public void onFailure(Call<Map<String, Object>> call, Throwable t) {
+                    }
                 });
     }
 
     private void sendComment() {
         String content = commentInput.getText().toString().trim();
-        if (content.isEmpty()) return;
+        if (content.isEmpty())
+            return;
         Map<String, String> body = new HashMap<>();
         body.put("content", content);
         RetrofitHelper.get().create(ForumApi.class).addComment(postId, body)
@@ -268,6 +306,7 @@ public class PostDetailFragment extends Fragment {
                             loadComments();
                         }
                     }
+
                     @Override
                     public void onFailure(Call<Map<String, Object>> call, Throwable t) {
                         Toast.makeText(requireContext(), "发送失败", Toast.LENGTH_SHORT).show();
@@ -287,6 +326,7 @@ public class PostDetailFragment extends Fragment {
                             Toast.makeText(requireContext(), "无权限", Toast.LENGTH_SHORT).show();
                         }
                     }
+
                     @Override
                     public void onFailure(Call<Void> call, Throwable t) {
                         Toast.makeText(requireContext(), "删除失败", Toast.LENGTH_SHORT).show();
@@ -304,8 +344,10 @@ public class PostDetailFragment extends Fragment {
                             Toast.makeText(requireContext(), newPinned ? "已置顶" : "已取消置顶", Toast.LENGTH_SHORT).show();
                         }
                     }
+
                     @Override
-                    public void onFailure(Call<Map<String, Object>> call, Throwable t) {}
+                    public void onFailure(Call<Map<String, Object>> call, Throwable t) {
+                    }
                 });
     }
 
@@ -321,6 +363,7 @@ public class PostDetailFragment extends Fragment {
                             Toast.makeText(requireContext(), "无权限", Toast.LENGTH_SHORT).show();
                         }
                     }
+
                     @Override
                     public void onFailure(Call<Void> call, Throwable t) {
                         Toast.makeText(requireContext(), "删除失败", Toast.LENGTH_SHORT).show();
@@ -330,8 +373,10 @@ public class PostDetailFragment extends Fragment {
 
     private static boolean getBool(Map<String, Object> m, String key) {
         Object o = m.get(key);
-        if (o instanceof Boolean) return (Boolean) o;
-        if (o instanceof Number) return ((Number) o).intValue() != 0;
+        if (o instanceof Boolean)
+            return (Boolean) o;
+        if (o instanceof Number)
+            return ((Number) o).intValue() != 0;
         return false;
     }
 

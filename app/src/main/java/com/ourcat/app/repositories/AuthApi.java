@@ -21,6 +21,9 @@ public interface AuthApi {
     @GET("/api/user/profile")
     Call<Map<String, Object>> getProfile();
 
+    @GET("/api/user/{id}/public-profile")
+    Call<Map<String, Object>> getPublicProfile(@retrofit2.http.Path("id") long id);
+
     @PUT("/api/user/profile")
     Call<Map<String, Object>> updateProfile(@Body Map<String, Object> body);
 

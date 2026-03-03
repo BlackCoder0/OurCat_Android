@@ -35,8 +35,10 @@ public class UserManagementFragment extends Fragment {
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,
                              @Nullable Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_user_management, container, false);
-        view.findViewById(R.id.btn_back).setOnClickListener(v ->
-                NavHostFragment.findNavController(this).navigateUp());
+        View btnBack = view.findViewById(R.id.btn_back);
+        if (btnBack != null) {
+            btnBack.setOnClickListener(v -> NavHostFragment.findNavController(this).navigateUp());
+        }
 
         RecyclerView rv = view.findViewById(R.id.rv_users);
         rv.setLayoutManager(new LinearLayoutManager(requireContext()));

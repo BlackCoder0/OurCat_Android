@@ -12,12 +12,14 @@
         android:gravity="center_vertical"
         android:padding="16dp">
 
-        <ImageView
+        <ImageButton
             android:id="@+id/btn_back"
-            android:layout_width="24dp"
-            android:layout_height="24dp"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:background="?selectableItemBackgroundBorderless"
             android:src="@android:drawable/ic_menu_revert"
-            android:contentDescription="返回" />
+            android:contentDescription="返回"
+            android:scaleType="centerInside" />
 
         <TextView
             android:layout_width="0dp"

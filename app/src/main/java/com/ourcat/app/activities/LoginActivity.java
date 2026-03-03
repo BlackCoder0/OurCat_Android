@@ -10,20 +10,27 @@ import com.ourcat.app.utils.TokenStore;
 
 public class LoginActivity extends AppCompatActivity {
 
+    private static final long SPLASH_DELAY_MS = 1500;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        setTheme(R.style.Theme_OurCat);
         super.onCreate(savedInstanceState);
         TokenStore tokenStore = new TokenStore(this);
         if (tokenStore.hasToken()) {
-            startMainAndFinish();
+            new android.os.Handler(android.os.Looper.getMainLooper())
+                    .postDelayed(this::startMainAndFinish, SPLASH_DELAY_MS);
             return;
         }
-        setContentView(R.layout.activity_login);
-        if (savedInstanceState == null) {
-            getSupportFragmentManager().beginTransaction()
-                    .replace(R.id.login_container, new LoginFragment())
-                    .commit();
-        }
+        new android.os.Handler(android.os.Looper.getMainLooper())
+                .postDelayed(() -> {
+                    setContentView(R.layout.activity_login);
+                    if (savedInstanceState == null) {
+                        getSupportFragmentManager().beginTransaction()
+                                .replace(R.id.login_container, new LoginFragment())
+                                .commit();
+                    }
+                }, SPLASH_DELAY_MS);
     }
 
     public void startMainAndFinish() {

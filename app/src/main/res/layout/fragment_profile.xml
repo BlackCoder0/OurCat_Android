@@ -77,16 +77,6 @@
                 android:layout_marginStart="16dp" />
 
             <include
-                android:id="@+id/btn_edit_profile"
-                layout="@layout/item_profile_option" />
-
-            <View
-                android:layout_width="match_parent"
-                android:layout_height="1dp"
-                android:background="@color/secondary"
-                android:layout_marginStart="16dp" />
-
-            <include
                 android:id="@+id/btn_change_password"
                 layout="@layout/item_profile_option" />
 

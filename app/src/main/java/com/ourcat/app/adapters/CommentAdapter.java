@@ -10,6 +10,7 @@ import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.bumptech.glide.Glide;
 import com.ourcat.app.R;
 
 import java.util.ArrayList;
@@ -28,7 +29,8 @@ public class CommentAdapter extends RecyclerView.Adapter<CommentAdapter.ViewHold
 
     public void setItems(java.util.List<Map<String, Object>> list) {
         items.clear();
-        if (list != null) items.addAll(list);
+        if (list != null)
+            items.addAll(list);
         notifyDataSetChanged();
     }
 
@@ -56,11 +58,32 @@ public class CommentAdapter extends RecyclerView.Adapter<CommentAdapter.ViewHold
         Map<String, Object> m = items.get(position);
         Object author = m.get("authorName");
         Object content = m.get("content");
+        Object avatarUrl = m.get("authorAvatar");
         holder.author.setText(author != null ? author.toString() : "");
         holder.content.setText(content != null ? content.toString() : "");
 
+        if (avatarUrl != null && !avatarUrl.toString().isEmpty()) {
+            Glide.with(holder.itemView.getContext())
+                    .load(avatarUrl.toString())
+                    .circleCrop()
+                    .placeholder(R.drawable.ic_default_avatar)
+                    .into(holder.avatar);
+        } else {
+            holder.avatar.setImageResource(R.drawable.ic_default_avatar);
+        }
+
         long commentUserId = m.get("userId") instanceof Number ? ((Number) m.get("userId")).longValue() : 0;
         long commentId = m.get("id") instanceof Number ? ((Number) m.get("id")).longValue() : 0;
+
+        View.OnClickListener profileListener = v -> {
+            if (commentUserId != 0) {
+                android.os.Bundle args = new android.os.Bundle();
+                args.putLong("userId", commentUserId);
+                androidx.navigation.Navigation.findNavController(v).navigate(R.id.user_profile, args);
+            }
+        };
+        holder.avatar.setOnClickListener(profileListener);
+        holder.author.setOnClickListener(profileListener);
 
         boolean isOwnComment = currentUserId != 0 && currentUserId == commentUserId;
         boolean canManage = currentUserRole >= 2;
@@ -90,13 +113,14 @@ public class CommentAdapter extends RecyclerView.Adapter<CommentAdapter.ViewHold
 
     static class ViewHolder extends RecyclerView.ViewHolder {
         TextView author, content;
-        ImageView btnMore;
+        ImageView btnMore, avatar;
 
         ViewHolder(View itemView) {
             super(itemView);
             author = itemView.findViewById(R.id.item_comment_author);
             content = itemView.findViewById(R.id.item_comment_content);
             btnMore = itemView.findViewById(R.id.btn_comment_more);
+            avatar = itemView.findViewById(R.id.item_comment_avatar);
         }
     }
 }

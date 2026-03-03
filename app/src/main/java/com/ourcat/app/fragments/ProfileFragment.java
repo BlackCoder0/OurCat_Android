@@ -6,6 +6,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.EditText;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -16,6 +17,7 @@ import androidx.appcompat.app.AlertDialog;
 import androidx.fragment.app.Fragment;
 import androidx.navigation.fragment.NavHostFragment;
 
+import com.bumptech.glide.Glide;
 import com.ourcat.app.R;
 import com.ourcat.app.activities.LoginActivity;
 import com.ourcat.app.repositories.AuthApi;
@@ -32,8 +34,11 @@ import retrofit2.Response;
 public class ProfileFragment extends Fragment {
 
     private TextView tvNickname, tvRole;
-    private View avatar;
+    private ImageView avatar;
     private View btnUserManage;
+    private String currentAvatarUrl;
+    private String currentNicknameStr;
+    private String currentBio;
 
     @Nullable
     @Override
@@ -51,8 +56,15 @@ public class ProfileFragment extends Fragment {
                 v -> NavHostFragment.findNavController(ProfileFragment.this).navigate(R.id.my_comments));
         setupOption(view, R.id.btn_my_cat_reports, "我的上报",
                 v -> NavHostFragment.findNavController(ProfileFragment.this).navigate(R.id.my_cat_reports));
-        setupOption(view, R.id.btn_edit_profile, "编辑资料",
-                v -> Toast.makeText(requireContext(), "编辑资料（可后续扩展）", Toast.LENGTH_SHORT).show());
+
+        // 点击头像编辑资料
+        avatar.setOnClickListener(v -> {
+            EditProfileDialogFragment dialog = EditProfileDialogFragment.newInstance(currentNicknameStr, currentBio,
+                    currentAvatarUrl);
+            dialog.setListener(this::loadProfile);
+            dialog.show(getParentFragmentManager(), "EditProfile");
+        });
+
         setupOption(view, R.id.btn_change_password, "修改密码", v -> showChangePasswordDialog());
         setupOption(view, R.id.btn_user_manage, "用户管理",
                 v -> NavHostFragment.findNavController(ProfileFragment.this).navigate(R.id.user_management));
@@ -92,6 +104,21 @@ public class ProfileFragment extends Fragment {
                             int r = role != null ? ((Number) role).intValue() : 1;
                             tvRole.setText(r == 1 ? "普通用户" : r == 2 ? "志愿者" : "管理员");
                             btnUserManage.setVisibility(r >= 3 ? View.VISIBLE : View.GONE);
+
+                            currentNicknameStr = nickname != null ? nickname.toString() : "";
+                            currentAvatarUrl = (String) user.get("avatarUrl");
+                            currentBio = (String) user.get("bio");
+
+                            if (currentAvatarUrl != null && !currentAvatarUrl.isEmpty()) {
+                                Glide.with(ProfileFragment.this)
+                                        .load(currentAvatarUrl)
+                                        .placeholder(R.drawable.ic_default_avatar)
+                                        .error(R.drawable.ic_default_avatar)
+                                        .circleCrop()
+                                        .into(avatar);
+                            } else {
+                                avatar.setImageResource(R.drawable.ic_default_avatar);
+                            }
                         }
                     }
 

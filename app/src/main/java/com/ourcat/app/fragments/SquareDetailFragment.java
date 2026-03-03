@@ -5,10 +5,14 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.EditText;
+import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
+import androidx.navigation.fragment.NavHostFragment;
+
+import com.bumptech.glide.Glide;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.LinearLayoutManager;
@@ -45,6 +49,7 @@ public class SquareDetailFragment extends Fragment {
     private TextView typeChip;
     private TextView statusText;
     private TextView authorText;
+    private ImageView authorAvatar;
     private TextView textView;
     private ViewPager2 imagePager;
     private ImagePagerAdapter imagePagerAdapter;
@@ -66,12 +71,13 @@ public class SquareDetailFragment extends Fragment {
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,
-                             @Nullable Bundle savedInstanceState) {
+            @Nullable Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_square_detail, container, false);
         resolvedOverlay = view.findViewById(R.id.square_resolved_overlay);
         typeChip = view.findViewById(R.id.square_detail_type);
         statusText = view.findViewById(R.id.square_detail_status);
         authorText = view.findViewById(R.id.square_detail_author);
+        authorAvatar = view.findViewById(R.id.square_detail_avatar);
         textView = view.findViewById(R.id.square_detail_text);
         imagePager = view.findViewById(R.id.square_detail_image_pager);
         locationText = view.findViewById(R.id.square_detail_location);
@@ -89,8 +95,10 @@ public class SquareDetailFragment extends Fragment {
             public RecyclerView.ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
                 View v = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_comment, parent, false);
                 v.findViewById(R.id.btn_comment_more).setVisibility(View.GONE);
-                return new RecyclerView.ViewHolder(v) {};
+                return new RecyclerView.ViewHolder(v) {
+                };
             }
+
             @Override
             public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder, int position) {
                 Map<String, Object> m = commentItems.get(position);
@@ -99,6 +107,7 @@ public class SquareDetailFragment extends Fragment {
                 author.setText(m.get("authorName") != null ? m.get("authorName").toString() : "");
                 content.setText(m.get("content") != null ? m.get("content").toString() : "");
             }
+
             @Override
             public int getItemCount() {
                 return commentItems.size();
@@ -126,6 +135,7 @@ public class SquareDetailFragment extends Fragment {
                         }
                         loadPost();
                     }
+
                     @Override
                     public void onFailure(Call<Map<String, Object>> call, Throwable t) {
                         loadPost();
@@ -138,7 +148,8 @@ public class SquareDetailFragment extends Fragment {
                 .enqueue(new Callback<Map<String, Object>>() {
                     @Override
                     public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
-                        if (!isAdded()) return;
+                        if (!isAdded())
+                            return;
                         if (response.isSuccessful() && response.body() != null) {
                             postData = response.body();
                             bindPost();
@@ -147,31 +158,58 @@ public class SquareDetailFragment extends Fragment {
                             Toast.makeText(requireContext(), "加载失败", Toast.LENGTH_SHORT).show();
                         }
                     }
+
                     @Override
                     public void onFailure(Call<Map<String, Object>> call, Throwable t) {
-                        if (isAdded()) Toast.makeText(requireContext(), "加载失败", Toast.LENGTH_SHORT).show();
+                        if (isAdded())
+                            Toast.makeText(requireContext(), "加载失败", Toast.LENGTH_SHORT).show();
                     }
                 });
     }
 
     private void bindPost() {
-        if (postData == null || getView() == null) return;
+        if (postData == null || getView() == null)
+            return;
         String type = postData.get("type") != null ? postData.get("type").toString() : "inquiry";
         String status = postData.get("status") != null ? postData.get("status").toString() : "open";
+        String authorName = postData.get("authorName") != null ? postData.get("authorName").toString() : "匿名";
+        String avatarUrl = postData.get("authorAvatar") != null ? postData.get("authorAvatar").toString() : null;
+        Object userIdObj = postData.get("userId");
+        long postUserId = userIdObj instanceof Number ? ((Number) userIdObj).longValue() : 0;
+
         typeChip.setText("rescue".equals(type) ? "救助" : "询问");
         statusText.setText("resolved".equals(status) ? "已解决" : "进行中");
-        authorText.setText("发布者: " + (postData.get("authorName") != null ? postData.get("authorName").toString() : ""));
+        statusText.setTextColor("resolved".equals(status) ? 0xFF4CAF50 : 0xFFFF9800);
+        authorText.setText(authorName);
         textView.setText(postData.get("text") != null ? postData.get("text").toString() : "");
+
+        if (avatarUrl != null && !avatarUrl.isEmpty()) {
+            Glide.with(this).load(avatarUrl).circleCrop().placeholder(R.drawable.ic_default_avatar).into(authorAvatar);
+        } else {
+            authorAvatar.setImageResource(R.drawable.ic_default_avatar);
+        }
+
+        View.OnClickListener profileListener = v -> {
+            if (postUserId != 0) {
+                Bundle args = new Bundle();
+                args.putLong("userId", postUserId);
+                NavHostFragment.findNavController(this).navigate(R.id.user_profile, args);
+            }
+        };
+        authorAvatar.setOnClickListener(profileListener);
+        authorText.setOnClickListener(profileListener);
 
         Object imgs = postData.get("images");
         if (imgs != null) {
             try {
-                List<String> urls = new Gson().fromJson(imgs.toString(), new TypeToken<List<String>>() {}.getType());
+                List<String> urls = new Gson().fromJson(imgs.toString(), new TypeToken<List<String>>() {
+                }.getType());
                 if (urls != null && !urls.isEmpty()) {
                     imagePager.setVisibility(View.VISIBLE);
                     imagePagerAdapter.setUrls(urls);
                 }
-            } catch (Exception ignored) {}
+            } catch (Exception ignored) {
+            }
         }
         Object loc = postData.get("location");
         if (loc != null && !loc.toString().trim().isEmpty()) {
@@ -179,7 +217,6 @@ public class SquareDetailFragment extends Fragment {
             locationText.setText("位置: " + loc.toString());
         }
 
-        long postUserId = postData.get("userId") instanceof Number ? ((Number) postData.get("userId")).longValue() : 0;
         boolean isAuthor = currentUserId != 0 && currentUserId == postUserId;
         boolean canManage = currentUserRole >= 2;
         boolean resolved = "resolved".equals(status);
@@ -200,16 +237,20 @@ public class SquareDetailFragment extends Fragment {
         RetrofitHelper.get().create(SquareApi.class).getComments(squarePostId, 0, 50)
                 .enqueue(new Callback<List<Map<String, Object>>>() {
                     @Override
-                    public void onResponse(Call<List<Map<String, Object>>> call, Response<List<Map<String, Object>>> response) {
-                        if (!isAdded()) return;
+                    public void onResponse(Call<List<Map<String, Object>>> call,
+                            Response<List<Map<String, Object>>> response) {
+                        if (!isAdded())
+                            return;
                         if (response.isSuccessful() && response.body() != null) {
                             commentItems.clear();
                             commentItems.addAll(response.body());
                             commentAdapter.notifyDataSetChanged();
                         }
                     }
+
                     @Override
-                    public void onFailure(Call<List<Map<String, Object>>> call, Throwable t) {}
+                    public void onFailure(Call<List<Map<String, Object>>> call, Throwable t) {
+                    }
                 });
     }
 
@@ -218,7 +259,8 @@ public class SquareDetailFragment extends Fragment {
                 .enqueue(new Callback<Map<String, Object>>() {
                     @Override
                     public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
-                        if (!isAdded()) return;
+                        if (!isAdded())
+                            return;
                         if (response.isSuccessful()) {
                             Toast.makeText(requireContext(), "已标记为已解决", Toast.LENGTH_SHORT).show();
                             postData = response.body();
@@ -227,9 +269,11 @@ public class SquareDetailFragment extends Fragment {
                             Toast.makeText(requireContext(), "操作失败", Toast.LENGTH_SHORT).show();
                         }
                     }
+
                     @Override
                     public void onFailure(Call<Map<String, Object>> call, Throwable t) {
-                        if (isAdded()) Toast.makeText(requireContext(), "网络错误", Toast.LENGTH_SHORT).show();
+                        if (isAdded())
+                            Toast.makeText(requireContext(), "网络错误", Toast.LENGTH_SHORT).show();
                     }
                 });
     }
@@ -246,7 +290,8 @@ public class SquareDetailFragment extends Fragment {
                 .enqueue(new Callback<Map<String, Object>>() {
                     @Override
                     public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
-                        if (!isAdded()) return;
+                        if (!isAdded())
+                            return;
                         if (response.isSuccessful()) {
                             commentInput.setText("");
                             loadComments();
@@ -254,9 +299,11 @@ public class SquareDetailFragment extends Fragment {
                             Toast.makeText(requireContext(), "发送失败", Toast.LENGTH_SHORT).show();
                         }
                     }
+
                     @Override
                     public void onFailure(Call<Map<String, Object>> call, Throwable t) {
-                        if (isAdded()) Toast.makeText(requireContext(), "网络错误", Toast.LENGTH_SHORT).show();
+                        if (isAdded())
+                            Toast.makeText(requireContext(), "网络错误", Toast.LENGTH_SHORT).show();
                     }
                 });
     }

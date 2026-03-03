@@ -41,7 +41,7 @@ public class MyCommentsFragment extends Fragment {
         View view = inflater.inflate(R.layout.fragment_my_posts, container, false);
         view.findViewById(R.id.btn_back).setOnClickListener(v ->
                 NavHostFragment.findNavController(this).navigateUp());
-        ((TextView) view.findViewById(R.id.tv_page_title)).setText("我的评论");
+//        ((TextView) view.findViewById(R.id.tv_page_title)).setText("我的评论");
 
         RecyclerView rv = view.findViewById(R.id.rv_list);
         tvEmpty = view.findViewById(R.id.tv_empty);

@@ -14,6 +14,7 @@ public class PostItem {
     private boolean pinned;
     private String createdAt;
     private String authorName;
+    private String authorAvatar;
 
     public long getId() { return id; }
     public void setId(long id) { this.id = id; }
@@ -35,4 +36,6 @@ public class PostItem {
     public void setCreatedAt(String createdAt) { this.createdAt = createdAt; }
     public String getAuthorName() { return authorName; }
     public void setAuthorName(String authorName) { this.authorName = authorName; }
+    public String getAuthorAvatar() { return authorAvatar; }
+    public void setAuthorAvatar(String authorAvatar) { this.authorAvatar = authorAvatar; }
 }
