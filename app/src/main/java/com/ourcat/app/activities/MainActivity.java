@@ -1,10 +1,14 @@
 package com.ourcat.app.activities;
 
 import android.Manifest;
+import android.content.ContentValues;
+import android.content.pm.PackageManager;
 import android.graphics.Rect;
+import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.provider.MediaStore;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -27,8 +31,10 @@ import com.google.android.material.appbar.MaterialToolbar;
 import com.google.android.material.badge.BadgeDrawable;
 import com.google.android.material.badge.BadgeUtils;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
+import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.ourcat.app.R;
 import com.ourcat.app.fragments.MapFragment;
+import com.ourcat.app.fragments.ReportCatDialogFragment;
 import com.ourcat.app.repositories.MessageApi;
 import com.ourcat.app.repositories.WeatherApi;
 import com.ourcat.app.utils.RetrofitHelper;
@@ -56,6 +62,13 @@ public class MainActivity extends AppCompatActivity {
     private Runnable badgeRunnable;
     private boolean badgeMenuReady = false;
     private int lastDestId = 0;
+    private FloatingActionButton fabQuickCamera;
+    private AMapLocationClient quickCameraLocationClient;
+    private ActivityResultLauncher<String[]> quickCameraPermissionLauncher;
+    private ActivityResultLauncher<Uri> quickCameraLauncher;
+    private ActivityResultLauncher<String> cameraPermissionLauncher;
+    private Uri tempCameraUri;
+    private Uri pendingImageUri;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -104,8 +117,12 @@ public class MainActivity extends AppCompatActivity {
         }
 
         bottomNav = findViewById(R.id.bottom_nav);
+        bottomNav.getMenu().findItem(R.id.nav_placeholder).setEnabled(false);
         bottomNav.setOnItemSelectedListener(item -> {
             int id = item.getItemId();
+            if (id == R.id.nav_placeholder) {
+                return false;
+            }
             if (id == R.id.nav_map) {
                 showMap();
                 return true;
@@ -155,6 +172,129 @@ public class MainActivity extends AppCompatActivity {
 
         setupKeyboardListener();
         initBadgeRefresh();
+        setupQuickCameraFab();
+    }
+
+    private void setupQuickCameraFab() {
+        quickCameraPermissionLauncher = registerForActivityResult(
+                new ActivityResultContracts.RequestMultiplePermissions(), result -> {
+                    Boolean fine = result.get(Manifest.permission.ACCESS_FINE_LOCATION);
+                    Boolean coarse = result.get(Manifest.permission.ACCESS_COARSE_LOCATION);
+                    if (Boolean.TRUE.equals(fine) || Boolean.TRUE.equals(coarse)) {
+                        startQuickCameraLocation(pendingImageUri);
+                    } else {
+                        openReportDialogWithCamera(31.23, 121.47, pendingImageUri);
+                    }
+                });
+
+        quickCameraLauncher = registerForActivityResult(
+                new ActivityResultContracts.TakePicture(), success -> {
+                    if (success) {
+                        checkLocationAndOpenDialog(tempCameraUri);
+                    } else {
+                        // 如果用户取消拍照，清理临时文件并不做任何操作
+                        try {
+                            if (tempCameraUri != null) {
+                                getContentResolver().delete(tempCameraUri, null, null);
+                            }
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
+                    }
+                });
+
+        cameraPermissionLauncher = registerForActivityResult(
+                new ActivityResultContracts.RequestPermission(), granted -> {
+                    if (granted) {
+                        launchQuickCamera();
+                    } else {
+                        checkLocationAndOpenDialog(null);
+                    }
+                });
+
+        fabQuickCamera = findViewById(R.id.fab_quick_camera);
+        fabQuickCamera.setOnClickListener(v -> {
+            if (ContextCompat.checkSelfPermission(this,
+                    Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
+                launchQuickCamera();
+            } else {
+                cameraPermissionLauncher.launch(Manifest.permission.CAMERA);
+            }
+        });
+    }
+
+    private void launchQuickCamera() {
+        ContentValues values = new ContentValues();
+        values.put(MediaStore.Images.Media.TITLE, "cat_quick_" + System.currentTimeMillis());
+        values.put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg");
+        tempCameraUri = getContentResolver().insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values);
+        if (tempCameraUri != null) {
+            quickCameraLauncher.launch(tempCameraUri);
+        } else {
+            checkLocationAndOpenDialog(null);
+        }
+    }
+
+    private void checkLocationAndOpenDialog(Uri imageUri) {
+        if (ContextCompat.checkSelfPermission(this,
+                Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+            startQuickCameraLocation(imageUri);
+        } else {
+            this.pendingImageUri = imageUri;
+            quickCameraPermissionLauncher.launch(new String[] {
+                    Manifest.permission.ACCESS_FINE_LOCATION,
+                    Manifest.permission.ACCESS_COARSE_LOCATION
+            });
+        }
+    }
+
+    private void startQuickCameraLocation(Uri imageUri) {
+        try {
+            if (quickCameraLocationClient == null) {
+                AMapLocationClient.updatePrivacyShow(this, true, true);
+                AMapLocationClient.updatePrivacyAgree(this, true);
+                quickCameraLocationClient = new AMapLocationClient(getApplicationContext());
+                AMapLocationClientOption option = new AMapLocationClientOption();
+                option.setLocationMode(AMapLocationClientOption.AMapLocationMode.Hight_Accuracy);
+                option.setOnceLocation(true);
+                option.setNeedAddress(false);
+                quickCameraLocationClient.setLocationOption(option);
+            }
+            // Update listener to use the current imageUri
+            quickCameraLocationClient.setLocationListener(aMapLocation -> {
+                if (aMapLocation != null && aMapLocation.getErrorCode() == 0) {
+                    openReportDialogWithCamera(aMapLocation.getLatitude(), aMapLocation.getLongitude(), imageUri);
+                } else {
+                    openReportDialogWithCamera(31.23, 121.47, imageUri);
+                }
+            });
+            quickCameraLocationClient.startLocation();
+        } catch (Exception e) {
+            openReportDialogWithCamera(31.23, 121.47, imageUri);
+        }
+    }
+
+    private void startQuickCameraLocation() {
+        startQuickCameraLocation(null);
+    }
+
+    private void openReportDialogWithCamera(double lat, double lng, Uri imageUri) {
+        ReportCatDialogFragment dialog;
+        if (imageUri != null) {
+            dialog = ReportCatDialogFragment.newInstance(lat, lng, imageUri);
+        } else {
+            dialog = ReportCatDialogFragment.newInstance(lat, lng, true);
+        }
+        dialog.setOnReportSuccess(() -> {
+            if (mapFragment != null) {
+                mapFragment.refreshCatReports();
+            }
+        });
+        dialog.show(getSupportFragmentManager(), "quick_report_cat");
+    }
+
+    private void openReportDialogWithCamera(double lat, double lng) {
+        openReportDialogWithCamera(lat, lng, null);
     }
 
     @Override
@@ -185,8 +325,12 @@ public class MainActivity extends AppCompatActivity {
             int keypadHeight = screenHeight - r.bottom;
             if (keypadHeight > screenHeight * 0.15) {
                 bottomNav.setVisibility(View.GONE);
+                if (fabQuickCamera != null)
+                    fabQuickCamera.setVisibility(View.GONE);
             } else {
                 bottomNav.setVisibility(View.VISIBLE);
+                if (fabQuickCamera != null)
+                    fabQuickCamera.setVisibility(View.VISIBLE);
             }
         });
     }
@@ -384,6 +528,9 @@ public class MainActivity extends AppCompatActivity {
         super.onDestroy();
         if (weatherLocationClient != null) {
             weatherLocationClient.onDestroy();
+        }
+        if (quickCameraLocationClient != null) {
+            quickCameraLocationClient.onDestroy();
         }
     }
 

@@ -39,10 +39,40 @@
         app:navGraph="@navigation/nav_graph"
         app:layout_behavior="@string/appbar_scrolling_view_behavior" />
 
-    <com.google.android.material.bottomnavigation.BottomNavigationView
-        android:id="@+id/bottom_nav"
+    <!-- 底部栏容器，确保 FAB 在底部栏上层 -->
+    <FrameLayout
+        android:id="@+id/bottom_bar_container"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_gravity="bottom"
-        app:menu="@menu/bottom_nav_menu" />
+        android:paddingTop="32dp"
+        android:clipChildren="false"
+        android:clipToPadding="false">
+
+        <com.google.android.material.bottomnavigation.BottomNavigationView
+            android:id="@+id/bottom_nav"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_gravity="bottom"
+            android:elevation="0dp"
+            app:menu="@menu/bottom_nav_menu" />
+
+        <!-- 中间拍照按钮，突出底部栏1/3 -->
+        <com.google.android.material.floatingactionbutton.FloatingActionButton
+            android:id="@+id/fab_quick_camera"
+            android:layout_width="70dp"
+            android:layout_height="70dp"
+            android:layout_gravity="center_horizontal|bottom"
+            android:layout_marginBottom="12dp"
+            android:src="@drawable/ic_camera_cute"
+            android:scaleType="centerInside"
+            android:padding="0dp"
+            android:contentDescription="快速拍照上报"
+            app:maxImageSize="42dp"
+            app:fabCustomSize="70dp"
+            app:backgroundTint="@color/primary"
+            app:tint="@android:color/white"
+            app:elevation="8dp" />
+
+    </FrameLayout>
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

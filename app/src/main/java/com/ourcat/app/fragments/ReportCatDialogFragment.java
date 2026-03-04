@@ -57,13 +57,18 @@ public class ReportCatDialogFragment extends DialogFragment {
 
     private static final String ARG_LAT = "lat";
     private static final String ARG_LNG = "lng";
+    private static final String ARG_AUTO_CAMERA = "auto_camera";
+    private static final String ARG_INITIAL_IMAGE_URI = "initial_image_uri";
 
     private Runnable onReportSuccess;
     private double currentLat = 0;
     private double currentLng = 0;
+    private boolean autoCamera = false;
+    private boolean autoCameraTriggered = false;
     // 新增：记录初始定位，用于“回到我的位置”
     private double initialLat = 0;
     private double initialLng = 0;
+    private Uri initialImageUri;
 
     private TextureMapView mapView;
     private AMap aMap;
@@ -74,10 +79,26 @@ public class ReportCatDialogFragment extends DialogFragment {
     private Uri cameraUri;
 
     public static ReportCatDialogFragment newInstance(double lat, double lng) {
+        return newInstance(lat, lng, false);
+    }
+
+    public static ReportCatDialogFragment newInstance(double lat, double lng, boolean autoCamera) {
         ReportCatDialogFragment f = new ReportCatDialogFragment();
         Bundle args = new Bundle();
         args.putDouble(ARG_LAT, lat);
         args.putDouble(ARG_LNG, lng);
+        args.putBoolean(ARG_AUTO_CAMERA, autoCamera);
+        f.setArguments(args);
+        return f;
+    }
+
+    public static ReportCatDialogFragment newInstance(double lat, double lng, Uri initialImageUri) {
+        ReportCatDialogFragment f = new ReportCatDialogFragment();
+        Bundle args = new Bundle();
+        args.putDouble(ARG_LAT, lat);
+        args.putDouble(ARG_LNG, lng);
+        args.putBoolean(ARG_AUTO_CAMERA, false);
+        args.putParcelable(ARG_INITIAL_IMAGE_URI, initialImageUri);
         f.setArguments(args);
         return f;
     }
@@ -124,6 +145,11 @@ public class ReportCatDialogFragment extends DialogFragment {
             currentLng = getArguments().getDouble(ARG_LNG, 0);
             initialLat = currentLat;
             initialLng = currentLng;
+            autoCamera = getArguments().getBoolean(ARG_AUTO_CAMERA, false);
+            initialImageUri = getArguments().getParcelable(ARG_INITIAL_IMAGE_URI);
+            if (initialImageUri != null) {
+                selectedImages.add(initialImageUri);
+            }
         }
     }
 
@@ -266,6 +292,21 @@ public class ReportCatDialogFragment extends DialogFragment {
         super.onResume();
         if (mapView != null)
             mapView.onResume();
+        if (autoCamera && !autoCameraTriggered) {
+            autoCameraTriggered = true;
+            mapView.postDelayed(this::triggerAutoCamera, 300);
+        }
+    }
+
+    private void triggerAutoCamera() {
+        if (!isAdded())
+            return;
+        if (ContextCompat.checkSelfPermission(requireContext(),
+                Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
+            launchCamera();
+        } else {
+            cameraPermLauncher.launch(Manifest.permission.CAMERA);
+        }
     }
 
     @Override

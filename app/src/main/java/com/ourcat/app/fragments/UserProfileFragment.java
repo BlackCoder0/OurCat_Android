@@ -38,15 +38,17 @@ public class UserProfileFragment extends Fragment {
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,
-                             @Nullable Bundle savedInstanceState) {
+            @Nullable Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_user_profile, container, false);
 
         if (getArguments() != null) {
             userId = getArguments().getLong("userId", 0);
         }
 
-        view.findViewById(R.id.btn_back).setOnClickListener(v ->
-                NavHostFragment.findNavController(this).navigateUp());
+        View btnBack = view.findViewById(R.id.btn_back);
+        if (btnBack != null) {
+            btnBack.setOnClickListener(v -> NavHostFragment.findNavController(this).navigateUp());
+        }
 
         ivAvatar = view.findViewById(R.id.user_avatar);
         tvNickname = view.findViewById(R.id.user_nickname);
@@ -62,7 +64,8 @@ public class UserProfileFragment extends Fragment {
     }
 
     private void loadUserProfile() {
-        if (userId == 0) return;
+        if (userId == 0)
+            return;
 
         RetrofitHelper.get().create(AuthApi.class).getPublicProfile(userId)
                 .enqueue(new Callback<Map<String, Object>>() {

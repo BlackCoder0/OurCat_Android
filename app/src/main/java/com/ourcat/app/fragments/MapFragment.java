@@ -1406,6 +1406,11 @@ public class MapFragment extends Fragment implements AMapLocationListener {
         return o != null ? o.toString() : "";
     }
 
+    public void refreshCatReports() {
+        allLocations.clear();
+        loadHeatmapData();
+    }
+
     @Override
     public void onResume() {
         super.onResume();
