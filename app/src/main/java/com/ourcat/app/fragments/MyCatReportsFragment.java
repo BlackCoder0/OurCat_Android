@@ -44,8 +44,11 @@ public class MyCatReportsFragment extends Fragment {
                              @Nullable Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_my_cat_reports, container, false);
 
-        view.findViewById(R.id.btn_back).setOnClickListener(v ->
-                NavHostFragment.findNavController(this).navigateUp());
+        View btnBack = view.findViewById(R.id.btn_back);
+        if (btnBack != null) {
+            btnBack.setOnClickListener(v ->
+                    NavHostFragment.findNavController(this).navigateUp());
+        }
 
         swipeRefresh = view.findViewById(R.id.swipe_refresh);
         recyclerView = view.findViewById(R.id.recycler);

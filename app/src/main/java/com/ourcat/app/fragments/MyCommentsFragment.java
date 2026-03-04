@@ -37,11 +37,13 @@ public class MyCommentsFragment extends Fragment {
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,
-                             @Nullable Bundle savedInstanceState) {
+            @Nullable Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_my_posts, container, false);
-        view.findViewById(R.id.btn_back).setOnClickListener(v ->
-                NavHostFragment.findNavController(this).navigateUp());
-//        ((TextView) view.findViewById(R.id.tv_page_title)).setText("我的评论");
+        View btnBack = view.findViewById(R.id.btn_back);
+        if (btnBack != null) {
+            btnBack.setOnClickListener(v -> NavHostFragment.findNavController(this).navigateUp());
+        }
+        // ((TextView) view.findViewById(R.id.tv_page_title)).setText("我的评论");
 
         RecyclerView rv = view.findViewById(R.id.rv_list);
         tvEmpty = view.findViewById(R.id.tv_empty);
@@ -69,7 +71,8 @@ public class MyCommentsFragment extends Fragment {
                             if (content instanceof List) {
                                 List<Map<String, Object>> list = new ArrayList<>();
                                 for (Object o : (List<?>) content) {
-                                    if (o instanceof Map) list.add((Map<String, Object>) o);
+                                    if (o instanceof Map)
+                                        list.add((Map<String, Object>) o);
                                 }
                                 adapter.setItems(list);
                                 tvEmpty.setVisibility(list.isEmpty() ? View.VISIBLE : View.GONE);

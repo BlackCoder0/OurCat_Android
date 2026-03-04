@@ -18,7 +18,7 @@
             android:layout_height="80dp"
             android:layout_marginTop="24dp"
             android:scaleType="centerCrop"
-            android:background="@color/secondary"
+            android:background="@drawable/bg_circle_white"
             android:contentDescription="头像" />
 
         <TextView

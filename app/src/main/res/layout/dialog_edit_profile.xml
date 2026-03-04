@@ -32,8 +32,8 @@
                 android:scaleType="centerCrop"
                 android:src="@drawable/ic_default_avatar"
                 app:shapeAppearanceOverlay="@style/ShapeAppearance.MaterialComponents.MediumComponent"
-                app:strokeWidth="2dp"
-                app:strokeColor="@color/primary"/>
+                app:strokeWidth="0dp"
+                app:strokeColor="@android:color/transparent"/>
             
             <ImageView
                 android:layout_width="24dp"

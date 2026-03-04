@@ -1,6 +1,7 @@
 package com.ourcat.app.fragments;
 
 import android.os.Bundle;
+import android.os.Build;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -8,6 +9,8 @@ import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
+import android.content.res.ColorStateList;
+import android.graphics.Color;
 
 import androidx.annotation.NonNull;
 import androidx.navigation.fragment.NavHostFragment;
@@ -20,6 +23,7 @@ import androidx.recyclerview.widget.RecyclerView;
 import androidx.viewpager2.widget.ViewPager2;
 
 import com.google.android.material.button.MaterialButton;
+import com.google.android.material.chip.Chip;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import com.ourcat.app.R;
@@ -46,7 +50,7 @@ public class SquareDetailFragment extends Fragment {
     private Map<String, Object> postData;
 
     private View resolvedOverlay;
-    private TextView typeChip;
+    private Chip typeChip;
     private TextView statusText;
     private TextView authorText;
     private ImageView authorAvatar;
@@ -78,6 +82,13 @@ public class SquareDetailFragment extends Fragment {
         statusText = view.findViewById(R.id.square_detail_status);
         authorText = view.findViewById(R.id.square_detail_author);
         authorAvatar = view.findViewById(R.id.square_detail_avatar);
+        if (Build.VERSION.SDK_INT >= 26) {
+            authorAvatar.setDefaultFocusHighlightEnabled(false);
+        }
+        if (Build.VERSION.SDK_INT >= 23) {
+            authorAvatar.setForeground(null);
+        }
+        authorAvatar.setFocusable(false);
         textView = view.findViewById(R.id.square_detail_text);
         imagePager = view.findViewById(R.id.square_detail_image_pager);
         locationText = view.findViewById(R.id.square_detail_location);
@@ -178,6 +189,9 @@ public class SquareDetailFragment extends Fragment {
         long postUserId = userIdObj instanceof Number ? ((Number) userIdObj).longValue() : 0;
 
         typeChip.setText("rescue".equals(type) ? "救助" : "询问");
+        int color = "rescue".equals(type) ? Color.parseColor("#E65100") : Color.parseColor("#1976D2");
+        typeChip.setChipBackgroundColor(ColorStateList.valueOf(color));
+        typeChip.setTextColor(Color.WHITE);
         statusText.setText("resolved".equals(status) ? "已解决" : "进行中");
         statusText.setTextColor("resolved".equals(status) ? 0xFF4CAF50 : 0xFFFF9800);
         authorText.setText(authorName);

@@ -51,8 +51,8 @@ public class SquareFragment extends Fragment {
 
         adapter = new RecyclerView.Adapter<RecyclerView.ViewHolder>() {
             class ViewHolder extends RecyclerView.ViewHolder {
-                TextView type, status, text, location, author;
-                android.widget.ImageView avatar;
+                TextView type, status, text, location;
+                View container;
 
                 ViewHolder(View itemView) {
                     super(itemView);
@@ -60,8 +60,7 @@ public class SquareFragment extends Fragment {
                     status = itemView.findViewById(R.id.item_square_status);
                     text = itemView.findViewById(R.id.item_square_text);
                     location = itemView.findViewById(R.id.item_square_location);
-                    author = itemView.findViewById(R.id.item_square_author);
-                    avatar = itemView.findViewById(R.id.item_square_avatar);
+                    container = itemView.findViewById(R.id.item_square_container);
                 }
             }
 
@@ -80,26 +79,13 @@ public class SquareFragment extends Fragment {
                 String s = (String) item.get("status");
                 String txt = (String) item.get("text");
                 Object loc = item.get("location");
-                Object author = item.get("authorName");
-                Object avatarUrl = item.get("authorAvatar");
 
-                holder.type.setText("rescue".equals(t) ? "求助" : "询问");
+                holder.type.setText("rescue".equals(t) ? "救助" : "询问");
                 holder.type.setBackgroundResource(
-                        "rescue".equals(t) ? R.drawable.bg_map_mode_chip : R.drawable.bg_map_mode_chip); // Simplify color logic
+                        "rescue".equals(t) ? R.drawable.bg_map_mode_chip : R.drawable.bg_chip_inquiry);
                 holder.status.setText("resolved".equals(s) ? "已解决" : "进行中");
                 holder.status.setTextColor("resolved".equals(s) ? 0xFF4CAF50 : 0xFFFF9800);
                 holder.text.setText(txt);
-                holder.author.setText(author != null ? author.toString() : "匿名");
-
-                if (avatarUrl != null && !avatarUrl.toString().isEmpty()) {
-                    com.bumptech.glide.Glide.with(holder.itemView.getContext())
-                            .load(avatarUrl.toString())
-                            .circleCrop() 
-                            .placeholder(R.drawable.ic_default_avatar)
-                            .into(holder.avatar);
-                } else {
-                    holder.avatar.setImageResource(R.drawable.ic_default_avatar);
-                }
 
                 if (loc != null) {
                     holder.location.setVisibility(View.VISIBLE);
@@ -108,18 +94,13 @@ public class SquareFragment extends Fragment {
                     holder.location.setVisibility(View.GONE);
                 }
 
-                Object userIdObj = item.get("userId");
-                long userId = userIdObj instanceof Number ? ((Number) userIdObj).longValue() : 0;
-                View.OnClickListener profileListener = v -> {
-                    if (userId != 0) {
-                        Bundle args = new Bundle();
-                        args.putLong("userId", userId);
-                        Navigation.findNavController(v).navigate(R.id.user_profile, args);
-                    }
-                };
-                holder.avatar.setOnClickListener(profileListener);
-                holder.author.setOnClickListener(profileListener);
-
+                if ("resolved".equals(s)) {
+                    if (holder.container != null)
+                        holder.container.setAlpha(0.25f);
+                } else {
+                    if (holder.container != null)
+                        holder.container.setAlpha(1.0f);
+                }
                 holder.itemView.setOnClickListener(v -> {
                     Object idObj = item.get("id");
                     if (idObj instanceof Number) {
