@@ -21,6 +21,29 @@ import java.io.OutputStream;
 
 public class ImageUtils {
 
+    public static File uriToFile(Context context, Uri uri) {
+        try {
+            InputStream inputStream = context.getContentResolver().openInputStream(uri);
+            if (inputStream == null)
+                return null;
+
+            File tempFile = File.createTempFile("upload_img_" + System.currentTimeMillis(), ".jpg",
+                    context.getCacheDir());
+            FileOutputStream outputStream = new FileOutputStream(tempFile);
+            byte[] buffer = new byte[4096];
+            int bytesRead;
+            while ((bytesRead = inputStream.read(buffer)) != -1) {
+                outputStream.write(buffer, 0, bytesRead);
+            }
+            outputStream.close();
+            inputStream.close();
+            return tempFile;
+        } catch (IOException e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
     public static File uriToTempFile(Context context, Uri uri) throws IOException {
         InputStream inputStream = context.getContentResolver().openInputStream(uri);
         File tempFile = File.createTempFile("temp_image", ".jpg", context.getCacheDir());

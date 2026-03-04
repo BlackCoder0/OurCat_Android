@@ -240,13 +240,29 @@ public class ReportCatDialogFragment extends DialogFragment {
         });
 
         setupChipGroup(view, R.id.chip_group_color,
-                new String[] { "橘色", "黑色", "白色", "灰色", "花色", "三花", "玳瑁", "狸花", "奶牛" },
+                new String[] { 
+                    "橘色", "黑色", "白色", "灰色",      // 纯色
+                    "狸花", "银虎斑",                    // 虎斑
+                    "奶牛", "三花", "玳瑁",              // 双色/多色
+                    "奶油色", "暹罗色"                   // 特殊色
+                },
                 R.id.report_color_input_layout, true);
         setupChipGroup(view, R.id.chip_group_feature,
-                new String[] { "短毛", "长毛", "折耳", "立耳", "断尾", "有项圈", "有耳标" },
+                new String[] { 
+                    "短毛", "长毛",                      // 毛发长度
+                    "立耳", "折耳",                      // 耳朵
+                    "长尾", "短尾", "断尾",              // 尾巴
+                    "偏瘦", "偏胖",                      // 体型
+                    "有项圈", "有耳标", "剪耳",      // 人工标记
+                    "绝育", "未绝育"
+                },
                 R.id.report_feature_input_layout, false);
         setupChipGroup(view, R.id.chip_group_personality,
-                new String[] { "亲人", "胆小", "凶", "活泼", "安静" },
+                new String[] { 
+                    "亲人", "独立", "警惕", "怕人",  // 社交性
+                    "活泼", "安静",                            // 活跃度
+                    "好奇", "胆小", "有攻击性"                 // 特殊
+                },
                 R.id.report_personality_input_layout, false);
 
         view.findViewById(R.id.report_submit).setOnClickListener(v -> {

@@ -141,13 +141,36 @@ public class MainActivity extends AppCompatActivity {
         });
 
         navController.addOnDestinationChangedListener((controller, dest, args) -> {
+            int destId = dest.getId();
+
+            // 如果是从地图进入猫咪档案页，标记一下
+            if (destId == R.id.cat_profile) {
+                if (isMapVisible) {
+                    hideMap();
+                    // 标记是因为导航到 profile 而隐藏的
+                    navHostView.setTag(R.id.map_container, true);
+                }
+            } else {
+                // 如果离开猫咪档案页（通过返回或其他方式），检查是否需要恢复地图
+                Object tag = navHostView.getTag(R.id.map_container);
+                if (tag != null && (Boolean) tag) {
+                    // 清除标记
+                    navHostView.setTag(R.id.map_container, null);
+                    // 只有当回到了社区（首页）时才恢复地图，因为地图逻辑上是在社区之上的覆盖层
+                    if (destId == R.id.nav_community) {
+                        showMap();
+                        // 强制选中"地图"TAB（如果有的话），或者保持当前TAB
+                        bottomNav.getMenu().findItem(R.id.nav_map).setChecked(true);
+                        return; // 阻止后续逻辑覆盖选中状态
+                    }
+                }
+            }
+
             if (!isMapVisible) {
-                int destId = dest.getId();
                 if (destId == R.id.nav_community || destId == R.id.nav_square || destId == R.id.nav_me) {
                     bottomNav.getMenu().findItem(destId).setChecked(true);
                 }
             }
-            int destId = dest.getId();
             if (lastDestId == R.id.message_center && destId != R.id.message_center) {
                 updateMessageBadge();
             } else {
@@ -160,8 +183,25 @@ public class MainActivity extends AppCompatActivity {
         getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
             @Override
             public void handleOnBackPressed() {
+                // 如果当前在猫咪档案页面，允许默认返回行为（会退栈）
+                if (navController.getCurrentDestination() != null
+                        && navController.getCurrentDestination().getId() == R.id.cat_profile) {
+                    // 检查是否是从地图跳转过来的（通过 arguments 判断或其他标志）
+                    // 但由于 Navigation 栈已被正确管理，我们只需要在退栈后检查是否需要显示地图
+                    setEnabled(false);
+                    getOnBackPressedDispatcher().onBackPressed();
+                    setEnabled(true);
+
+                    // 如果退栈后回到了 NavHost 的根（或者栈空了），或者我们希望恢复地图状态
+                    // 这里比较棘手，因为 Navigation 不知道 "MapFragment" 的状态（它是手动管理的 View）
+                    // 我们可以在 popBackStack 后检查
+                    return;
+                }
+
                 if (isMapVisible) {
+                    // 如果地图可见，按返回键回到社区（默认首页）
                     bottomNav.setSelectedItemId(R.id.nav_community);
+                    hideMap();
                 } else {
                     setEnabled(false);
                     getOnBackPressedDispatcher().onBackPressed();

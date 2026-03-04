@@ -3,13 +3,13 @@
     android:layout_width="220dp"
     android:layout_height="wrap_content"
     android:orientation="vertical"
-    android:background="@android:color/white"
-    android:padding="10dp"
+    android:background="@drawable/bg_info_window"
+    android:padding="12dp"
     android:elevation="4dp">
 
     <ImageView
         android:id="@+id/info_image"
-        android:layout_width="200dp"
+        android:layout_width="196dp"
         android:layout_height="120dp"
         android:scaleType="centerCrop"
         android:visibility="gone"
@@ -31,4 +31,17 @@
         android:textSize="12sp"
         android:textColor="@color/text_secondary"
         android:visibility="gone" />
+
+    <!-- 点击查看档案提示 -->
+    <TextView
+        android:id="@+id/info_action_hint"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:paddingVertical="6dp"
+        android:text="👆 点击查看猫咪档案"
+        android:textSize="12sp"
+        android:textColor="@color/primary"
+        android:gravity="center"
+        android:background="@drawable/bg_action_hint" />
 </LinearLayout>

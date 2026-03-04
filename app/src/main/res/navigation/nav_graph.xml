@@ -83,4 +83,12 @@
             android:name="userId"
             app:argType="long" />
     </fragment>
+    <fragment
+        android:id="@+id/cat_profile"
+        android:name="com.ourcat.app.fragments.CatProfileFragment"
+        android:label="猫咪档案">
+        <argument
+            android:name="catId"
+            app:argType="long" />
+    </fragment>
 </navigation>

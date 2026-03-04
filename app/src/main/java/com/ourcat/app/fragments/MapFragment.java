@@ -286,6 +286,22 @@ public class MapFragment extends Fragment implements AMapLocationListener {
             return true;
         });
 
+        // 点击 InfoWindow 进入猫咪档案
+        aMap.setOnInfoWindowClickListener(marker -> {
+            Object data = markerDataMap.get(marker.getId());
+            if (data instanceof Map) {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> catData = (Map<String, Object>) data;
+                Object catIdObj = catData.get("catId");
+                if (catIdObj != null) {
+                    long catId = ((Number) catIdObj).longValue();
+                    openCatProfile(catId);
+                } else if (isAdded()) {
+                    Toast.makeText(requireContext(), "该上报尚未关联猫咪档案", Toast.LENGTH_SHORT).show();
+                }
+            }
+        });
+
         aMap.setOnMapClickListener(latLng -> {
             if (currentMarker != null && currentMarker.isInfoWindowShown()) {
                 currentMarker.hideInfoWindow();
@@ -367,9 +383,27 @@ public class MapFragment extends Fragment implements AMapLocationListener {
                 }
 
                 h.delete.setVisibility(View.GONE);
+
+                // 显示"查看档案"按钮
+                Object catIdObj = item.get("catId");
+                if (catIdObj != null && h.btnViewProfile != null) {
+                    h.btnViewProfile.setVisibility(View.VISIBLE);
+                    h.btnViewProfile.setOnClickListener(v -> {
+                        dialog.dismiss();
+                        long catId = ((Number) catIdObj).longValue();
+                        openCatProfile(catId);
+                    });
+                } else if (h.btnViewProfile != null) {
+                    h.btnViewProfile.setVisibility(View.GONE);
+                }
+
+                // 整个卡片点击也可以进入档案
                 h.itemView.setOnClickListener(v -> {
                     dialog.dismiss();
-                    if (latObj != null && lngObj != null) {
+                    if (catIdObj != null) {
+                        long catId = ((Number) catIdObj).longValue();
+                        openCatProfile(catId);
+                    } else if (latObj != null && lngObj != null) {
                         aMap.animateCamera(CameraUpdateFactory.newLatLngZoom(
                                 new LatLng(((Number) latObj).doubleValue(), ((Number) lngObj).doubleValue()),
                                 MAX_ZOOM));
@@ -389,7 +423,7 @@ public class MapFragment extends Fragment implements AMapLocationListener {
     static class ClusterVH extends RecyclerView.ViewHolder {
         ImageView image;
         TextView color, feature, location, time;
-        View delete;
+        View delete, btnViewProfile;
 
         ClusterVH(View v) {
             super(v);
@@ -399,6 +433,7 @@ public class MapFragment extends Fragment implements AMapLocationListener {
             location = v.findViewById(R.id.item_location);
             time = v.findViewById(R.id.item_time);
             delete = v.findViewById(R.id.item_delete);
+            btnViewProfile = v.findViewById(R.id.btn_view_profile);
         }
     }
 
@@ -423,6 +458,7 @@ public class MapFragment extends Fragment implements AMapLocationListener {
         TextView title = view.findViewById(R.id.info_title);
         TextView snippet = view.findViewById(R.id.info_snippet);
         ImageView image = view.findViewById(R.id.info_image);
+        TextView actionHint = view.findViewById(R.id.info_action_hint);
 
         title.setText(marker.getTitle());
         String snippetText = marker.getSnippet();
@@ -444,8 +480,19 @@ public class MapFragment extends Fragment implements AMapLocationListener {
             } else {
                 image.setVisibility(View.GONE);
             }
+
+            // 根据是否有 catId 显示不同提示
+            Object catIdObj = catData.get("catId");
+            if (catIdObj != null) {
+                actionHint.setText("👆 点击查看猫咪档案");
+                actionHint.setVisibility(View.VISIBLE);
+            } else {
+                actionHint.setText("⏳ 匹配中，稍后可查看档案");
+                actionHint.setVisibility(View.VISIBLE);
+            }
         } else {
             image.setVisibility(View.GONE);
+            actionHint.setVisibility(View.GONE);
         }
         return view;
     }
@@ -1373,22 +1420,32 @@ public class MapFragment extends Fragment implements AMapLocationListener {
     private int getMarkerColor(String color) {
         if (color == null || color.isEmpty())
             return 0xFFFF6D00;
+        // 纯色
         if (color.contains("橘"))
-            return 0xFFFF6D00;
+            return 0xFFFF6D00; // 橘色
         if (color.contains("黑"))
-            return 0xFF37474F;
+            return 0xFF37474F; // 深灰黑
         if (color.contains("白"))
-            return 0xFF78909C;
+            return 0xFF78909C; // 浅灰白
         if (color.contains("灰"))
-            return 0xFF546E7A;
-        if (color.contains("花") || color.contains("三花"))
-            return 0xFFD81B60;
-        if (color.contains("玳瑁"))
-            return 0xFF6D4C41;
+            return 0xFF546E7A; // 蓝灰
+        // 虎斑
         if (color.contains("狸花"))
-            return 0xFF2E7D32;
+            return 0xFF2E7D32; // 深绿
+        if (color.contains("银虎斑"))
+            return 0xFF607D8B; // 银灰蓝
+        // 双色/多色
         if (color.contains("奶牛"))
-            return 0xFF263238;
+            return 0xFF263238; // 深蓝黑
+        if (color.contains("三花"))
+            return 0xFFD81B60; // 粉红
+        if (color.contains("玳瑁"))
+            return 0xFF6D4C41; // 棕色
+        // 特殊色
+        if (color.contains("奶油"))
+            return 0xFFFFA726; // 浅橙奶油色
+        if (color.contains("暹罗"))
+            return 0xFF8D6E63; // 浅棕暹罗色
         return 0xFFFF6D00;
     }
 
@@ -1464,5 +1521,32 @@ public class MapFragment extends Fragment implements AMapLocationListener {
             mapView = null;
         }
         super.onDestroyView();
+    }
+
+    /**
+     * 打开猫咪档案详情页面
+     */
+    private void openCatProfile(long catId) {
+        if (!isAdded())
+            return;
+
+        Bundle args = new Bundle();
+        args.putLong("catId", catId);
+        try {
+            // Find NavController via NavHostFragment to avoid issues with Activity/View
+            // lookup
+            Fragment navHostFragment = requireActivity().getSupportFragmentManager()
+                    .findFragmentById(R.id.nav_host_fragment);
+            if (navHostFragment != null) {
+                androidx.navigation.fragment.NavHostFragment.findNavController(navHostFragment)
+                        .navigate(R.id.cat_profile, args);
+            } else {
+                Log.e(TAG, "NavHostFragment not found");
+                Toast.makeText(requireContext(), "无法打开档案: 导航组件缺失", Toast.LENGTH_SHORT).show();
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Open cat profile failed", e);
+            Toast.makeText(requireContext(), "无法打开档案", Toast.LENGTH_SHORT).show();
+        }
     }
 }
