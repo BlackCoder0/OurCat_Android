@@ -13,12 +13,6 @@
         android:gravity="center_vertical"
         android:padding="12dp">
 
-        <ImageView
-            android:id="@+id/btn_back"
-            android:layout_width="24dp"
-            android:layout_height="24dp"
-            android:src="@android:drawable/ic_menu_revert"
-            android:contentDescription="返回" />
 
         <com.google.android.material.textfield.TextInputLayout
             android:layout_width="0dp"
@@ -71,7 +65,7 @@
             style="@style/Widget.MaterialComponents.Chip.Choice"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="搜索用户" />
+            android:text="按用户" />
     </com.google.android.material.chip.ChipGroup>
 
     <androidx.recyclerview.widget.RecyclerView

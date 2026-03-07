@@ -11,14 +11,15 @@ import retrofit2.converter.gson.GsonConverterFactory;
 
 public class RetrofitHelper {
 
-    // 改为云端地址
-    private static final String DEFAULT_BASE_URL = "http://8.138.154.101:8080/";
-
     private static Retrofit retrofit;
-    private static String baseUrl = DEFAULT_BASE_URL;
+    private static String baseUrl;
 
     public static void init(Context context, String serverUrl) {
-        if (serverUrl != null && !serverUrl.isEmpty()) baseUrl = serverUrl;
+        if (serverUrl == null || serverUrl.isEmpty()) {
+            throw new IllegalStateException(
+                    "BASE_URL 未配置，请在 local.properties 中设置 OURCAT_BASE_URL_DEBUG/OURCAT_BASE_URL_RELEASE");
+        }
+        baseUrl = serverUrl.endsWith("/") ? serverUrl : serverUrl + "/";
         TokenStore tokenStore = new TokenStore(context);
         OkHttpClient client = new OkHttpClient.Builder()
                 .connectTimeout(30, TimeUnit.SECONDS)

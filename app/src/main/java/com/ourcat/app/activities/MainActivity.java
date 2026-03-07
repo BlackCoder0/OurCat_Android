@@ -101,6 +101,7 @@ public class MainActivity extends AppCompatActivity {
         AppBarConfiguration appBarConfig = new AppBarConfiguration.Builder(
                 R.id.nav_community, R.id.nav_square, R.id.nav_me).build();
         NavigationUI.setupWithNavController(toolbar, navController, appBarConfig);
+        toolbar.setNavigationIconTint(ContextCompat.getColor(this, android.R.color.white));
 
         if (savedInstanceState == null) {
             mapFragment = new MapFragment();

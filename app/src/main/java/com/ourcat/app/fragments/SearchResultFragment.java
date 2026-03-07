@@ -56,7 +56,7 @@ public class SearchResultFragment extends Fragment {
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,
-                             @Nullable Bundle savedInstanceState) {
+            @Nullable Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_search_result, container, false);
         etSearch = view.findViewById(R.id.et_search);
         chipGroup = view.findViewById(R.id.chip_group);
@@ -74,6 +74,12 @@ public class SearchResultFragment extends Fragment {
         });
 
         userAdapter = new UserSearchAdapter();
+        userAdapter.setOnUserClickListener(userId -> {
+            Bundle args = new Bundle();
+            args.putLong("userId", userId);
+            NavController nav = Navigation.findNavController(requireView());
+            nav.navigate(R.id.user_profile, args);
+        });
 
         commentAdapter = new MyCommentAdapter();
         commentAdapter.setOnItemClickListener(postId -> {
@@ -90,9 +96,6 @@ public class SearchResultFragment extends Fragment {
             currentQuery = getArguments().getString("query", "");
         }
         etSearch.setText(currentQuery);
-
-        view.findViewById(R.id.btn_back).setOnClickListener(v ->
-                NavHostFragment.findNavController(this).navigateUp());
 
         etSearch.setOnEditorActionListener((v, actionId, event) -> {
             if (actionId == EditorInfo.IME_ACTION_SEARCH) {
@@ -167,7 +170,8 @@ public class SearchResultFragment extends Fragment {
     }
 
     private void doSearch() {
-        if (currentQuery.isEmpty()) return;
+        if (currentQuery.isEmpty())
+            return;
 
         if ("user".equals(currentType)) {
             rvResults.setAdapter(userAdapter);
@@ -182,7 +186,8 @@ public class SearchResultFragment extends Fragment {
                 .enqueue(new Callback<Map<String, Object>>() {
                     @Override
                     public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
-                        if (!isAdded()) return;
+                        if (!isAdded())
+                            return;
                         if (response.isSuccessful() && response.body() != null) {
                             Object content = response.body().get("content");
                             if (content instanceof List) {
@@ -190,7 +195,8 @@ public class SearchResultFragment extends Fragment {
                                 if ("user".equals(currentType)) {
                                     List<Map<String, Object>> users = new ArrayList<>();
                                     for (Object o : list) {
-                                        if (o instanceof Map) users.add((Map<String, Object>) o);
+                                        if (o instanceof Map)
+                                            users.add((Map<String, Object>) o);
                                     }
                                     cachedUsers = users;
                                     userAdapter.setItems(users);
@@ -198,7 +204,8 @@ public class SearchResultFragment extends Fragment {
                                 } else if ("comment".equals(currentType)) {
                                     List<Map<String, Object>> comments = new ArrayList<>();
                                     for (Object o : list) {
-                                        if (o instanceof Map) comments.add((Map<String, Object>) o);
+                                        if (o instanceof Map)
+                                            comments.add((Map<String, Object>) o);
                                     }
                                     cachedComments = comments;
                                     commentAdapter.setItems(comments);
@@ -220,7 +227,8 @@ public class SearchResultFragment extends Fragment {
 
                     @Override
                     public void onFailure(Call<Map<String, Object>> call, Throwable t) {
-                        if (!isAdded()) return;
+                        if (!isAdded())
+                            return;
                         Toast.makeText(requireContext(), "搜索失败", Toast.LENGTH_SHORT).show();
                     }
                 });
