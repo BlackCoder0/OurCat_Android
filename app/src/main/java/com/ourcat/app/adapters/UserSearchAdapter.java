@@ -19,14 +19,17 @@ import java.util.Map;
 public class UserSearchAdapter extends RecyclerView.Adapter<UserSearchAdapter.ViewHolder> {
 
     private final List<Map<String, Object>> items = new ArrayList<>();
+
     public interface OnUserClickListener {
         void onUserClick(long userId);
     }
+
     private OnUserClickListener onUserClickListener;
 
     public void setItems(List<Map<String, Object>> list) {
         items.clear();
-        if (list != null) items.addAll(list);
+        if (list != null)
+            items.addAll(list);
         notifyDataSetChanged();
     }
 
@@ -109,7 +112,8 @@ public class UserSearchAdapter extends RecyclerView.Adapter<UserSearchAdapter.Vi
 
     private static long getLong(Map<String, Object> m, String key) {
         Object o = m.get(key);
-        if (o instanceof Number) return ((Number) o).longValue();
+        if (o instanceof Number)
+            return ((Number) o).longValue();
         try {
             return Long.parseLong(o != null ? o.toString() : "0");
         } catch (Exception e) {
