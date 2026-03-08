@@ -23,13 +23,17 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.amap.api.location.AMapLocationClient;
 import com.amap.api.location.AMapLocationClientOption;
 import com.amap.api.location.AMapLocationListener;
+import com.bumptech.glide.Glide;
 import com.google.android.material.button.MaterialButton;
+import com.google.android.material.card.MaterialCardView;
 import com.google.android.material.chip.Chip;
 import com.google.android.material.chip.ChipGroup;
 import com.google.android.material.textfield.TextInputEditText;
 import com.google.android.material.textfield.TextInputLayout;
 import com.ourcat.app.R;
 import com.ourcat.app.adapters.ImagePickAdapter;
+import com.ourcat.app.utils.CatTagUtils;
+import com.ourcat.app.utils.ImageUtils;
 import com.ourcat.app.utils.OssUploader;
 import com.ourcat.app.utils.RetrofitHelper;
 
@@ -52,11 +56,14 @@ public class CreateSquarePostFragment extends Fragment {
 
     private static final int MAX_IMAGES = 9;
 
-    private TextInputEditText etContent, etLocation, etAnnotation;
+    private TextInputEditText etContent, etAnnotation;
+    private TextInputEditText etLocation; // Use TextInputEditText for location display
     private TextInputLayout tilLocation;
     private ChipGroup typeGroup;
     private MaterialButton btnSubmit;
+    private RecyclerView rvImages;
     private ImagePickAdapter imageAdapter;
+    private Map<String, Object> selectedRefCat = null;
 
     private AMapLocationClient locationClient;
     private AMapLocationClientOption locationOption;
@@ -90,23 +97,42 @@ public class CreateSquarePostFragment extends Fragment {
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,
             @Nullable Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_create_square_post, container, false);
-        etContent = view.findViewById(R.id.et_square_content);
+        etContent = view.findViewById(R.id.et_content);
+        typeGroup = view.findViewById(R.id.square_type_group);
+        rvImages = view.findViewById(R.id.rv_square_images);
+
+        tilLocation = view.findViewById(R.id.til_square_location);
         etLocation = view.findViewById(R.id.et_square_location);
         etAnnotation = view.findViewById(R.id.et_square_annotation);
-        tilLocation = view.findViewById(R.id.til_square_location);
-        typeGroup = view.findViewById(R.id.square_type_group);
+
         btnSubmit = view.findViewById(R.id.btn_square_submit);
 
-        tilLocation.setEndIconOnClickListener(v -> checkLocationPermission());
+        view.findViewById(R.id.btn_insert_cat).setOnClickListener(v -> openSelectCatDialog());
 
-        RecyclerView rvImages = view.findViewById(R.id.rv_square_images);
-        rvImages.setLayoutManager(new GridLayoutManager(requireContext(), 3));
         imageAdapter = new ImagePickAdapter();
+        imageAdapter.setOnRemoveListener(this::removeImage);
+        rvImages.setLayoutManager(new GridLayoutManager(requireContext(), 3));
         rvImages.setAdapter(imageAdapter);
 
         view.findViewById(R.id.btn_add_square_image).setOnClickListener(v -> pickImages());
+
+        // Location click listener on TextInputEditText or TextInputLayout end icon
+        tilLocation.setEndIconOnClickListener(v -> checkLocationPermission());
+
         btnSubmit.setOnClickListener(v -> submit());
         return view;
+    }
+
+    private void openSelectCatDialog() {
+        SelectCatDialogFragment dialog = new SelectCatDialogFragment();
+        dialog.setOnCatSelectedListener(cat -> {
+            CatTagUtils.insertCatTag(requireContext(), etContent, cat);
+        });
+        dialog.show(requireActivity().getSupportFragmentManager(), "SelectCat");
+    }
+
+    private void clearRefCat() {
+        selectedRefCat = null;
     }
 
     private void checkLocationPermission() {
@@ -197,6 +223,10 @@ public class CreateSquarePostFragment extends Fragment {
         } else if (data.getData() != null && imageAdapter.getItemCount() < MAX_IMAGES) {
             imageAdapter.addUri(data.getData());
         }
+    }
+
+    private void removeImage(int position) {
+        imageAdapter.remove(position);
     }
 
     private void submit() {
@@ -316,6 +346,8 @@ public class CreateSquarePostFragment extends Fragment {
         body.put("type", type);
         if (location != null)
             body.put("location", location);
+        if (selectedRefCat != null && selectedRefCat.get("id") != null)
+            body.put("referencedCatId", ((Number) selectedRefCat.get("id")).longValue());
 
         RetrofitHelper.get().create(com.ourcat.app.repositories.SquareApi.class)
                 .createPost(body)

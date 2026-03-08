@@ -86,6 +86,7 @@ public class MapFragment extends Fragment implements AMapLocationListener {
     private double currentLat = 0;
     private double currentLng = 0;
     private boolean firstLocate = true;
+    private boolean pendingMoveToCurrentLocation = false;
     private float density;
 
     private boolean isHeatmapMode = false;
@@ -111,7 +112,11 @@ public class MapFragment extends Fragment implements AMapLocationListener {
                 if (Boolean.TRUE.equals(fine) || Boolean.TRUE.equals(coarse)) {
                     enableMyLocation();
                     startLocation();
+                    if (pendingMoveToCurrentLocation && isAdded()) {
+                        Toast.makeText(requireContext(), "正在定位当前位置...", Toast.LENGTH_SHORT).show();
+                    }
                 } else if (isAdded()) {
+                    pendingMoveToCurrentLocation = false;
                     Toast.makeText(requireContext(), "需要定位权限才能使用地图功能", Toast.LENGTH_SHORT).show();
                 }
             });
@@ -579,14 +584,36 @@ public class MapFragment extends Fragment implements AMapLocationListener {
                 }
             });
         }
+        if (pendingMoveToCurrentLocation && isAdded()) {
+            pendingMoveToCurrentLocation = false;
+            requireActivity().runOnUiThread(() -> {
+                if (aMap != null) {
+                    aMap.animateCamera(CameraUpdateFactory.newLatLngZoom(
+                            new LatLng(currentLat, currentLng), 16));
+                }
+            });
+        }
     }
 
     private void moveToCurrentLocation() {
         if (currentLat != 0 && currentLng != 0) {
             aMap.animateCamera(CameraUpdateFactory.newLatLngZoom(
                     new LatLng(currentLat, currentLng), 16));
-        } else if (isAdded()) {
-            Toast.makeText(requireContext(), "定位中，请确认已开启GPS...", Toast.LENGTH_LONG).show();
+            return;
+        }
+        pendingMoveToCurrentLocation = true;
+        if (!isAdded()) {
+            return;
+        }
+        if (ContextCompat.checkSelfPermission(requireContext(),
+                Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+            startLocation();
+            Toast.makeText(requireContext(), "正在定位当前位置...", Toast.LENGTH_SHORT).show();
+        } else {
+            permissionLauncher.launch(new String[] {
+                    Manifest.permission.ACCESS_FINE_LOCATION,
+                    Manifest.permission.ACCESS_COARSE_LOCATION
+            });
         }
     }
 
@@ -1473,6 +1500,12 @@ public class MapFragment extends Fragment implements AMapLocationListener {
         super.onResume();
         if (mapView != null)
             mapView.onResume();
+        if (isAdded()
+                && ContextCompat.checkSelfPermission(requireContext(),
+                        Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+            enableMyLocation();
+            startLocation();
+        }
     }
 
     @Override

@@ -17,7 +17,8 @@
         <com.google.android.material.textfield.TextInputLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:hint="广播内容"
+            android:layout_marginTop="12dp"
+            android:hint="内容"
             app:boxCornerRadiusBottomEnd="8dp"
             app:boxCornerRadiusBottomStart="8dp"
             app:boxCornerRadiusTopEnd="8dp"
@@ -25,13 +26,24 @@
             style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
 
             <com.google.android.material.textfield.TextInputEditText
-                android:id="@+id/et_square_content"
+                android:id="@+id/et_content"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:inputType="textMultiLine"
-                android:minLines="4"
+                android:minLines="8"
                 android:gravity="top" />
         </com.google.android.material.textfield.TextInputLayout>
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_insert_cat"
+            style="@style/Widget.MaterialComponents.Button.TextButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="end"
+            android:text="插入猫咪档案"
+            app:icon="@drawable/ic_camera_cute"
+            app:iconTint="@color/primary"
+            android:textColor="@color/primary" />
 
         <TextView
             android:layout_width="wrap_content"
@@ -63,6 +75,8 @@
                 android:layout_height="wrap_content"
                 android:text="救助" />
         </com.google.android.material.chip.ChipGroup>
+
+
 
         <TextView
             android:layout_width="wrap_content"

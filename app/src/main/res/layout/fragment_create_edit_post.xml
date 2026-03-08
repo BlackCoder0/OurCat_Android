@@ -48,9 +48,21 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:inputType="textMultiLine"
-                android:minLines="5"
+                android:minLines="8"
                 android:gravity="top" />
         </com.google.android.material.textfield.TextInputLayout>
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_insert_cat"
+            style="@style/Widget.MaterialComponents.Button.TextButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="end"
+            android:text="插入猫咪档案"
+            app:icon="@drawable/ic_camera_cute"
+            app:iconTint="@color/primary"
+            android:textColor="@color/primary" />
+
 
         <TextView
             android:layout_width="wrap_content"

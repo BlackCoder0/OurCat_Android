@@ -15,6 +15,9 @@ public class PostItem {
     private String createdAt;
     private String authorName;
     private String authorAvatar;
+    private Long referencedCatId;
+    private String referencedCatName;
+    private String referencedCatImageUrl;
 
     public long getId() { return id; }
     public void setId(long id) { this.id = id; }
@@ -38,4 +41,10 @@ public class PostItem {
     public void setAuthorName(String authorName) { this.authorName = authorName; }
     public String getAuthorAvatar() { return authorAvatar; }
     public void setAuthorAvatar(String authorAvatar) { this.authorAvatar = authorAvatar; }
+    public Long getReferencedCatId() { return referencedCatId; }
+    public void setReferencedCatId(Long referencedCatId) { this.referencedCatId = referencedCatId; }
+    public String getReferencedCatName() { return referencedCatName; }
+    public void setReferencedCatName(String referencedCatName) { this.referencedCatName = referencedCatName; }
+    public String getReferencedCatImageUrl() { return referencedCatImageUrl; }
+    public void setReferencedCatImageUrl(String referencedCatImageUrl) { this.referencedCatImageUrl = referencedCatImageUrl; }
 }

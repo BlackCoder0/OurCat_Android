@@ -10,10 +10,7 @@ import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.appcompat.widget.Toolbar;
 import androidx.fragment.app.Fragment;
-import androidx.navigation.Navigation;
-import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
@@ -40,13 +37,16 @@ public class CatProfileFragment extends Fragment {
 
     private long catId;
     private ImageView mainImage;
-    private TextView catName, catColor, catReportCount, catStatus, catFeature, catPersonality;
-    private RecyclerView photoList, reportHistoryList;
-    private PhotoAdapter photoAdapter;
-    private ReportHistoryAdapter historyAdapter;
-    private final List<String> photos = new ArrayList<>();
-    private final List<Map<String, Object>> reportHistory = new ArrayList<>();
-    private View btnEditCat;
+    private RecyclerView recyclerView;
+    private CatProfileAdapter adapter;
+
+    // Data cache
+    private Map<String, Object> catData;
+    private List<Map<String, Object>> reportHistory = new ArrayList<>();
+    private List<String> photos = new ArrayList<>();
+
+    // State cache
+    private int userRole = 1; // 1=user, 2=volunteer, 3=admin
 
     // 当前猫咪信息缓存，用于编辑
     private String currentName, currentColor, currentFeature, currentPersonality, currentStatus, currentAvatarUrl;
@@ -79,25 +79,11 @@ public class CatProfileFragment extends Fragment {
         super.onViewCreated(view, savedInstanceState);
 
         mainImage = view.findViewById(R.id.cat_main_image);
-        catName = view.findViewById(R.id.cat_name);
-        catColor = view.findViewById(R.id.cat_color);
-        catReportCount = view.findViewById(R.id.cat_report_count);
-        catStatus = view.findViewById(R.id.cat_status);
-        catFeature = view.findViewById(R.id.cat_feature);
-        catPersonality = view.findViewById(R.id.cat_personality);
-        btnEditCat = view.findViewById(R.id.btn_edit_cat);
-        btnEditCat.setOnClickListener(v -> showEditDialog());
+        recyclerView = view.findViewById(R.id.cat_profile_recycler);
 
-        photoList = view.findViewById(R.id.photo_list);
-        photoList.setLayoutManager(new LinearLayoutManager(requireContext(), LinearLayoutManager.HORIZONTAL, false));
-        photoAdapter = new PhotoAdapter();
-        photoList.setAdapter(photoAdapter);
-
-        reportHistoryList = view.findViewById(R.id.report_history_list);
-        reportHistoryList.setLayoutManager(new LinearLayoutManager(requireContext()));
-        reportHistoryList.setNestedScrollingEnabled(false);
-        historyAdapter = new ReportHistoryAdapter();
-        reportHistoryList.setAdapter(historyAdapter);
+        recyclerView.setLayoutManager(new LinearLayoutManager(requireContext()));
+        adapter = new CatProfileAdapter();
+        recyclerView.setAdapter(adapter);
 
         if (catId > 0) {
             loadCatDetail();
@@ -112,7 +98,9 @@ public class CatProfileFragment extends Fragment {
 
     private void checkUserRole() {
         if (!new com.ourcat.app.utils.TokenStore(requireContext()).hasToken()) {
-            btnEditCat.setVisibility(View.GONE);
+            userRole = 1;
+            if (adapter != null)
+                adapter.notifyItemChanged(0);
             return;
         }
 
@@ -125,9 +113,9 @@ public class CatProfileFragment extends Fragment {
                     return;
                 if (response.isSuccessful() && response.body() != null) {
                     Object roleObj = response.body().get("role");
-                    int role = roleObj != null ? ((Number) roleObj).intValue() : 1;
-                    // 2=志愿者, 3=管理员
-                    btnEditCat.setVisibility(role >= 2 ? View.VISIBLE : View.GONE);
+                    userRole = roleObj != null ? ((Number) roleObj).intValue() : 1;
+                    if (adapter != null)
+                        adapter.notifyItemChanged(0);
                 }
             }
 
@@ -170,35 +158,26 @@ public class CatProfileFragment extends Fragment {
 
     @SuppressWarnings("unchecked")
     private void displayCatInfo(Map<String, Object> data) {
+        this.catData = data;
+
+        // Update cache for editing
         currentName = (String) data.get("name");
-        catName.setText(currentName != null && !currentName.isEmpty() ? currentName : "未命名猫咪");
-
         currentColor = (String) data.get("color");
-        catColor.setText(currentColor != null && !currentColor.isEmpty() ? currentColor : "未知");
-
-        Number reportCount = (Number) data.get("reportCount");
-        catReportCount.setText(reportCount != null ? String.valueOf(reportCount.intValue()) : "0");
-
-        currentStatus = (String) data.get("status");
-        catStatus.setText(getStatusText(currentStatus));
-
         currentFeature = (String) data.get("feature");
-        catFeature.setText("特征：" + (currentFeature != null && !currentFeature.isEmpty() ? currentFeature : "未知"));
-
         currentPersonality = (String) data.get("personality");
-        catPersonality.setText(
-                "性格：" + (currentPersonality != null && !currentPersonality.isEmpty() ? currentPersonality : "未知"));
-
+        currentStatus = (String) data.get("status");
         currentAvatarUrl = (String) data.get("primaryImageUrl");
+
+        // Update main image (in CollapsingToolbar)
         if (currentAvatarUrl != null && !currentAvatarUrl.isEmpty()) {
             Glide.with(this).load(currentAvatarUrl).into(mainImage);
         }
 
+        // Update lists
         List<Map<String, Object>> history = (List<Map<String, Object>>) data.get("reportHistory");
         if (history != null) {
             reportHistory.clear();
             reportHistory.addAll(history);
-            historyAdapter.notifyDataSetChanged();
 
             photos.clear();
             for (Map<String, Object> report : history) {
@@ -207,20 +186,179 @@ public class CatProfileFragment extends Fragment {
                     photos.add(imageUrl);
                 }
             }
-            photoAdapter.notifyDataSetChanged();
         }
+
+        adapter.notifyDataSetChanged();
     }
 
     private String getStatusText(String status) {
         if (status == null)
             return "活跃";
         switch (status) {
-            case "missing":
-                return "走失";
-            case "adopted":
-                return "已领养";
-            default:
+            case "active":
                 return "活跃";
+            case "missing":
+                return "失踪";
+            case "adopted":
+                return "收养";
+            default:
+                return status;
+        }
+    }
+
+    private String formatTime(String isoTime) {
+        if (isoTime == null || isoTime.isEmpty())
+            return "";
+        try {
+            return isoTime.substring(0, 10) + " " + isoTime.substring(11, 16);
+        } catch (Exception e) {
+            return isoTime;
+        }
+    }
+
+    private void openReassignDialog(long reportId, Number lat, Number lng) {
+        if (lat == null || lng == null) {
+            Toast.makeText(requireContext(), "位置信息缺失", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        ReassignDialogFragment dialog = ReassignDialogFragment.newInstance(
+                reportId, lat.doubleValue(), lng.doubleValue(), catId);
+        dialog.setOnReassignSuccessListener(this::loadCatDetail);
+        dialog.show(getChildFragmentManager(), "reassign");
+    }
+
+    // ==================== Adapter Classes ====================
+
+    private class CatProfileAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
+        private static final int TYPE_HEADER = 0;
+        private static final int TYPE_ITEM = 1;
+
+        @NonNull
+        @Override
+        public RecyclerView.ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+            if (viewType == TYPE_HEADER) {
+                View v = LayoutInflater.from(parent.getContext())
+                        .inflate(R.layout.item_cat_profile_header, parent, false);
+                return new HeaderViewHolder(v);
+            } else {
+                View v = LayoutInflater.from(parent.getContext())
+                        .inflate(R.layout.item_report_history, parent, false);
+                return new HistoryViewHolder(v);
+            }
+        }
+
+        @Override
+        public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder, int position) {
+            if (holder instanceof HeaderViewHolder) {
+                ((HeaderViewHolder) holder).bind();
+            } else if (holder instanceof HistoryViewHolder) {
+                // position - 1 because header is at 0
+                ((HistoryViewHolder) holder).bind(reportHistory.get(position - 1));
+            }
+        }
+
+        @Override
+        public int getItemCount() {
+            // Header + History items
+            return 1 + reportHistory.size();
+        }
+
+        @Override
+        public int getItemViewType(int position) {
+            return position == 0 ? TYPE_HEADER : TYPE_ITEM;
+        }
+
+        // Header ViewHolder
+        class HeaderViewHolder extends RecyclerView.ViewHolder {
+            TextView catName, catColor, catReportCount, catStatus, catFeature, catPersonality;
+            View btnEditCat;
+            RecyclerView photoList;
+            PhotoAdapter photoAdapter;
+
+            HeaderViewHolder(View v) {
+                super(v);
+                catName = v.findViewById(R.id.cat_name);
+                catColor = v.findViewById(R.id.cat_color);
+                catReportCount = v.findViewById(R.id.cat_report_count);
+                catStatus = v.findViewById(R.id.cat_status);
+                catFeature = v.findViewById(R.id.cat_feature);
+                catPersonality = v.findViewById(R.id.cat_personality);
+                btnEditCat = v.findViewById(R.id.btn_edit_cat);
+                photoList = v.findViewById(R.id.photo_list);
+
+                btnEditCat.setOnClickListener(view -> showEditDialog());
+
+                // Setup nested horizontal recycler view
+                photoList.setLayoutManager(
+                        new LinearLayoutManager(v.getContext(), LinearLayoutManager.HORIZONTAL, false));
+                photoAdapter = new PhotoAdapter();
+                photoList.setAdapter(photoAdapter);
+            }
+
+            void bind() {
+                if (catData == null)
+                    return;
+
+                catName.setText(currentName != null && !currentName.isEmpty() ? currentName : "未命名猫咪");
+                catColor.setText(currentColor != null && !currentColor.isEmpty() ? currentColor : "未知");
+
+                Number reportCount = (Number) catData.get("reportCount");
+                catReportCount.setText(reportCount != null ? String.valueOf(reportCount.intValue()) : "0");
+
+                catStatus.setText(getStatusText(currentStatus));
+
+                catFeature
+                        .setText("特征：" + (currentFeature != null && !currentFeature.isEmpty() ? currentFeature : "未知"));
+                catPersonality.setText("性格："
+                        + (currentPersonality != null && !currentPersonality.isEmpty() ? currentPersonality : "未知"));
+
+                // Role check
+                btnEditCat.setVisibility(userRole >= 2 ? View.VISIBLE : View.GONE);
+
+                // Refresh photos
+                photoAdapter.notifyDataSetChanged();
+            }
+        }
+
+        // History ViewHolder
+        class HistoryViewHolder extends RecyclerView.ViewHolder {
+            ImageView image, btnReassign;
+            TextView time, location, desc;
+
+            HistoryViewHolder(View v) {
+                super(v);
+                image = v.findViewById(R.id.report_image);
+                time = v.findViewById(R.id.report_time);
+                location = v.findViewById(R.id.report_location);
+                desc = v.findViewById(R.id.report_desc);
+                btnReassign = v.findViewById(R.id.btn_reassign);
+            }
+
+            void bind(Map<String, Object> report) {
+                String imageUrl = (String) report.get("imageUrl");
+                if (imageUrl != null && !imageUrl.isEmpty()) {
+                    Glide.with(image).load(imageUrl).centerCrop().into(image);
+                }
+
+                String reportTime = (String) report.get("reportTime");
+                time.setText(formatTime(reportTime));
+
+                Number lat = (Number) report.get("lat");
+                Number lng = (Number) report.get("lng");
+                if (lat != null && lng != null) {
+                    location.setText(String.format("%.4f, %.4f", lat.doubleValue(), lng.doubleValue()));
+                }
+
+                String description = (String) report.get("description");
+                desc.setText(description != null && !description.isEmpty() ? description : "无描述");
+
+                Number reportId = (Number) report.get("id");
+                btnReassign.setOnClickListener(v -> {
+                    if (reportId != null) {
+                        openReassignDialog(reportId.longValue(), lat, lng);
+                    }
+                });
+            }
         }
     }
 
@@ -250,83 +388,5 @@ public class CatProfileFragment extends Fragment {
         public int getItemCount() {
             return photos.size();
         }
-    }
-
-    private class ReportHistoryAdapter extends RecyclerView.Adapter<ReportHistoryAdapter.VH> {
-        class VH extends RecyclerView.ViewHolder {
-            ImageView image, btnReassign;
-            TextView time, location, desc;
-
-            VH(View v) {
-                super(v);
-                image = v.findViewById(R.id.report_image);
-                time = v.findViewById(R.id.report_time);
-                location = v.findViewById(R.id.report_location);
-                desc = v.findViewById(R.id.report_desc);
-                btnReassign = v.findViewById(R.id.btn_reassign);
-            }
-        }
-
-        @NonNull
-        @Override
-        public VH onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-            return new VH(LayoutInflater.from(parent.getContext())
-                    .inflate(R.layout.item_report_history, parent, false));
-        }
-
-        @Override
-        public void onBindViewHolder(@NonNull VH h, int position) {
-            Map<String, Object> report = reportHistory.get(position);
-
-            String imageUrl = (String) report.get("imageUrl");
-            if (imageUrl != null && !imageUrl.isEmpty()) {
-                Glide.with(h.image).load(imageUrl).centerCrop().into(h.image);
-            }
-
-            String reportTime = (String) report.get("reportTime");
-            h.time.setText(formatTime(reportTime));
-
-            Number lat = (Number) report.get("lat");
-            Number lng = (Number) report.get("lng");
-            if (lat != null && lng != null) {
-                h.location.setText(String.format("%.4f, %.4f", lat.doubleValue(), lng.doubleValue()));
-            }
-
-            String description = (String) report.get("description");
-            h.desc.setText(description != null && !description.isEmpty() ? description : "无描述");
-
-            Number reportId = (Number) report.get("id");
-            h.btnReassign.setOnClickListener(v -> {
-                if (reportId != null) {
-                    openReassignDialog(reportId.longValue(), lat, lng);
-                }
-            });
-        }
-
-        @Override
-        public int getItemCount() {
-            return reportHistory.size();
-        }
-    }
-
-    private String formatTime(String isoTime) {
-        if (isoTime == null || isoTime.isEmpty())
-            return "";
-        try {
-            return isoTime.substring(0, 10) + " " + isoTime.substring(11, 16);
-        } catch (Exception e) {
-            return isoTime;
-        }
-    }
-
-    private void openReassignDialog(long reportId, Number lat, Number lng) {
-        if (lat == null || lng == null) {
-            Toast.makeText(requireContext(), "位置信息缺失", Toast.LENGTH_SHORT).show();
-            return;
-        }
-        ReassignDialogFragment dialog = ReassignDialogFragment.newInstance(
-                reportId, lat.doubleValue(), lng.doubleValue(), catId);
-        dialog.setOnReassignSuccessListener(this::loadCatDetail);
-        dialog.show(getChildFragmentManager(), "reassign");
     }
 }

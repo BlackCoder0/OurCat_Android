@@ -24,11 +24,20 @@ public class PostAdapter extends RecyclerView.Adapter<PostAdapter.ViewHolder> {
         void onItemClick(PostItem item);
     }
 
+    public interface OnRefCatClickListener {
+        void onRefCatClick(long catId);
+    }
+
     private final List<PostItem> items = new ArrayList<>();
     private OnItemClickListener listener;
+    private OnRefCatClickListener refCatListener;
 
     public void setOnItemClickListener(OnItemClickListener listener) {
         this.listener = listener;
+    }
+
+    public void setOnRefCatClickListener(OnRefCatClickListener listener) {
+        this.refCatListener = listener;
     }
 
     public void setItems(List<PostItem> list) {
@@ -67,6 +76,27 @@ public class PostAdapter extends RecyclerView.Adapter<PostAdapter.ViewHolder> {
                     .into(holder.image);
         } else {
             holder.image.setVisibility(View.GONE);
+        }
+
+        View refCatRow = holder.itemView.findViewById(R.id.item_post_ref_cat);
+        ImageView refCatAvatar = holder.itemView.findViewById(R.id.item_post_ref_cat_avatar);
+        TextView refCatName = holder.itemView.findViewById(R.id.item_post_ref_cat_name);
+        if (item.getReferencedCatId() != null && item.getReferencedCatId() > 0) {
+            refCatRow.setVisibility(View.VISIBLE);
+            refCatName.setText(item.getReferencedCatName() != null && !item.getReferencedCatName().isEmpty()
+                    ? "引用: " + item.getReferencedCatName() : "引用: 未命名");
+            String refUrl = item.getReferencedCatImageUrl();
+            if (refUrl != null && !refUrl.isEmpty()) {
+                Glide.with(holder.itemView.getContext()).load(refUrl).centerCrop().into(refCatAvatar);
+            } else {
+                refCatAvatar.setImageResource(R.drawable.ic_default_avatar);
+            }
+            long catId = item.getReferencedCatId();
+            refCatRow.setOnClickListener(v -> {
+                if (refCatListener != null) refCatListener.onRefCatClick(catId);
+            });
+        } else {
+            refCatRow.setVisibility(View.GONE);
         }
 
         holder.itemView.setOnClickListener(v -> {

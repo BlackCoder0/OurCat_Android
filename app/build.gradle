@@ -12,21 +12,27 @@ android {
     }
     def baseUrlDebug = localProps.getProperty('OURCAT_BASE_URL_DEBUG', 'http://10.0.2.2:8080/')
     def baseUrlRelease = localProps.getProperty('OURCAT_BASE_URL_RELEASE', 'https://api.example.com/')
+    def amapKeyDebug = localProps.getProperty('OURCAT_AMAP_KEY_DEBUG', '')
+    def amapKeyRelease = localProps.getProperty('OURCAT_AMAP_KEY_RELEASE', '')
     defaultConfig {
         applicationId "com.ourcat.app"
         minSdk 24
         targetSdk 34
         versionCode 1
         versionName "1.0"
+        // 以发布版 Key 为默认，与高德只配发布版 SHA1 一致；debug 由 buildTypes.debug 覆盖
+        manifestPlaceholders = [AMAP_API_KEY: amapKeyRelease]
     }
     buildTypes {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
             buildConfigField "String", "BASE_URL", "\"${baseUrlRelease}\""
+            manifestPlaceholders = [AMAP_API_KEY: amapKeyRelease]
         }
         debug {
             buildConfigField "String", "BASE_URL", "\"${baseUrlDebug}\""
+            manifestPlaceholders = [AMAP_API_KEY: amapKeyDebug]
         }
     }
     compileOptions {

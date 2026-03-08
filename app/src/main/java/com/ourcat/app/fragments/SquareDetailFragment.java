@@ -13,6 +13,7 @@ import android.content.res.ColorStateList;
 import android.graphics.Color;
 
 import androidx.annotation.NonNull;
+import androidx.navigation.Navigation;
 import androidx.navigation.fragment.NavHostFragment;
 
 import com.bumptech.glide.Glide;
@@ -29,6 +30,7 @@ import com.google.gson.reflect.TypeToken;
 import com.ourcat.app.R;
 import com.ourcat.app.adapters.ImagePagerAdapter;
 import com.ourcat.app.repositories.SquareApi;
+import com.ourcat.app.utils.CatTagUtils;
 import com.ourcat.app.utils.RetrofitHelper;
 
 import java.util.ArrayList;
@@ -195,7 +197,13 @@ public class SquareDetailFragment extends Fragment {
         statusText.setText("resolved".equals(status) ? "已解决" : "进行中");
         statusText.setTextColor("resolved".equals(status) ? 0xFF4CAF50 : 0xFFFF9800);
         authorText.setText(authorName);
-        textView.setText(postData.get("text") != null ? postData.get("text").toString() : "");
+
+        String content = postData.get("text") != null ? postData.get("text").toString() : "";
+        CatTagUtils.parseAndBind(requireContext(), textView, content, catId -> {
+            Bundle args = new Bundle();
+            args.putLong("catId", catId);
+            Navigation.findNavController(requireView()).navigate(R.id.cat_profile, args);
+        });
 
         if (avatarUrl != null && !avatarUrl.isEmpty()) {
             Glide.with(this).load(avatarUrl).circleCrop().placeholder(R.drawable.ic_default_avatar).into(authorAvatar);

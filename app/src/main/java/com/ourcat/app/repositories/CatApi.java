@@ -39,7 +39,10 @@ public interface CatApi {
             @Query("page") int page,
             @Query("size") int size,
             @Query("keyword") String keyword,
-            @Query("status") String status);
+            @Query("status") String status,
+            @Query("lat") Double lat,
+            @Query("lng") Double lng,
+            @Query("sortBy") String sortBy);
 
     @GET("/api/cat/{id}")
     Call<Map<String, Object>> getCatDetail(@Path("id") long id);

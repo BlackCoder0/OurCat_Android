@@ -44,7 +44,7 @@ public class EditCatDialogFragment extends DialogFragment {
     private AutoCompleteTextView spinnerColor, spinnerStatus;
     private Button btnSave, btnCancel;
     private Uri selectedImageUri;
-    
+
     private long catId;
     private String currentAvatarUrl;
     private String currentName;
@@ -65,8 +65,8 @@ public class EditCatDialogFragment extends DialogFragment {
         this.listener = listener;
     }
 
-    public static EditCatDialogFragment newInstance(long catId, String name, String color, 
-                                                  String feature, String personality, String status, String avatarUrl) {
+    public static EditCatDialogFragment newInstance(long catId, String name, String color,
+            String feature, String personality, String status, String avatarUrl) {
         EditCatDialogFragment fragment = new EditCatDialogFragment();
         Bundle args = new Bundle();
         args.putLong("catId", catId);
@@ -109,7 +109,8 @@ public class EditCatDialogFragment extends DialogFragment {
     public void onStart() {
         super.onStart();
         if (getDialog() != null && getDialog().getWindow() != null) {
-            getDialog().getWindow().setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            int maxHeight = (int) (getResources().getDisplayMetrics().heightPixels * 0.85f);
+            getDialog().getWindow().setLayout(ViewGroup.LayoutParams.MATCH_PARENT, maxHeight);
         }
     }
 
@@ -151,13 +152,15 @@ public class EditCatDialogFragment extends DialogFragment {
 
     private void setupSpinners() {
         String[] colors = new String[] {
-            "橘色", "黑色", "白色", "灰色", "狸花", "银虎斑", "奶牛", "三花", "玳瑁", "奶油色", "暹罗色"
+                "橘色", "黑色", "白色", "灰色", "狸花", "银虎斑", "奶牛", "三花", "玳瑁", "奶油色", "暹罗色"
         };
-        ArrayAdapter<String> colorAdapter = new ArrayAdapter<>(requireContext(), android.R.layout.simple_dropdown_item_1line, colors);
+        ArrayAdapter<String> colorAdapter = new ArrayAdapter<>(requireContext(),
+                android.R.layout.simple_dropdown_item_1line, colors);
         spinnerColor.setAdapter(colorAdapter);
 
-        String[] statuses = new String[] { "active", "adopted", "missing", "deceased" };
-        ArrayAdapter<String> statusAdapter = new ArrayAdapter<>(requireContext(), android.R.layout.simple_dropdown_item_1line, statuses);
+        String[] statuses = new String[] { "活跃", "收养", "失踪", "生病", "已故" };
+        ArrayAdapter<String> statusAdapter = new ArrayAdapter<>(requireContext(),
+                android.R.layout.simple_dropdown_item_1line, statuses);
         spinnerStatus.setAdapter(statusAdapter);
     }
 
@@ -200,20 +203,23 @@ public class EditCatDialogFragment extends DialogFragment {
         new OssUploader().upload(requireContext(), file, objectKey, new OssUploader.OnUploadListener() {
             @Override
             public void onSuccess(String url) {
-                if (!isAdded()) return;
+                if (!isAdded())
+                    return;
                 submitUpdate(name, color, feature, personality, status, url);
             }
 
             @Override
             public void onFailure(String error) {
-                if (!isAdded()) return;
+                if (!isAdded())
+                    return;
                 Toast.makeText(requireContext(), "上传失败: " + error, Toast.LENGTH_SHORT).show();
                 btnSave.setEnabled(true);
             }
         });
     }
 
-    private void submitUpdate(String name, String color, String feature, String personality, String status, String avatarUrl) {
+    private void submitUpdate(String name, String color, String feature, String personality, String status,
+            String avatarUrl) {
         Map<String, Object> body = new HashMap<>();
         body.put("name", name);
         body.put("color", color);
@@ -226,11 +232,13 @@ public class EditCatDialogFragment extends DialogFragment {
                 .enqueue(new Callback<Map<String, Object>>() {
                     @Override
                     public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
-                        if (!isAdded()) return;
+                        if (!isAdded())
+                            return;
                         btnSave.setEnabled(true);
                         if (response.isSuccessful()) {
                             Toast.makeText(requireContext(), "更新成功", Toast.LENGTH_SHORT).show();
-                            if (listener != null) listener.onCatUpdated();
+                            if (listener != null)
+                                listener.onCatUpdated();
                             dismiss();
                         } else {
                             Toast.makeText(requireContext(), "更新失败: " + response.code(), Toast.LENGTH_SHORT).show();
@@ -239,7 +247,8 @@ public class EditCatDialogFragment extends DialogFragment {
 
                     @Override
                     public void onFailure(Call<Map<String, Object>> call, Throwable t) {
-                        if (!isAdded()) return;
+                        if (!isAdded())
+                            return;
                         btnSave.setEnabled(true);
                         Toast.makeText(requireContext(), "网络错误", Toast.LENGTH_SHORT).show();
                     }

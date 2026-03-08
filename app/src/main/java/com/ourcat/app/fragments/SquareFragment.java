@@ -53,6 +53,9 @@ public class SquareFragment extends Fragment {
             class ViewHolder extends RecyclerView.ViewHolder {
                 TextView type, status, text, location;
                 View container;
+                View refCatRow;
+                android.widget.ImageView refCatAvatar;
+                TextView refCatName;
 
                 ViewHolder(View itemView) {
                     super(itemView);
@@ -61,6 +64,9 @@ public class SquareFragment extends Fragment {
                     text = itemView.findViewById(R.id.item_square_text);
                     location = itemView.findViewById(R.id.item_square_location);
                     container = itemView.findViewById(R.id.item_square_container);
+                    refCatRow = itemView.findViewById(R.id.item_square_ref_cat);
+                    refCatAvatar = itemView.findViewById(R.id.item_square_ref_cat_avatar);
+                    refCatName = itemView.findViewById(R.id.item_square_ref_cat_name);
                 }
             }
 
@@ -92,6 +98,29 @@ public class SquareFragment extends Fragment {
                     holder.location.setText(loc.toString());
                 } else {
                     holder.location.setVisibility(View.GONE);
+                }
+
+                Object refCat = item.get("referencedCat");
+                Object refCatId = item.get("referencedCatId");
+                if (refCat instanceof Map && refCatId instanceof Number) {
+                    holder.refCatRow.setVisibility(View.VISIBLE);
+                    Map<?, ?> rc = (Map<?, ?>) refCat;
+                    String name = rc.get("name") != null ? rc.get("name").toString() : "";
+                    holder.refCatName.setText(name.isEmpty() ? "引用: 未命名" : "引用: " + name);
+                    String imgUrl = rc.get("primaryImageUrl") != null ? rc.get("primaryImageUrl").toString() : null;
+                    if (imgUrl != null && !imgUrl.isEmpty()) {
+                        com.bumptech.glide.Glide.with(holder.itemView.getContext()).load(imgUrl).centerCrop().into(holder.refCatAvatar);
+                    } else {
+                        holder.refCatAvatar.setImageResource(R.drawable.ic_default_avatar);
+                    }
+                    long catId = ((Number) refCatId).longValue();
+                    holder.refCatRow.setOnClickListener(v -> {
+                        Bundle args = new Bundle();
+                        args.putLong("catId", catId);
+                        Navigation.findNavController(v).navigate(R.id.cat_profile, args);
+                    });
+                } else {
+                    holder.refCatRow.setVisibility(View.GONE);
                 }
 
                 if ("resolved".equals(s)) {

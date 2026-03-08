@@ -36,7 +36,8 @@ public class ImagePickAdapter extends RecyclerView.Adapter<ImagePickAdapter.View
 
     public void setExistingUrls(List<String> urls) {
         existingUrls.clear();
-        if (urls != null) existingUrls.addAll(urls);
+        if (urls != null)
+            existingUrls.addAll(urls);
         notifyDataSetChanged();
     }
 
@@ -46,6 +47,19 @@ public class ImagePickAdapter extends RecyclerView.Adapter<ImagePickAdapter.View
 
     public List<String> getExistingUrls() {
         return new ArrayList<>(existingUrls);
+    }
+
+    public void remove(int position) {
+        if (position < 0)
+            return;
+        if (position < existingUrls.size()) {
+            existingUrls.remove(position);
+        } else {
+            uris.remove(position - existingUrls.size());
+        }
+        notifyItemRemoved(position);
+        if (removeListener != null)
+            removeListener.onRemove(position);
     }
 
     @Override
@@ -70,19 +84,15 @@ public class ImagePickAdapter extends RecyclerView.Adapter<ImagePickAdapter.View
         }
         holder.remove.setOnClickListener(v -> {
             int pos = holder.getAdapterPosition();
-            if (pos < 0) return;
-            if (pos < existingUrls.size()) {
-                existingUrls.remove(pos);
-            } else {
-                uris.remove(pos - existingUrls.size());
+            if (pos != RecyclerView.NO_POSITION) {
+                remove(pos);
             }
-            notifyItemRemoved(pos);
-            if (removeListener != null) removeListener.onRemove(pos);
         });
     }
 
     static class ViewHolder extends RecyclerView.ViewHolder {
         ImageView image, remove;
+
         ViewHolder(View v) {
             super(v);
             image = v.findViewById(R.id.iv_image);

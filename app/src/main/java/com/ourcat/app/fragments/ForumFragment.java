@@ -55,6 +55,11 @@ public class ForumFragment extends Fragment {
             NavController nav = Navigation.findNavController(requireView());
             nav.navigate(R.id.post_detail, args);
         });
+        adapter.setOnRefCatClickListener(catId -> {
+            Bundle args = new Bundle();
+            args.putLong("catId", catId);
+            Navigation.findNavController(requireView()).navigate(R.id.cat_profile, args);
+        });
         recyclerView.setAdapter(adapter);
 
         refreshLayout.setOnRefreshListener(this::loadPosts);
@@ -136,6 +141,13 @@ public class ForumFragment extends Fragment {
         if (m.get("pinned") != null) item.setPinned(Boolean.TRUE.equals(m.get("pinned")));
         if (m.get("createdAt") != null) item.setCreatedAt(m.get("createdAt").toString());
         if (m.get("authorName") != null) item.setAuthorName(m.get("authorName").toString());
+        if (m.get("referencedCatId") instanceof Number) item.setReferencedCatId(((Number) m.get("referencedCatId")).longValue());
+        Object refCat = m.get("referencedCat");
+        if (refCat instanceof Map) {
+            Map<?, ?> rc = (Map<?, ?>) refCat;
+            if (rc.get("name") != null) item.setReferencedCatName(rc.get("name").toString());
+            if (rc.get("primaryImageUrl") != null) item.setReferencedCatImageUrl(rc.get("primaryImageUrl").toString());
+        }
         return item;
     }
 

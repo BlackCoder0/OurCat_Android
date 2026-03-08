@@ -43,9 +43,13 @@
             android:theme="@style/Theme.OurCat"
             android:windowSoftInputMode="adjustResize" />
 
+        <service
+            android:name="com.amap.api.location.APSService"
+            android:exported="false" />
+
         <!-- 高德地图 Key -->
         <meta-data
             android:name="com.amap.api.v2.apikey"
-            android:value="ebcbda48c53269e4daf4c8917c83154b" />
+            android:value="${AMAP_API_KEY}" />
     </application>
 </manifest>

@@ -5,6 +5,7 @@ import android.view.LayoutInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageView;
@@ -26,6 +27,7 @@ import com.ourcat.app.R;
 import com.ourcat.app.adapters.CommentAdapter;
 import com.ourcat.app.adapters.ImagePagerAdapter;
 import com.ourcat.app.repositories.ForumApi;
+import com.ourcat.app.utils.CatTagUtils;
 import com.ourcat.app.utils.RetrofitHelper;
 
 import java.util.HashMap;
@@ -42,7 +44,8 @@ public class PostDetailFragment extends Fragment {
     private Map<String, Object> postData;
     private long currentUserId;
     private int currentUserRole;
-    private TextView titleView, authorView, contentView, likesCount, dislikesCount, imageIndicator;
+    private TextView titleView, authorView, likesCount, dislikesCount, imageIndicator;
+    private TextView contentView;
     private ImageView postAvatar;
     private ViewPager2 imagePager;
     private ImagePagerAdapter imagePagerAdapter;
@@ -184,13 +187,20 @@ public class PostDetailFragment extends Fragment {
             return;
         titleView.setText(getStr(postData, "title"));
         authorView.setText("作者: " + getStr(postData, "authorName"));
-        contentView.setText(getStr(postData, "content"));
+
+        String content = getStr(postData, "content");
+        CatTagUtils.parseAndBind(requireContext(), contentView, content, catId -> {
+            Bundle args = new Bundle();
+            args.putLong("catId", catId);
+            Navigation.findNavController(requireView()).navigate(R.id.cat_profile, args);
+        });
         likesCount.setText(String.valueOf(getInt(postData, "likes")));
         dislikesCount.setText(String.valueOf(getInt(postData, "dislikes")));
 
         String avatarUrl = getStr(postData, "authorAvatar");
         if (!avatarUrl.isEmpty()) {
-            com.bumptech.glide.Glide.with(this).load(avatarUrl).circleCrop().placeholder(R.drawable.ic_default_avatar).into(postAvatar);
+            com.bumptech.glide.Glide.with(this).load(avatarUrl).circleCrop().placeholder(R.drawable.ic_default_avatar)
+                    .into(postAvatar);
         } else {
             postAvatar.setImageResource(R.drawable.ic_default_avatar);
         }
@@ -209,22 +219,22 @@ public class PostDetailFragment extends Fragment {
         Object imgs = postData.get("images");
         if (imgs != null) {
             try {
-                List<String> urls = new Gson().fromJson(imgs.toString(),
-                        new TypeToken<List<String>>() {
-                        }.getType());
+                List<String> urls = new Gson().fromJson(imgs.toString(), new TypeToken<List<String>>() {
+                }.getType());
                 if (urls != null && !urls.isEmpty()) {
                     imagePager.setVisibility(View.VISIBLE);
+                    imageIndicator.setVisibility(View.VISIBLE);
                     imagePagerAdapter.setUrls(urls);
-                    if (urls.size() > 1) {
-                        imageIndicator.setVisibility(View.VISIBLE);
-                        imageIndicator.setText("1 / " + urls.size());
-                    }
+                    imageIndicator.setText("1/" + urls.size());
                 } else {
                     imagePager.setVisibility(View.GONE);
                     imageIndicator.setVisibility(View.GONE);
                 }
             } catch (Exception ignored) {
             }
+        } else {
+            imagePager.setVisibility(View.GONE);
+            imageIndicator.setVisibility(View.GONE);
         }
 
         long postUserId = getLong(postData, "userId");

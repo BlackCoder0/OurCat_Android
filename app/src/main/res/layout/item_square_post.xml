@@ -50,6 +50,35 @@
             android:maxLines="3"
             android:ellipsize="end" />
 
+        <LinearLayout
+            android:id="@+id/item_square_ref_cat"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:padding="6dp"
+            android:background="?android:attr/selectableItemBackground"
+            android:clickable="true"
+            android:focusable="true"
+            android:visibility="gone">
+
+            <ImageView
+                android:id="@+id/item_square_ref_cat_avatar"
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                android:scaleType="centerCrop"
+                android:background="@drawable/bg_circle_white"
+                android:contentDescription="引用猫咪" />
+            <TextView
+                android:id="@+id/item_square_ref_cat_name"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="6dp"
+                android:textSize="12sp"
+                android:textColor="@color/text_secondary" />
+        </LinearLayout>
+
         <TextView
             android:id="@+id/item_square_location"
             android:layout_width="match_parent"
