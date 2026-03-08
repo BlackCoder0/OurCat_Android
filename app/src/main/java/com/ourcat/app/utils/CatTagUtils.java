@@ -1,26 +1,19 @@
 package com.ourcat.app.utils;
 
 import android.content.Context;
-import android.content.Intent;
-import android.graphics.Color;
+import android.content.res.ColorStateList;
 import android.graphics.drawable.Drawable;
-import android.text.Spannable;
 import android.text.SpannableStringBuilder;
 import android.text.Spanned;
 import android.text.TextPaint;
 import android.text.style.ClickableSpan;
 import android.text.style.ImageSpan;
+import android.text.style.ReplacementSpan;
 import android.view.View;
 import android.widget.EditText;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
-
-import com.bumptech.glide.Glide;
-import com.bumptech.glide.request.target.CustomTarget;
-import com.bumptech.glide.request.transition.Transition;
 import com.google.android.material.chip.ChipDrawable;
 import com.ourcat.app.R;
 
@@ -60,7 +53,9 @@ public class CatTagUtils {
         // 创建 ChipDrawable
         ChipDrawable chip = ChipDrawable.createFromAttributes(context, null, 0,
                 com.google.android.material.R.style.Widget_MaterialComponents_Chip_Action);
-        chip.setText("🐱 " + name);
+        chip.setText("@" + name);
+        chip.setChipIconResource(R.drawable.cat);
+        chip.setChipIconTintResource(R.color.primary);
         chip.setBounds(0, 0, chip.getIntrinsicWidth(), chip.getIntrinsicHeight());
 
         // 创建包含 ImageSpan 的 SpannableString
@@ -88,58 +83,70 @@ public class CatTagUtils {
         textView.setMovementMethod(android.text.method.LinkMovementMethod.getInstance());
     }
 
-    private static class CatTagSpan extends android.text.style.ReplacementSpan {
-        private final String text;
-        private final int backgroundColor;
+    private static class MentionBadgeSpan extends ReplacementSpan {
+        private final Drawable icon;
+        private final String label;
+        private final int bgColor;
         private final int textColor;
-        private final float radius;
-        private final float padding;
-        private final long catId;
-        private final OnCatClickListener listener;
+        private final float hPadding;
+        private final float vPadding;
+        private final float iconGap;
 
-        public CatTagSpan(Context context, String name, long catId, OnCatClickListener listener) {
-            this.text = "🐱 " + name;
-            this.catId = catId;
-            this.listener = listener;
-            this.backgroundColor = context.getResources().getColor(R.color.secondary, null); // 使用 secondary 作为浅色背景
+        MentionBadgeSpan(Context context, String label) {
+            this.label = label;
+            this.icon = context.getDrawable(R.drawable.cat);
+            if (this.icon != null) {
+                this.icon.setTint(context.getResources().getColor(R.color.primary, null));
+            }
+            this.bgColor = context.getResources().getColor(R.color.secondary, null);
             this.textColor = context.getResources().getColor(R.color.primary, null);
-            this.radius = 16f; // px
-            this.padding = 16f; // px
+            float density = context.getResources().getDisplayMetrics().density;
+            this.hPadding = 6f * density;
+            this.vPadding = 2f * density;
+            this.iconGap = 4f * density;
         }
 
         @Override
         public int getSize(@NonNull android.graphics.Paint paint, CharSequence text, int start, int end,
-                @Nullable android.graphics.Paint.FontMetricsInt fm) {
-            return (int) (paint.measureText(this.text) + padding * 2);
+                android.graphics.Paint.FontMetricsInt fm) {
+            android.graphics.Paint.FontMetrics metrics = paint.getFontMetrics();
+            float textHeight = metrics.descent - metrics.ascent;
+            float iconWidth = icon != null ? (textHeight * 0.95f + iconGap) : 0f;
+            float textWidth = paint.measureText(label);
+            return (int) Math.ceil(hPadding + iconWidth + textWidth + hPadding);
         }
 
         @Override
         public void draw(@NonNull android.graphics.Canvas canvas, CharSequence text, int start, int end, float x,
                 int top, int y, int bottom, @NonNull android.graphics.Paint paint) {
-            // 绘制背景
-            android.graphics.RectF rect = new android.graphics.RectF(x, top, x + getSize(paint, text, start, end, null),
-                    bottom);
-            paint.setColor(backgroundColor);
-            // 稍微缩小一点高度
-            float height = bottom - top;
-            float margin = height * 0.15f;
-            rect.top += margin;
-            rect.bottom -= margin;
-            canvas.drawRoundRect(rect, radius, radius, paint);
+            android.graphics.Paint.FontMetrics metrics = paint.getFontMetrics();
+            float textTop = y + metrics.ascent;
+            float textBottom = y + metrics.descent;
+            float textHeight = textBottom - textTop;
+            float iconSize = icon != null ? textHeight * 0.95f : 0f;
+            float textWidth = paint.measureText(label);
+            float contentWidth = (icon != null ? (iconSize + iconGap) : 0f) + textWidth;
+            float rectTop = textTop - vPadding;
+            float rectBottom = textBottom + vPadding;
+            float rectRight = x + hPadding + contentWidth + hPadding;
 
-            // 绘制文字
+            int oldColor = paint.getColor();
+            paint.setColor(bgColor);
+            canvas.drawRect(x, rectTop, rectRight, rectBottom, paint);
+
+            float cursorX = x + hPadding;
+            if (icon != null) {
+                float iconTop = textTop + (textHeight - iconSize) / 2f;
+                icon.setBounds((int) cursorX, (int) iconTop, (int) (cursorX + iconSize), (int) (iconTop + iconSize));
+                icon.draw(canvas);
+                cursorX += iconSize + iconGap;
+            }
+
             paint.setColor(textColor);
-            canvas.drawText(this.text, x + padding, y, paint);
+            canvas.drawText(label, cursorX, y, paint);
+            paint.setColor(oldColor);
         }
-
-        // ReplacementSpan 默认不支持点击事件，需要配合 LinkMovementMethod 和特殊的 Touch 处理
-        // 如果要支持点击，通常建议直接用 ClickableSpan + BackgroundColorSpan 组合，或者用 ChipDrawable
-        // (ImageSpan)
     }
-
-    // 为了稳健且支持点击，我们改用 ChipDrawable 的 ImageSpan 方案，
-    // 但 ImageSpan 的点击事件处理比较麻烦（LinkMovementMethod 不直接支持 ImageSpan 点击）。
-    // 最简单的方案：将 [cat:id:name] 替换为 "🐱 name" 文本，然后在这个文本范围内应用 ClickableSpan。
 
     /**
      * 简单版：解析并替换为可点击文本
@@ -156,12 +163,15 @@ public class CatTagUtils {
             String name = matcher.group(2);
             long catId = Long.parseLong(idStr);
 
-            String display = "🐱 " + name + " "; // 加个空格防止粘连
             int spanStart = ssb.length();
+            String display = "@" + name;
             ssb.append(display);
             int spanEnd = ssb.length();
+            ssb.append(" ");
 
-            // 样式
+            ssb.setSpan(new MentionBadgeSpan(context, display), spanStart, spanEnd,
+                    Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+
             ssb.setSpan(new ClickableSpan() {
                 @Override
                 public void onClick(@NonNull View widget) {
@@ -171,12 +181,9 @@ public class CatTagUtils {
 
                 @Override
                 public void updateDrawState(@NonNull TextPaint ds) {
-                    ds.setColor(context.getResources().getColor(R.color.primary, null));
                     ds.setUnderlineText(false);
-                    ds.setFakeBoldText(true);
-                    ds.bgColor = Color.parseColor("#E3F2FD"); // 浅蓝色背景
                 }
-            }, spanStart, spanEnd - 1, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE); // -1 是为了不包含空格
+            }, spanStart, spanEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
 
             lastEnd = matcher.end();
         }

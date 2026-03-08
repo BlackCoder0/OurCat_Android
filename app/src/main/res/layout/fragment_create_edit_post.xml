@@ -59,7 +59,7 @@
             android:layout_height="wrap_content"
             android:layout_gravity="end"
             android:text="插入猫咪档案"
-            app:icon="@drawable/ic_camera_cute"
+            app:icon="@drawable/ic_import"
             app:iconTint="@color/primary"
             android:textColor="@color/primary" />
 

@@ -5,6 +5,7 @@ import android.os.Build;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.inputmethod.EditorInfo;
 import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.TextView;
@@ -19,8 +20,6 @@ import androidx.navigation.fragment.NavHostFragment;
 import com.bumptech.glide.Glide;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
-import androidx.recyclerview.widget.LinearLayoutManager;
-import androidx.recyclerview.widget.RecyclerView;
 import androidx.viewpager2.widget.ViewPager2;
 
 import com.google.android.material.button.MaterialButton;
@@ -29,11 +28,11 @@ import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import com.ourcat.app.R;
 import com.ourcat.app.adapters.ImagePagerAdapter;
+import com.ourcat.app.utils.TimeUtils;
 import com.ourcat.app.repositories.SquareApi;
 import com.ourcat.app.utils.CatTagUtils;
 import com.ourcat.app.utils.RetrofitHelper;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -61,10 +60,11 @@ public class SquareDetailFragment extends Fragment {
     private ImagePagerAdapter imagePagerAdapter;
     private TextView locationText;
     private MaterialButton btnMarkSolved;
-    private RecyclerView commentsRecycler;
+    private View refCatCard;
+    private ImageView refCatAvatar;
+    private TextView refCatName;
+    private ViewGroup commentsContainer;
     private EditText commentInput;
-    private RecyclerView.Adapter<RecyclerView.ViewHolder> commentAdapter;
-    private final List<Map<String, Object>> commentItems = new ArrayList<>();
 
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
@@ -95,41 +95,24 @@ public class SquareDetailFragment extends Fragment {
         imagePager = view.findViewById(R.id.square_detail_image_pager);
         locationText = view.findViewById(R.id.square_detail_location);
         btnMarkSolved = view.findViewById(R.id.btn_mark_solved);
-        commentsRecycler = view.findViewById(R.id.square_comments_recycler);
+        refCatCard = view.findViewById(R.id.square_ref_cat_card);
+        refCatAvatar = view.findViewById(R.id.square_ref_cat_avatar);
+        refCatName = view.findViewById(R.id.square_ref_cat_name);
+        commentsContainer = view.findViewById(R.id.square_comments_container);
         commentInput = view.findViewById(R.id.square_comment_input);
 
         imagePagerAdapter = new ImagePagerAdapter();
         imagePager.setAdapter(imagePagerAdapter);
 
-        commentsRecycler.setLayoutManager(new LinearLayoutManager(requireContext()));
-        commentAdapter = new RecyclerView.Adapter<RecyclerView.ViewHolder>() {
-            @NonNull
-            @Override
-            public RecyclerView.ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-                View v = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_comment, parent, false);
-                v.findViewById(R.id.btn_comment_more).setVisibility(View.GONE);
-                return new RecyclerView.ViewHolder(v) {
-                };
-            }
-
-            @Override
-            public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder, int position) {
-                Map<String, Object> m = commentItems.get(position);
-                TextView author = holder.itemView.findViewById(R.id.item_comment_author);
-                TextView content = holder.itemView.findViewById(R.id.item_comment_content);
-                author.setText(m.get("authorName") != null ? m.get("authorName").toString() : "");
-                content.setText(m.get("content") != null ? m.get("content").toString() : "");
-            }
-
-            @Override
-            public int getItemCount() {
-                return commentItems.size();
-            }
-        };
-        commentsRecycler.setAdapter(commentAdapter);
-
         btnMarkSolved.setOnClickListener(v -> markSolved());
         view.findViewById(R.id.btn_send_square_comment).setOnClickListener(v -> sendComment());
+        commentInput.setOnEditorActionListener((v, actionId, event) -> {
+            if (actionId == EditorInfo.IME_ACTION_SEND) {
+                sendComment();
+                return true;
+            }
+            return false;
+        });
 
         loadProfileThenPost();
         return view;
@@ -239,6 +222,29 @@ public class SquareDetailFragment extends Fragment {
             locationText.setText("位置: " + loc.toString());
         }
 
+        Object refCat = postData.get("referencedCat");
+        Object refCatId = postData.get("referencedCatId");
+        if (refCat instanceof Map && refCatId instanceof Number) {
+            refCatCard.setVisibility(View.VISIBLE);
+            Map<?, ?> rc = (Map<?, ?>) refCat;
+            String name = rc.get("name") != null ? rc.get("name").toString() : "";
+            refCatName.setText(name.isEmpty() ? "未命名" : name);
+            String imgUrl = rc.get("primaryImageUrl") != null ? rc.get("primaryImageUrl").toString() : null;
+            if (imgUrl != null && !imgUrl.isEmpty()) {
+                Glide.with(this).load(imgUrl).centerCrop().into(refCatAvatar);
+            } else {
+                refCatAvatar.setImageResource(R.drawable.ic_default_avatar);
+            }
+            long catId = ((Number) refCatId).longValue();
+            refCatCard.setOnClickListener(v -> {
+                Bundle args = new Bundle();
+                args.putLong("catId", catId);
+                Navigation.findNavController(requireView()).navigate(R.id.cat_profile, args);
+            });
+        } else {
+            refCatCard.setVisibility(View.GONE);
+        }
+
         boolean isAuthor = currentUserId != 0 && currentUserId == postUserId;
         boolean canManage = currentUserRole >= 2;
         boolean resolved = "resolved".equals(status);
@@ -264,9 +270,7 @@ public class SquareDetailFragment extends Fragment {
                         if (!isAdded())
                             return;
                         if (response.isSuccessful() && response.body() != null) {
-                            commentItems.clear();
-                            commentItems.addAll(response.body());
-                            commentAdapter.notifyDataSetChanged();
+                            bindComments(response.body());
                         }
                     }
 
@@ -328,5 +332,32 @@ public class SquareDetailFragment extends Fragment {
                             Toast.makeText(requireContext(), "网络错误", Toast.LENGTH_SHORT).show();
                     }
                 });
+    }
+
+    private void bindComments(List<Map<String, Object>> comments) {
+        commentsContainer.removeAllViews();
+        if (comments == null) return;
+        for (Map<String, Object> m : comments) {
+            View item = getLayoutInflater().inflate(R.layout.item_comment, commentsContainer, false);
+            TextView author = item.findViewById(R.id.item_comment_author);
+            TextView content = item.findViewById(R.id.item_comment_content);
+            TextView time = item.findViewById(R.id.item_comment_time);
+            ImageView avatar = item.findViewById(R.id.item_comment_avatar);
+            ImageView btnMore = item.findViewById(R.id.btn_comment_more);
+            btnMore.setVisibility(View.GONE);
+
+            author.setText(m.get("authorName") != null ? m.get("authorName").toString() : "");
+            content.setText(m.get("content") != null ? m.get("content").toString() : "");
+            time.setText(TimeUtils.getRelativeTime((String) m.get("createdAt")));
+
+            Object avatarUrl = m.get("authorAvatar");
+            if (avatarUrl != null && !avatarUrl.toString().isEmpty()) {
+                Glide.with(requireContext()).load(avatarUrl.toString()).circleCrop()
+                        .placeholder(R.drawable.ic_default_avatar).into(avatar);
+            } else {
+                avatar.setImageResource(R.drawable.ic_default_avatar);
+            }
+            commentsContainer.addView(item);
+        }
     }
 }

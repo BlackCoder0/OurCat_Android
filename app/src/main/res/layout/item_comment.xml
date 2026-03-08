@@ -36,6 +36,14 @@
             android:layout_marginTop="2dp"
             android:textSize="14sp"
             android:textColor="@color/text_primary" />
+
+        <TextView
+            android:id="@+id/item_comment_time"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:textSize="10sp"
+            android:textColor="@color/text_secondary" />
     </LinearLayout>
 
     <ImageView
@@ -43,7 +51,7 @@
         android:layout_width="24dp"
         android:layout_height="24dp"
         android:layout_marginStart="8dp"
-        android:src="@android:drawable/ic_menu_more"
+        android:src="@drawable/dots_horizontal"
         android:contentDescription="更多操作"
         android:visibility="gone" />
 

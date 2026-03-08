@@ -202,7 +202,17 @@ public class MapFragment extends Fragment implements AMapLocationListener {
         isHeatmapMode = !isHeatmapMode;
         if (isHeatmapMode) {
             modeIndicator.setVisibility(View.VISIBLE);
-            modeIndicator.setText("🔥 热力图模式");
+            modeIndicator.setText(" 热力图模式");
+            android.graphics.drawable.Drawable fireIcon = androidx.core.content.ContextCompat
+                    .getDrawable(requireContext(), R.drawable.fire_alert);
+            if (fireIcon != null) {
+                int iconSizePx = (int) (getResources().getDisplayMetrics().density * 14);
+                fireIcon.setBounds(0, 0, iconSizePx, iconSizePx);
+                fireIcon.setTint(Color.WHITE);
+                modeIndicator.setCompoundDrawablesRelative(fireIcon, null, null, null);
+            }
+            modeIndicator.setCompoundDrawablePadding(8);
+
             lastWasPreciseMode = false;
             loadHeatmapData();
         } else {

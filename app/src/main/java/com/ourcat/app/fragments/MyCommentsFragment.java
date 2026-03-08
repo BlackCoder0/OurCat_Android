@@ -39,10 +39,6 @@ public class MyCommentsFragment extends Fragment {
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,
             @Nullable Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_my_posts, container, false);
-        View btnBack = view.findViewById(R.id.btn_back);
-        if (btnBack != null) {
-            btnBack.setOnClickListener(v -> NavHostFragment.findNavController(this).navigateUp());
-        }
         // ((TextView) view.findViewById(R.id.tv_page_title)).setText("我的评论");
 
         RecyclerView rv = view.findViewById(R.id.rv_list);

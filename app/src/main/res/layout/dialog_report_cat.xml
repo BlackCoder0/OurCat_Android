@@ -220,10 +220,13 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="🐱 猫咪档案"
+                android:text=" 猫咪档案"
                 android:textSize="15sp"
                 android:textStyle="bold"
-                android:textColor="@color/text_primary" />
+                android:textColor="@color/text_primary"
+                android:drawableStart="@drawable/cat"
+                android:drawableTint="@color/primary"
+                android:drawablePadding="8dp" />
 
             <!-- 颜色（单选） -->
             <TextView

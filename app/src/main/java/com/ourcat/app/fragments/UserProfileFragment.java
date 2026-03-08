@@ -45,11 +45,6 @@ public class UserProfileFragment extends Fragment {
             userId = getArguments().getLong("userId", 0);
         }
 
-        View btnBack = view.findViewById(R.id.btn_back);
-        if (btnBack != null) {
-            btnBack.setOnClickListener(v -> NavHostFragment.findNavController(this).navigateUp());
-        }
-
         ivAvatar = view.findViewById(R.id.user_avatar);
         tvNickname = view.findViewById(R.id.user_nickname);
         tvBio = view.findViewById(R.id.user_bio);

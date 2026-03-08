@@ -12,6 +12,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.bumptech.glide.Glide;
 import com.ourcat.app.R;
+import com.ourcat.app.utils.TimeUtils;
 
 import java.util.ArrayList;
 import java.util.Map;
@@ -61,6 +62,7 @@ public class CommentAdapter extends RecyclerView.Adapter<CommentAdapter.ViewHold
         Object avatarUrl = m.get("authorAvatar");
         holder.author.setText(author != null ? author.toString() : "");
         holder.content.setText(content != null ? content.toString() : "");
+        holder.time.setText(TimeUtils.getRelativeTime((String) m.get("createdAt")));
 
         if (avatarUrl != null && !avatarUrl.toString().isEmpty()) {
             Glide.with(holder.itemView.getContext())
@@ -112,13 +114,14 @@ public class CommentAdapter extends RecyclerView.Adapter<CommentAdapter.ViewHold
     }
 
     static class ViewHolder extends RecyclerView.ViewHolder {
-        TextView author, content;
+        TextView author, content, time;
         ImageView btnMore, avatar;
 
         ViewHolder(View itemView) {
             super(itemView);
             author = itemView.findViewById(R.id.item_comment_author);
             content = itemView.findViewById(R.id.item_comment_content);
+            time = itemView.findViewById(R.id.item_comment_time);
             btnMore = itemView.findViewById(R.id.btn_comment_more);
             avatar = itemView.findViewById(R.id.item_comment_avatar);
         }

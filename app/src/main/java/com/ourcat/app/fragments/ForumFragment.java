@@ -6,6 +6,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.view.inputmethod.EditorInfo;
 import android.widget.Toast;
+import android.os.Parcelable;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -17,7 +18,6 @@ import androidx.recyclerview.widget.RecyclerView;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
 import com.google.android.material.textfield.TextInputEditText;
-import com.google.gson.Gson;
 import com.ourcat.app.R;
 import com.ourcat.app.adapters.PostAdapter;
 import com.ourcat.app.models.PostItem;
@@ -38,12 +38,18 @@ public class ForumFragment extends Fragment {
     private PostAdapter adapter;
     private TextInputEditText etSearch;
     private static final int PAGE_SIZE = 20;
+    private static final String KEY_LAYOUT_STATE = "forum_layout_state";
+    private Parcelable pendingLayoutState;
+    private final List<PostItem> cachedPosts = new ArrayList<>();
 
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,
-                             @Nullable Bundle savedInstanceState) {
+            @Nullable Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_forum_list, container, false);
+        if (savedInstanceState != null) {
+            pendingLayoutState = savedInstanceState.getParcelable(KEY_LAYOUT_STATE);
+        }
         recyclerView = view.findViewById(R.id.forum_recycler);
         refreshLayout = view.findViewById(R.id.forum_swipe);
         etSearch = view.findViewById(R.id.et_search);
@@ -85,21 +91,22 @@ public class ForumFragment extends Fragment {
             return false;
         });
 
-        loadPosts();
+        if (!cachedPosts.isEmpty()) {
+            adapter.setItems(cachedPosts);
+            restoreLayoutStateIfNeeded();
+        } else {
+            loadPosts();
+        }
         return view;
-    }
-
-    @Override
-    public void onResume() {
-        super.onResume();
-        loadPosts();
     }
 
     private void loadPosts() {
         refreshLayout.setRefreshing(true);
         String search = etSearch != null && etSearch.getText() != null
-                ? etSearch.getText().toString().trim() : null;
-        if (search != null && search.isEmpty()) search = null;
+                ? etSearch.getText().toString().trim()
+                : null;
+        if (search != null && search.isEmpty())
+            search = null;
 
         RetrofitHelper.get().create(com.ourcat.app.repositories.ForumApi.class)
                 .listPosts(0, PAGE_SIZE, search)
@@ -117,10 +124,14 @@ public class ForumFragment extends Fragment {
                                         list.add(item);
                                     }
                                 }
-                                adapter.setItems(list);
+                                cachedPosts.clear();
+                                cachedPosts.addAll(list);
+                                adapter.setItems(cachedPosts);
+                                restoreLayoutStateIfNeeded();
                             }
                         }
                     }
+
                     @Override
                     public void onFailure(Call<Map<String, Object>> call, Throwable t) {
                         refreshLayout.setRefreshing(false);
@@ -129,24 +140,53 @@ public class ForumFragment extends Fragment {
                 });
     }
 
+    @Override
+    public void onSaveInstanceState(@NonNull Bundle outState) {
+        super.onSaveInstanceState(outState);
+        if (recyclerView != null && recyclerView.getLayoutManager() != null) {
+            outState.putParcelable(KEY_LAYOUT_STATE, recyclerView.getLayoutManager().onSaveInstanceState());
+        }
+    }
+
+    private void restoreLayoutStateIfNeeded() {
+        if (pendingLayoutState == null || recyclerView == null || recyclerView.getLayoutManager() == null) {
+            return;
+        }
+        recyclerView.getLayoutManager().onRestoreInstanceState(pendingLayoutState);
+        pendingLayoutState = null;
+    }
+
     private static PostItem mapToPostItem(Map<String, Object> m) {
         PostItem item = new PostItem();
-        if (m.get("id") instanceof Number) item.setId(((Number) m.get("id")).longValue());
-        if (m.get("title") != null) item.setTitle(m.get("title").toString());
-        if (m.get("content") != null) item.setContent(m.get("content").toString());
-        if (m.get("images") != null) item.setImages(m.get("images").toString());
-        if (m.get("likes") instanceof Number) item.setLikes(((Number) m.get("likes")).intValue());
-        if (m.get("dislikes") instanceof Number) item.setDislikes(((Number) m.get("dislikes")).intValue());
-        if (m.get("userId") instanceof Number) item.setUserId(((Number) m.get("userId")).longValue());
-        if (m.get("pinned") != null) item.setPinned(Boolean.TRUE.equals(m.get("pinned")));
-        if (m.get("createdAt") != null) item.setCreatedAt(m.get("createdAt").toString());
-        if (m.get("authorName") != null) item.setAuthorName(m.get("authorName").toString());
-        if (m.get("referencedCatId") instanceof Number) item.setReferencedCatId(((Number) m.get("referencedCatId")).longValue());
+        if (m.get("id") instanceof Number)
+            item.setId(((Number) m.get("id")).longValue());
+        if (m.get("title") != null)
+            item.setTitle(m.get("title").toString());
+        if (m.get("content") != null)
+            item.setContent(m.get("content").toString());
+        if (m.get("images") != null)
+            item.setImages(m.get("images").toString());
+        if (m.get("likes") instanceof Number)
+            item.setLikes(((Number) m.get("likes")).intValue());
+        if (m.get("dislikes") instanceof Number)
+            item.setDislikes(((Number) m.get("dislikes")).intValue());
+        if (m.get("userId") instanceof Number)
+            item.setUserId(((Number) m.get("userId")).longValue());
+        if (m.get("pinned") != null)
+            item.setPinned(Boolean.TRUE.equals(m.get("pinned")));
+        if (m.get("createdAt") != null)
+            item.setCreatedAt(m.get("createdAt").toString());
+        if (m.get("authorName") != null)
+            item.setAuthorName(m.get("authorName").toString());
+        if (m.get("referencedCatId") instanceof Number)
+            item.setReferencedCatId(((Number) m.get("referencedCatId")).longValue());
         Object refCat = m.get("referencedCat");
         if (refCat instanceof Map) {
             Map<?, ?> rc = (Map<?, ?>) refCat;
-            if (rc.get("name") != null) item.setReferencedCatName(rc.get("name").toString());
-            if (rc.get("primaryImageUrl") != null) item.setReferencedCatImageUrl(rc.get("primaryImageUrl").toString());
+            if (rc.get("name") != null)
+                item.setReferencedCatName(rc.get("name").toString());
+            if (rc.get("primaryImageUrl") != null)
+                item.setReferencedCatImageUrl(rc.get("primaryImageUrl").toString());
         }
         return item;
     }

@@ -8,6 +8,7 @@
     <ScrollView
         android:layout_width="match_parent"
         android:layout_height="match_parent"
+        android:fillViewport="true"
         android:padding="16dp">
 
     <LinearLayout
@@ -147,12 +148,55 @@
             app:cornerRadius="8dp"
             android:visibility="gone" />
 
+
         <View
             android:layout_width="match_parent"
             android:layout_height="1dp"
             android:background="@color/text_secondary"
             android:alpha="0.2"
-            android:layout_marginVertical="16dp" />
+            android:layout_marginVertical="8dp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="bottom"
+            android:paddingVertical="8dp">
+
+            <FrameLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:minWidth="120dp"
+                android:maxWidth="400dp">
+                <EditText
+                    android:id="@+id/square_comment_input"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:minLines="1"
+                    android:maxLines="4"
+                    android:inputType="textMultiLine|textCapSentences"
+                    android:imeOptions="actionSend"
+                    android:hint="写评论..."
+                    android:background="@android:color/transparent"
+                    android:padding="12dp"
+                    android:gravity="top|start" />
+            </FrameLayout>
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_send_square_comment"
+                style="@style/Widget.MaterialComponents.Button.TextButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="发送" />
+        </LinearLayout>
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="@color/text_secondary"
+            android:alpha="0.2"
+            android:layout_marginVertical="8dp" />
 
         <TextView
             android:layout_width="wrap_content"
@@ -162,38 +206,13 @@
             android:textStyle="bold"
             android:textColor="@color/text_primary" />
 
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/square_comments_recycler"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:nestedScrollingEnabled="false"
-            android:layout_marginTop="8dp"
-            android:minHeight="60dp" />
-
         <LinearLayout
+            android:id="@+id/square_comments_container"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
+            android:orientation="vertical"
             android:layout_marginTop="8dp"
-            android:gravity="center_vertical">
-
-            <EditText
-                android:id="@+id/square_comment_input"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:hint="写评论..."
-                android:inputType="text"
-                android:background="@android:color/transparent"
-                android:padding="8dp" />
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btn_send_square_comment"
-                style="@style/Widget.MaterialComponents.Button.TextButton"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="发送" />
-        </LinearLayout>
+            android:paddingBottom="24dp" />
     </LinearLayout>
     </ScrollView>
 

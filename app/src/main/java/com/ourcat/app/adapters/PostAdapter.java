@@ -14,6 +14,7 @@ import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import com.ourcat.app.R;
 import com.ourcat.app.models.PostItem;
+import com.ourcat.app.utils.TimeUtils;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -42,7 +43,8 @@ public class PostAdapter extends RecyclerView.Adapter<PostAdapter.ViewHolder> {
 
     public void setItems(List<PostItem> list) {
         items.clear();
-        if (list != null) items.addAll(list);
+        if (list != null)
+            items.addAll(list);
         notifyDataSetChanged();
     }
 
@@ -58,14 +60,22 @@ public class PostAdapter extends RecyclerView.Adapter<PostAdapter.ViewHolder> {
         PostItem item = items.get(position);
 
         String titleText = item.getTitle();
-        if (item.isPinned()) titleText = "[置顶] " + titleText;
+        if (item.isPinned())
+            titleText = "[置顶] " + titleText;
         holder.title.setText(titleText);
 
         String author = item.getAuthorName();
         holder.author.setText(author != null && !author.isEmpty() ? author : "匿名");
 
-        holder.likes.setText("👍 " + item.getLikes());
-        holder.commentsHint.setText("👎 " + item.getDislikes());
+        holder.likes.setText(String.valueOf(item.getLikes()));
+        holder.likes.setCompoundDrawablesWithIntrinsicBounds(R.drawable.thumb_up_outline, 0, 0, 0);
+        holder.likes.setCompoundDrawablePadding(8);
+
+        holder.commentsHint.setText(String.valueOf(item.getDislikes()));
+        holder.commentsHint.setCompoundDrawablesWithIntrinsicBounds(R.drawable.thumb_down_outline, 0, 0, 0);
+        holder.commentsHint.setCompoundDrawablePadding(8);
+
+        holder.time.setText(TimeUtils.getRelativeTime(item.getCreatedAt()));
 
         String firstImageUrl = getFirstImageUrl(item.getImages());
         if (firstImageUrl != null) {
@@ -84,7 +94,8 @@ public class PostAdapter extends RecyclerView.Adapter<PostAdapter.ViewHolder> {
         if (item.getReferencedCatId() != null && item.getReferencedCatId() > 0) {
             refCatRow.setVisibility(View.VISIBLE);
             refCatName.setText(item.getReferencedCatName() != null && !item.getReferencedCatName().isEmpty()
-                    ? "引用: " + item.getReferencedCatName() : "引用: 未命名");
+                    ? "引用: " + item.getReferencedCatName()
+                    : "引用: 未命名");
             String refUrl = item.getReferencedCatImageUrl();
             if (refUrl != null && !refUrl.isEmpty()) {
                 Glide.with(holder.itemView.getContext()).load(refUrl).centerCrop().into(refCatAvatar);
@@ -93,23 +104,29 @@ public class PostAdapter extends RecyclerView.Adapter<PostAdapter.ViewHolder> {
             }
             long catId = item.getReferencedCatId();
             refCatRow.setOnClickListener(v -> {
-                if (refCatListener != null) refCatListener.onRefCatClick(catId);
+                if (refCatListener != null)
+                    refCatListener.onRefCatClick(catId);
             });
         } else {
             refCatRow.setVisibility(View.GONE);
         }
 
         holder.itemView.setOnClickListener(v -> {
-            if (listener != null) listener.onItemClick(item);
+            if (listener != null)
+                listener.onItemClick(item);
         });
     }
 
     private String getFirstImageUrl(String imagesJson) {
-        if (imagesJson == null || imagesJson.isEmpty()) return null;
+        if (imagesJson == null || imagesJson.isEmpty())
+            return null;
         try {
-            List<String> urls = new Gson().fromJson(imagesJson, new TypeToken<List<String>>() {}.getType());
-            if (urls != null && !urls.isEmpty()) return urls.get(0);
-        } catch (Exception ignored) {}
+            List<String> urls = new Gson().fromJson(imagesJson, new TypeToken<List<String>>() {
+            }.getType());
+            if (urls != null && !urls.isEmpty())
+                return urls.get(0);
+        } catch (Exception ignored) {
+        }
         return null;
     }
 
@@ -119,7 +136,7 @@ public class PostAdapter extends RecyclerView.Adapter<PostAdapter.ViewHolder> {
     }
 
     static class ViewHolder extends RecyclerView.ViewHolder {
-        TextView title, author, likes, commentsHint;
+        TextView title, author, likes, commentsHint, time;
         ImageView image;
 
         ViewHolder(View itemView) {
@@ -128,6 +145,7 @@ public class PostAdapter extends RecyclerView.Adapter<PostAdapter.ViewHolder> {
             author = itemView.findViewById(R.id.item_post_author);
             likes = itemView.findViewById(R.id.item_post_likes);
             commentsHint = itemView.findViewById(R.id.item_post_comments_hint);
+            time = itemView.findViewById(R.id.item_post_time);
             image = itemView.findViewById(R.id.item_post_image);
         }
     }

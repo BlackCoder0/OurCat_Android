@@ -54,7 +54,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
                 android:contentDescription="热力图"
-                android:src="@android:drawable/ic_menu_view"
+                android:src="@drawable/fire_alert"
                 app:fabSize="mini"
                 app:backgroundTint="@android:color/white"
                 app:tint="@color/primary" />
@@ -107,7 +107,10 @@
                 android:textColor="@android:color/white"
                 android:elevation="4dp"
                 android:visibility="gone"
-                android:text="🔥 热力图模式" />
+                android:drawableStart="@drawable/fire_alert"
+                android:drawableTint="@android:color/white"
+                android:drawablePadding="4dp"
+                android:text=" 热力图模式" />
         </LinearLayout>
 
     </FrameLayout>
@@ -145,7 +148,10 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="🐱 猫咪活跃区域 Top5"
+                android:text=" 猫咪活跃区域 Top5"
+                android:drawableStart="@drawable/cat"
+                android:drawableTint="@color/primary"
+                android:drawablePadding="8dp"
                 android:textSize="16sp"
                 android:textStyle="bold"
                 android:textColor="@color/text_primary" />

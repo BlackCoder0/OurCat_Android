@@ -1,6 +1,7 @@
 package com.ourcat.app.fragments;
 
 import android.os.Bundle;
+import android.os.Parcelable;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -19,6 +20,7 @@ import com.google.android.material.chip.ChipGroup;
 import com.ourcat.app.R;
 import com.ourcat.app.repositories.SquareApi;
 import com.ourcat.app.utils.RetrofitHelper;
+import com.ourcat.app.utils.TimeUtils;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -38,12 +40,17 @@ public class SquareFragment extends Fragment {
     private ChipGroup sortGroup;
     private final List<Map<String, Object>> items = new ArrayList<>();
     private RecyclerView.Adapter<RecyclerView.ViewHolder> adapter;
+    private static final String KEY_LAYOUT_STATE = "square_layout_state";
+    private Parcelable pendingLayoutState;
 
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,
             @Nullable Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_square, container, false);
+        if (savedInstanceState != null) {
+            pendingLayoutState = savedInstanceState.getParcelable(KEY_LAYOUT_STATE);
+        }
         recyclerView = view.findViewById(R.id.square_recycler);
         refreshLayout = view.findViewById(R.id.square_swipe);
         sortGroup = view.findViewById(R.id.square_sort_group);
@@ -51,7 +58,7 @@ public class SquareFragment extends Fragment {
 
         adapter = new RecyclerView.Adapter<RecyclerView.ViewHolder>() {
             class ViewHolder extends RecyclerView.ViewHolder {
-                TextView type, status, text, location;
+                TextView type, status, text, location, time;
                 View container;
                 View refCatRow;
                 android.widget.ImageView refCatAvatar;
@@ -63,6 +70,7 @@ public class SquareFragment extends Fragment {
                     status = itemView.findViewById(R.id.item_square_status);
                     text = itemView.findViewById(R.id.item_square_text);
                     location = itemView.findViewById(R.id.item_square_location);
+                    time = itemView.findViewById(R.id.item_square_time);
                     container = itemView.findViewById(R.id.item_square_container);
                     refCatRow = itemView.findViewById(R.id.item_square_ref_cat);
                     refCatAvatar = itemView.findViewById(R.id.item_square_ref_cat_avatar);
@@ -92,10 +100,18 @@ public class SquareFragment extends Fragment {
                 holder.status.setText("resolved".equals(s) ? "已解决" : "进行中");
                 holder.status.setTextColor("resolved".equals(s) ? 0xFF4CAF50 : 0xFFFF9800);
                 holder.text.setText(txt);
+                holder.time.setText(TimeUtils.getRelativeTime((String) item.get("createdAt")));
 
                 if (loc != null) {
                     holder.location.setVisibility(View.VISIBLE);
                     holder.location.setText(loc.toString());
+                    android.graphics.drawable.Drawable locationIcon = androidx.core.content.ContextCompat
+                            .getDrawable(holder.itemView.getContext(), android.R.drawable.ic_menu_mylocation);
+                    if (locationIcon != null) {
+                        int iconSizePx = (int) (holder.itemView.getResources().getDisplayMetrics().density * 14);
+                        locationIcon.setBounds(0, 0, iconSizePx, iconSizePx);
+                        holder.location.setCompoundDrawablesRelative(locationIcon, null, null, null);
+                    }
                 } else {
                     holder.location.setVisibility(View.GONE);
                 }
@@ -109,7 +125,8 @@ public class SquareFragment extends Fragment {
                     holder.refCatName.setText(name.isEmpty() ? "引用: 未命名" : "引用: " + name);
                     String imgUrl = rc.get("primaryImageUrl") != null ? rc.get("primaryImageUrl").toString() : null;
                     if (imgUrl != null && !imgUrl.isEmpty()) {
-                        com.bumptech.glide.Glide.with(holder.itemView.getContext()).load(imgUrl).centerCrop().into(holder.refCatAvatar);
+                        com.bumptech.glide.Glide.with(holder.itemView.getContext()).load(imgUrl).centerCrop()
+                                .into(holder.refCatAvatar);
                     } else {
                         holder.refCatAvatar.setImageResource(R.drawable.ic_default_avatar);
                     }
@@ -167,7 +184,12 @@ public class SquareFragment extends Fragment {
         refreshLayout.setOnRefreshListener(this::loadPosts);
         view.findViewById(R.id.square_fab)
                 .setOnClickListener(v -> Navigation.findNavController(v).navigate(R.id.create_square_post));
-        loadPosts();
+        if (!items.isEmpty()) {
+            adapter.notifyDataSetChanged();
+            restoreLayoutStateIfNeeded();
+        } else {
+            loadPosts();
+        }
         return view;
     }
 
@@ -245,6 +267,7 @@ public class SquareFragment extends Fragment {
                                     }
                                 }
                                 adapter.notifyDataSetChanged();
+                                restoreLayoutStateIfNeeded();
                             }
                         }
                     }
@@ -257,5 +280,25 @@ public class SquareFragment extends Fragment {
                         Toast.makeText(requireContext(), "加载失败", Toast.LENGTH_SHORT).show();
                     }
                 });
+    }
+
+    @Override
+    public void onSaveInstanceState(@NonNull Bundle outState) {
+        super.onSaveInstanceState(outState);
+        if (recyclerView != null && recyclerView.getLayoutManager() != null) {
+            outState.putParcelable(KEY_LAYOUT_STATE, recyclerView.getLayoutManager().onSaveInstanceState());
+        }
+    }
+
+    private void restoreLayoutStateIfNeeded() {
+        if (pendingLayoutState == null || recyclerView == null || recyclerView.getLayoutManager() == null) {
+            return;
+        }
+        recyclerView.post(() -> {
+            if (recyclerView.getLayoutManager() != null) {
+                recyclerView.getLayoutManager().onRestoreInstanceState(pendingLayoutState);
+                pendingLayoutState = null;
+            }
+        });
     }
 }
