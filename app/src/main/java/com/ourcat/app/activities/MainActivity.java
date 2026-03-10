@@ -12,6 +12,7 @@ import android.provider.MediaStore;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.widget.Toast;
 
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
@@ -32,9 +33,11 @@ import com.google.android.material.badge.BadgeDrawable;
 import com.google.android.material.badge.BadgeUtils;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
+import com.ourcat.app.BuildConfig;
 import com.ourcat.app.R;
 import com.ourcat.app.fragments.MapFragment;
 import com.ourcat.app.fragments.ReportCatDialogFragment;
+import com.ourcat.app.repositories.AuthApi;
 import com.ourcat.app.repositories.MessageApi;
 import com.ourcat.app.repositories.WeatherApi;
 import com.ourcat.app.utils.RetrofitHelper;
@@ -69,6 +72,14 @@ public class MainActivity extends AppCompatActivity {
     private ActivityResultLauncher<String> cameraPermissionLauncher;
     private Uri tempCameraUri;
     private Uri pendingImageUri;
+    private AlertDialog weatherWarningDialog;
+    private Long lastWeatherWarningPopupMessageId = null;
+
+    private interface WeatherLocationAction {
+        void run(double lat, double lng, boolean isFallbackLocation);
+    }
+
+    private WeatherLocationAction pendingWeatherLocationAction;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -81,13 +92,59 @@ public class MainActivity extends AppCompatActivity {
                     if (Boolean.TRUE.equals(fine) || Boolean.TRUE.equals(coarse)) {
                         startWeatherLocation();
                     } else {
-                        fetchWeatherWarning(31.23, 121.47);
+                        WeatherLocationAction action = pendingWeatherLocationAction;
+                        pendingWeatherLocationAction = null;
+                        if (action != null) {
+                            action.run(31.23, 121.47, true);
+                        }
                     }
                 });
         requestWeatherWarning();
 
         toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
+        toolbar.setOnLongClickListener(v -> {
+            RetrofitHelper.get().create(AuthApi.class).getProfile()
+                    .enqueue(new Callback<java.util.Map<String, Object>>() {
+                        @Override
+                        public void onResponse(Call<java.util.Map<String, Object>> call,
+                                Response<java.util.Map<String, Object>> response) {
+                            if (response.body() == null)
+                                return;
+                            Object roleObj = response.body().get("role");
+                            int role = roleObj instanceof Number ? ((Number) roleObj).intValue() : 0;
+                            if (role < 3) {
+                                Toast.makeText(MainActivity.this, "仅三级用户可触发", Toast.LENGTH_SHORT).show();
+                                return;
+                            }
+                            String[] items = new String[] { "天气预警（当前位置）", "今日天气（当前位置）", "模拟预警（管理员）" };
+
+                            new AlertDialog.Builder(MainActivity.this)
+                                    .setTitle("选择功能")
+                                    .setItems(items, (dialog, which) -> {
+                                        if (which == 0) {
+                                            requestWeatherLocation(
+                                                    (lat, lng, isFallbackLocation) -> fetchWeatherWarning(lat, lng, false, null, true,
+                                                            isFallbackLocation));
+                                        } else if (which == 1) {
+                                            requestWeatherLocation(MainActivity.this::fetchTodayWeatherDebug);
+                                        } else if (which == 2) {
+                                            requestWeatherLocation(
+                                                    (lat, lng, isFallbackLocation) -> fetchWeatherWarning(lat, lng, true, "warning",
+                                                            true, isFallbackLocation));
+                                        }
+                                    })
+                                    .setNegativeButton("取消", null)
+                                    .show();
+                        }
+
+                        @Override
+                        public void onFailure(Call<java.util.Map<String, Object>> call, Throwable t) {
+                            Toast.makeText(MainActivity.this, "获取权限失败", Toast.LENGTH_SHORT).show();
+                        }
+                    });
+            return true;
+        });
 
         mapContainer = findViewById(R.id.map_container);
         navHostView = findViewById(R.id.nav_host_fragment);
@@ -440,10 +497,8 @@ public class MainActivity extends AppCompatActivity {
     private void updateMessageBadge() {
         if (!badgeMenuReady)
             return;
-        if (navController != null && navController.getCurrentDestination() != null
-                && navController.getCurrentDestination().getId() == R.id.message_center) {
-            return;
-        }
+        boolean inMessageCenter = navController != null && navController.getCurrentDestination() != null
+                && navController.getCurrentDestination().getId() == R.id.message_center;
         RetrofitHelper.get().create(MessageApi.class).list(0, 50)
                 .enqueue(new Callback<java.util.Map<String, Object>>() {
                     @Override
@@ -452,24 +507,45 @@ public class MainActivity extends AppCompatActivity {
                         if (response.isSuccessful() && response.body() != null) {
                             Object content = response.body().get("content");
                             int unread = 0;
+                            Long weatherMsgId = null;
+                            String weatherContent = null;
                             if (content instanceof List) {
                                 for (Object o : (List<?>) content) {
                                     if (o instanceof java.util.Map) {
-                                        Object readObj = ((java.util.Map<?, ?>) o).get("read");
+                                        java.util.Map<?, ?> m = (java.util.Map<?, ?>) o;
+                                        Object readObj = m.get("read");
                                         boolean read = readObj instanceof Boolean && (Boolean) readObj;
                                         if (!read)
                                             unread++;
+                                        if (!read && weatherMsgId == null) {
+                                            Object typeObj = m.get("targetType");
+                                            if (typeObj != null && "weather_warning".equals(typeObj.toString())) {
+                                                Object idObj = m.get("id");
+                                                Object cObj = m.get("content");
+                                                if (idObj instanceof Number) {
+                                                    weatherMsgId = ((Number) idObj).longValue();
+                                                    weatherContent = cObj != null ? cObj.toString() : "";
+                                                }
+                                            }
+                                        }
                                     }
                                 }
+                            }
+                            if (weatherMsgId != null && weatherMsgId != lastWeatherWarningPopupMessageId) {
+                                showGlobalWeatherWarningDialog(weatherContent, weatherMsgId);
                             }
                             if (messageBadge == null) {
                                 messageBadge = BadgeDrawable.create(MainActivity.this);
                             }
-                            if (unread <= 0) {
-                                messageBadge.setVisible(false);
+                            if (!inMessageCenter) {
+                                if (unread <= 0) {
+                                    messageBadge.setVisible(false);
+                                } else {
+                                    messageBadge.setVisible(true);
+                                    messageBadge.setNumber(Math.min(unread, 99));
+                                }
                             } else {
-                                messageBadge.setVisible(true);
-                                messageBadge.setNumber(Math.min(unread, 99));
+                                messageBadge.setVisible(false);
                             }
                             if (toolbar != null) {
                                 BadgeUtils.attachBadgeDrawable(messageBadge, toolbar, R.id.action_message_center);
@@ -484,8 +560,16 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void requestWeatherWarning() {
-        if (ContextCompat.checkSelfPermission(this,
-                Manifest.permission.ACCESS_FINE_LOCATION) == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+        requestWeatherLocation((lat, lng, isFallbackLocation) -> fetchWeatherWarning(lat, lng, false, null, false, isFallbackLocation));
+    }
+
+    private void requestWeatherLocation(WeatherLocationAction action) {
+        pendingWeatherLocationAction = action;
+        boolean fineGranted = ContextCompat.checkSelfPermission(this,
+                Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED;
+        boolean coarseGranted = ContextCompat.checkSelfPermission(this,
+                Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED;
+        if (fineGranted || coarseGranted) {
             startWeatherLocation();
         } else {
             weatherPermissionLauncher.launch(new String[] {
@@ -507,61 +591,184 @@ public class MainActivity extends AppCompatActivity {
                 weatherLocationOption.setNeedAddress(false);
                 weatherLocationClient.setLocationOption(weatherLocationOption);
                 weatherLocationClient.setLocationListener(aMapLocation -> {
-                    if (aMapLocation != null && aMapLocation.getErrorCode() == 0) {
-                        fetchWeatherWarning(aMapLocation.getLatitude(), aMapLocation.getLongitude());
-                    } else {
-                        fetchWeatherWarning(31.23, 121.47);
+                    WeatherLocationAction action = pendingWeatherLocationAction;
+                    pendingWeatherLocationAction = null;
+                    if (action == null) {
+                        return;
                     }
+                    if (aMapLocation != null && aMapLocation.getErrorCode() == 0) {
+                        action.run(aMapLocation.getLatitude(), aMapLocation.getLongitude(), false);
+                        return;
+                    }
+                    action.run(31.23, 121.47, true);
                 });
             }
             weatherLocationClient.startLocation();
         } catch (Exception e) {
-            fetchWeatherWarning(31.23, 121.47);
+            WeatherLocationAction action = pendingWeatherLocationAction;
+            pendingWeatherLocationAction = null;
+            if (action != null) {
+                action.run(31.23, 121.47, true);
+            }
         }
     }
 
     private void fetchWeatherWarning(double lat, double lng) {
-        String location = lat + "," + lng;
-        RetrofitHelper.get().create(WeatherApi.class).getWarning(location)
-                .enqueue(new Callback<java.util.Map<String, Object>>() {
-                    @Override
-                    public void onResponse(Call<java.util.Map<String, Object>> call,
-                            Response<java.util.Map<String, Object>> response) {
-                        if (response.isSuccessful() && response.body() != null) {
-                            Object w = response.body().get("warnings");
-                            if (w instanceof List && !((List<?>) w).isEmpty()) {
-                                StringBuilder sb = new StringBuilder();
-                                for (Object o : (List<?>) w)
-                                    sb.append(o).append("\n");
-                                Object msgIdObj = response.body().get("messageId");
-                                new AlertDialog.Builder(MainActivity.this)
-                                        .setTitle("天气预警")
-                                        .setMessage(sb.toString())
-                                        .setPositiveButton("确定", (d, which) -> {
-                                            if (msgIdObj instanceof Number) {
-                                                long msgId = ((Number) msgIdObj).longValue();
-                                                RetrofitHelper.get().create(MessageApi.class).markRead(msgId)
-                                                        .enqueue(new Callback<Void>() {
-                                                            @Override
-                                                            public void onResponse(Call<Void> call,
-                                                                    Response<Void> response) {
-                                                            }
+        fetchWeatherWarning(lat, lng, false, null, false, false);
+    }
 
-                                                            @Override
-                                                            public void onFailure(Call<Void> call, Throwable t) {
-                                                            }
-                                                        });
-                                            }
-                                        })
-                                        .show();
-                            }
+    private void fetchTodayWeatherDebug(double lat, double lng, boolean isFallbackLocation) {
+        String location = lat + "," + lng;
+        WeatherApi api = RetrofitHelper.get().create(WeatherApi.class);
+        api.getNow(location).enqueue(new Callback<java.util.Map<String, Object>>() {
+            @Override
+            public void onResponse(Call<java.util.Map<String, Object>> call,
+                    Response<java.util.Map<String, Object>> response) {
+                if (response.code() == 403) {
+                    return;
+                }
+                if (response.isSuccessful() && response.body() != null) {
+                    Object textObj = response.body().get("text");
+                    String text = textObj != null ? textObj.toString() : "暂无实时天气数据";
+                    String locationSource = isFallbackLocation ? "默认坐标（上海 31.23,121.47）" : "当前位置";
+                    String explain = "位置来源：" + locationSource + "\n时区：由后端 open-meteo.timezone 配置（默认 Asia/Shanghai）";
+                    new AlertDialog.Builder(MainActivity.this)
+                            .setTitle("今日天气")
+                            .setMessage(explain + "\n\n" + text)
+                            .setPositiveButton("确定", null)
+                            .show();
+                } else {
+                    new AlertDialog.Builder(MainActivity.this)
+                            .setTitle("调试")
+                            .setMessage("请求失败: " + response.code())
+                            .setPositiveButton("确定", null)
+                            .show();
+                }
+            }
+
+            @Override
+            public void onFailure(Call<java.util.Map<String, Object>> call, Throwable t) {
+                new AlertDialog.Builder(MainActivity.this)
+                        .setTitle("测试失败")
+                        .setMessage("网络请求异常: " + t.getMessage())
+                        .setPositiveButton("确定", null)
+                        .show();
+            }
+        });
+    }
+
+    private void fetchWeatherWarning(double lat, double lng, boolean mock, String mockMode, boolean userInitiated,
+            boolean isFallbackLocation) {
+        String location = lat + "," + lng;
+        WeatherApi api = RetrofitHelper.get().create(WeatherApi.class);
+        Call<java.util.Map<String, Object>> call = mock
+                ? api.getWarningMock(location, true, mockMode != null ? mockMode : "warning")
+                : api.getWarning(location);
+        call.enqueue(new Callback<java.util.Map<String, Object>>() {
+            @Override
+            public void onResponse(Call<java.util.Map<String, Object>> call,
+                    Response<java.util.Map<String, Object>> response) {
+                if (response.code() == 403 && mock) {
+                    // Toast.makeText(MainActivity.this, "仅管理员可操作", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                if (response.isSuccessful() && response.body() != null) {
+                    Object w = response.body().get("warnings");
+                    if (w instanceof List && !((List<?>) w).isEmpty()) {
+                        StringBuilder sb = new StringBuilder();
+                        for (Object o : (List<?>) w)
+                            sb.append(o).append("\n");
+                        Object msgIdObj = response.body().get("messageId");
+                        Long msgId = null;
+                        if (msgIdObj instanceof Number) {
+                            msgId = ((Number) msgIdObj).longValue();
+                        }
+                        if (mock && "weather".equalsIgnoreCase(mockMode)) {
+                            new AlertDialog.Builder(MainActivity.this)
+                                    .setTitle("今日天气")
+                                    .setMessage(sb.toString().trim())
+                                    .setPositiveButton("确定", null)
+                                    .show();
+                        } else {
+                            showGlobalWeatherWarningDialog(sb.toString(), msgId);
+                        }
+                    } else {
+                        if (mock) {
+                            new AlertDialog.Builder(MainActivity.this)
+                                    .setTitle("调试")
+                                    .setMessage("后端返回为空，请检查和风配置或 JWT 文件")
+                                    .setPositiveButton("确定", null)
+                                    .show();
+                        } else if (userInitiated) {
+                            String locationSource = isFallbackLocation ? "默认坐标（上海 31.23,121.47）" : "当前位置";
+                            new AlertDialog.Builder(MainActivity.this)
+                                    .setTitle("天气预警")
+                                    .setMessage("当前暂无天气预警\n位置来源：" + locationSource)
+                                    .setPositiveButton("确定", null)
+                                    .show();
                         }
                     }
+                } else if (mock) {
+                    new AlertDialog.Builder(MainActivity.this)
+                            .setTitle("调试")
+                            .setMessage("请求失败: " + response.code())
+                            .setPositiveButton("确定", null)
+                            .show();
+                } else if (userInitiated) {
+                    new AlertDialog.Builder(MainActivity.this)
+                            .setTitle("天气预警")
+                            .setMessage("查询失败: " + response.code())
+                            .setPositiveButton("确定", null)
+                            .show();
+                }
+            }
 
-                    @Override
-                    public void onFailure(Call<java.util.Map<String, Object>> call, Throwable t) {
+            @Override
+            public void onFailure(Call<java.util.Map<String, Object>> call, Throwable t) {
+                if (mock) {
+                    new AlertDialog.Builder(MainActivity.this)
+                            .setTitle("测试失败")
+                            .setMessage("网络请求异常: " + t.getMessage())
+                            .setPositiveButton("确定", null)
+                            .show();
+                } else if (userInitiated) {
+                    new AlertDialog.Builder(MainActivity.this)
+                            .setTitle("天气预警")
+                            .setMessage("网络请求异常: " + t.getMessage())
+                            .setPositiveButton("确定", null)
+                            .show();
+                }
+            }
+        });
+    }
+
+    private void showGlobalWeatherWarningDialog(String content, Long messageId) {
+        if (weatherWarningDialog != null && weatherWarningDialog.isShowing())
+            return;
+        if (messageId != null) {
+            lastWeatherWarningPopupMessageId = messageId;
+        }
+        weatherWarningDialog = new AlertDialog.Builder(this)
+                .setTitle("天气预警")
+                .setMessage(content != null ? content : "")
+                .setCancelable(false)
+                .setPositiveButton("关闭", (d, which) -> {
+                    if (messageId != null) {
+                        RetrofitHelper.get().create(MessageApi.class).markRead(messageId)
+                                .enqueue(new Callback<Void>() {
+                                    @Override
+                                    public void onResponse(Call<Void> call, Response<Void> response) {
+                                    }
+
+                                    @Override
+                                    public void onFailure(Call<Void> call, Throwable t) {
+                                    }
+                                });
                     }
-                });
+                })
+                .create();
+        weatherWarningDialog.setCanceledOnTouchOutside(false);
+        weatherWarningDialog.show();
     }
 
     @Override

@@ -70,6 +70,18 @@
                 app:fabSize="mini"
                 app:backgroundTint="@android:color/white"
                 app:tint="@color/primary" />
+
+            <!-- 宠物医院按钮 -->
+            <com.google.android.material.floatingactionbutton.FloatingActionButton
+                android:id="@+id/fab_hospital"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:contentDescription="宠物医院"
+                android:src="@drawable/hospital_building"
+                app:fabSize="mini"
+                app:backgroundTint="@android:color/white"
+                app:tint="@color/primary" />
         </LinearLayout>
 
         <!-- 左上角信息面板 -->

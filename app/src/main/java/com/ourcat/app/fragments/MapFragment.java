@@ -66,6 +66,10 @@ import retrofit2.Response;
 import com.amap.api.maps.model.HeatmapTileProvider;
 import com.amap.api.maps.model.TileOverlay;
 import com.amap.api.maps.model.TileOverlayOptions;
+import com.amap.api.services.core.LatLonPoint;
+import com.amap.api.services.core.PoiItem;
+import com.amap.api.services.poisearch.PoiResult;
+import com.amap.api.services.poisearch.PoiSearch;
 import com.google.android.material.bottomsheet.BottomSheetBehavior;
 import com.google.android.material.chip.Chip;
 
@@ -104,6 +108,11 @@ public class MapFragment extends Fragment implements AMapLocationListener {
     private android.os.Handler heatmapHandler = new android.os.Handler(android.os.Looper.getMainLooper());
     private Runnable heatmapRunnable;
     private static final long HEATMAP_DEBOUNCE_MS = 300;
+
+    private boolean showHospitals = false;
+    private final List<Marker> hospitalMarkers = new ArrayList<>();
+    private final List<PoiItem> hospitalPoiList = new ArrayList<>();
+    private static final String HOSPITAL_MARKER_TYPE = "hospital";
 
     private final ActivityResultLauncher<String[]> permissionLauncher = registerForActivityResult(
             new ActivityResultContracts.RequestMultiplePermissions(), result -> {
@@ -156,6 +165,9 @@ public class MapFragment extends Fragment implements AMapLocationListener {
 
         FloatingActionButton fabRecommend = view.findViewById(R.id.fab_recommend);
         fabRecommend.setOnClickListener(v -> toggleRecommendSheet());
+
+        FloatingActionButton fabHospital = view.findViewById(R.id.fab_hospital);
+        fabHospital.setOnClickListener(v -> togglePetHospitals());
 
         FloatingActionButton fabReport = view.findViewById(R.id.map_fab_report);
         fabReport.setOnClickListener(v -> {
@@ -239,6 +251,193 @@ public class MapFragment extends Fragment implements AMapLocationListener {
         }
     }
 
+    private void togglePetHospitals() {
+        showHospitals = !showHospitals;
+        if (showHospitals) {
+            searchPetHospitals();
+            if (isAdded()) {
+                Toast.makeText(requireContext(), "正在搜索附近宠物医院...", Toast.LENGTH_SHORT).show();
+            }
+        } else {
+            removeHospitalMarkers();
+            if (isAdded()) {
+                Toast.makeText(requireContext(), "已隐藏宠物医院", Toast.LENGTH_SHORT).show();
+            }
+        }
+    }
+
+    private void searchPetHospitals() {
+        if (aMap == null)
+            return;
+        double centerLat = currentLat != 0 ? currentLat : aMap.getCameraPosition().target.latitude;
+        double centerLng = currentLng != 0 ? currentLng : aMap.getCameraPosition().target.longitude;
+
+        try {
+            PoiSearch.Query query = new PoiSearch.Query("宠物医院", "", "");
+            query.setPageSize(30);
+            query.setPageNum(0);
+
+            PoiSearch poiSearch = new PoiSearch(requireContext(), query);
+            poiSearch.setBound(new PoiSearch.SearchBound(new LatLonPoint(centerLat, centerLng), 10000));
+            poiSearch.setOnPoiSearchListener(new PoiSearch.OnPoiSearchListener() {
+                @Override
+                public void onPoiSearched(PoiResult result, int rCode) {
+                    if (!isAdded() || aMap == null)
+                        return;
+                    if (rCode == 1000 && result != null && result.getPois() != null) {
+                        requireActivity().runOnUiThread(() -> {
+                            hospitalPoiList.clear();
+                            hospitalPoiList.addAll(result.getPois());
+                            removeHospitalMarkers();
+                            addHospitalMarkers();
+                            if (isAdded()) {
+                                Toast.makeText(requireContext(),
+                                        "找到 " + hospitalPoiList.size() + " 家宠物医院",
+                                        Toast.LENGTH_SHORT).show();
+                            }
+                        });
+                    } else if (isAdded()) {
+                        Toast.makeText(requireContext(), "搜索宠物医院失败", Toast.LENGTH_SHORT).show();
+                    }
+                }
+
+                @Override
+                public void onPoiItemSearched(PoiItem item, int rCode) {
+                }
+            });
+            poiSearch.searchPOIAsyn();
+        } catch (Exception e) {
+            Log.e(TAG, "Search pet hospitals failed", e);
+            if (isAdded()) {
+                Toast.makeText(requireContext(), "搜索失败: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+            }
+        }
+    }
+
+    private BitmapDescriptor getVectorBitmapDescriptor(int id) {
+        android.graphics.drawable.Drawable vectorDrawable = ContextCompat.getDrawable(requireContext(), id);
+        if (vectorDrawable == null)
+            return BitmapDescriptorFactory.defaultMarker();
+        vectorDrawable = vectorDrawable.mutate();
+        int baseSize = (int) (36 * density);
+        int outline = Math.max(2, (int) (2.5f * density));
+        int w = baseSize + outline * 2;
+        int h = baseSize + outline * 2;
+        Bitmap bm = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
+        Canvas canvas = new Canvas(bm);
+
+        Bitmap mask = Bitmap.createBitmap(baseSize, baseSize, Bitmap.Config.ARGB_8888);
+        Canvas maskCanvas = new Canvas(mask);
+        vectorDrawable.setBounds(0, 0, baseSize, baseSize);
+        vectorDrawable.setTint(Color.WHITE);
+        vectorDrawable.draw(maskCanvas);
+
+        Paint outlinePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        outlinePaint.setAlpha(230);
+        for (int dx = -outline; dx <= outline; dx++) {
+            for (int dy = -outline; dy <= outline; dy++) {
+                if (dx * dx + dy * dy > outline * outline)
+                    continue;
+                canvas.drawBitmap(mask, outline + dx, outline + dy, outlinePaint);
+            }
+        }
+
+        vectorDrawable.setBounds(outline, outline, outline + baseSize, outline + baseSize);
+        vectorDrawable.setTint(ContextCompat.getColor(requireContext(), R.color.primary));
+        vectorDrawable.draw(canvas);
+        return BitmapDescriptorFactory.fromBitmap(bm);
+    }
+
+    private void openNavChooser(double lat, double lng, String name) {
+        java.util.ArrayList<android.content.Intent> intents = new java.util.ArrayList<>();
+        android.content.pm.PackageManager pm = requireContext().getPackageManager();
+
+        android.net.Uri uriGaode = android.net.Uri.parse("androidamap://route?sourceApplication=OurCat&dlat=" + lat
+                + "&dlon=" + lng + "&dname=" + (name != null ? name : "") + "&dev=0&t=0");
+        android.content.Intent gaode = new android.content.Intent(android.content.Intent.ACTION_VIEW, uriGaode);
+        gaode.setPackage("com.autonavi.minimap");
+        if (gaode.resolveActivity(pm) != null)
+            intents.add(gaode);
+
+        android.net.Uri uriBaidu = android.net.Uri.parse("baidumap://map/direction?destination=latlng:" + lat + ","
+                + lng + "|name:" + (name != null ? name : "") + "&mode=driving&src=OurCat");
+        android.content.Intent baidu = new android.content.Intent(android.content.Intent.ACTION_VIEW, uriBaidu);
+        baidu.setPackage("com.baidu.BaiduMap");
+        if (baidu.resolveActivity(pm) != null)
+            intents.add(baidu);
+
+        android.net.Uri uriTencent = android.net.Uri.parse("qqmap://map/routeplan?type=drive&to="
+                + (name != null ? name : "") + "&tocoord=" + lat + "," + lng + "&policy=0&referer=OurCat");
+        android.content.Intent tencent = new android.content.Intent(android.content.Intent.ACTION_VIEW, uriTencent);
+        tencent.setPackage("com.tencent.map");
+        if (tencent.resolveActivity(pm) != null)
+            intents.add(tencent);
+
+        android.net.Uri uriGoogle = android.net.Uri
+                .parse("https://www.google.com/maps/dir/?api=1&destination=" + lat + "," + lng);
+        android.content.Intent google = new android.content.Intent(android.content.Intent.ACTION_VIEW, uriGoogle);
+        google.setPackage("com.google.android.apps.maps");
+        if (google.resolveActivity(pm) != null)
+            intents.add(google);
+
+        if (intents.isEmpty()) {
+            android.net.Uri fallback = android.net.Uri.parse(
+                    "geo:" + lat + "," + lng + "?q=" + lat + "," + lng + "(" + (name != null ? name : "目的地") + ")");
+            android.content.Intent intent = new android.content.Intent(android.content.Intent.ACTION_VIEW, fallback);
+            startActivity(intent);
+            return;
+        }
+        android.content.Intent base = intents.remove(0);
+        android.content.Intent chooser = android.content.Intent.createChooser(base, "选择导航应用");
+        chooser.putExtra(android.content.Intent.EXTRA_INITIAL_INTENTS, intents.toArray(new android.os.Parcelable[0]));
+        startActivity(chooser);
+    }
+
+    private void addHospitalMarkers() {
+        if (aMap == null || hospitalPoiList.isEmpty())
+            return;
+        BitmapDescriptor hospitalIcon = getVectorBitmapDescriptor(R.drawable.hospital_marker);
+        for (PoiItem poi : hospitalPoiList) {
+            LatLonPoint point = poi.getLatLonPoint();
+            if (point == null)
+                continue;
+            LatLng latLng = new LatLng(point.getLatitude(), point.getLongitude());
+            String title = poi.getTitle() != null ? poi.getTitle() : "宠物医院";
+            String snippet = poi.getSnippet() != null ? poi.getSnippet() : "";
+            if (poi.getTel() != null && !poi.getTel().isEmpty()) {
+                snippet = snippet.isEmpty() ? poi.getTel() : snippet + "\n" + poi.getTel();
+            }
+
+            Map<String, Object> data = new HashMap<>();
+            data.put("type", HOSPITAL_MARKER_TYPE);
+            data.put("name", title);
+            data.put("address", poi.getSnippet());
+            data.put("tel", poi.getTel());
+            data.put("lat", point.getLatitude());
+            data.put("lng", point.getLongitude());
+
+            Marker marker = aMap.addMarker(new MarkerOptions()
+                    .position(latLng)
+                    .title(title)
+                    .snippet(snippet)
+                    .icon(hospitalIcon)
+                    .anchor(0.5f, 1.0f)
+                    .zIndex(15));
+            markerDataMap.put(marker.getId(), data);
+            hospitalMarkers.add(marker);
+        }
+    }
+
+    private void removeHospitalMarkers() {
+        for (Marker m : hospitalMarkers) {
+            if (m != null) {
+                markerDataMap.remove(m.getId());
+                m.remove();
+            }
+        }
+        hospitalMarkers.clear();
+    }
+
     private void scheduleHeatmapUpdate(float zoom) {
         boolean shouldBePrecise = zoom >= 15;
 
@@ -282,6 +481,14 @@ public class MapFragment extends Fragment implements AMapLocationListener {
 
         aMap.setOnMarkerClickListener(marker -> {
             Object data = markerDataMap.get(marker.getId());
+            if (data instanceof Map && HOSPITAL_MARKER_TYPE.equals(((Map<?, ?>) data).get("type"))) {
+                if (currentMarker != null && currentMarker.isInfoWindowShown()) {
+                    currentMarker.hideInfoWindow();
+                }
+                currentMarker = marker;
+                marker.showInfoWindow();
+                return true;
+            }
             if (data instanceof List) {
                 @SuppressWarnings("unchecked")
                 List<Map<String, Object>> cluster = (List<Map<String, Object>>) data;
@@ -301,9 +508,21 @@ public class MapFragment extends Fragment implements AMapLocationListener {
             return true;
         });
 
-        // 点击 InfoWindow 进入猫咪档案
         aMap.setOnInfoWindowClickListener(marker -> {
             Object data = markerDataMap.get(marker.getId());
+            if (data instanceof Map && HOSPITAL_MARKER_TYPE.equals(((Map<?, ?>) data).get("type"))) {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> hospitalData = (Map<String, Object>) data;
+                Object latObj = hospitalData.get("lat");
+                Object lngObj = hospitalData.get("lng");
+                if (latObj != null && lngObj != null) {
+                    double lat = ((Number) latObj).doubleValue();
+                    double lng = ((Number) lngObj).doubleValue();
+                    String name = hospitalData.get("name") != null ? hospitalData.get("name").toString() : "";
+                    openNavChooser(lat, lng, name);
+                }
+                return;
+            }
             if (data instanceof Map) {
                 @SuppressWarnings("unchecked")
                 Map<String, Object> catData = (Map<String, Object>) data;
@@ -488,6 +707,14 @@ public class MapFragment extends Fragment implements AMapLocationListener {
         if (data instanceof Map) {
             @SuppressWarnings("unchecked")
             Map<String, Object> catData = (Map<String, Object>) data;
+            if (HOSPITAL_MARKER_TYPE.equals(catData.get("type"))) {
+                image.setImageResource(R.drawable.hospital_building);
+                image.setColorFilter(ContextCompat.getColor(requireContext(), R.color.primary));
+                image.setVisibility(View.VISIBLE);
+                actionHint.setText("📍 点击导航");
+                actionHint.setVisibility(View.VISIBLE);
+                return view;
+            }
             Object imgUrl = catData.get("imageUrl");
             if (imgUrl != null && !imgUrl.toString().isEmpty()) {
                 image.setVisibility(View.VISIBLE);
@@ -715,6 +942,7 @@ public class MapFragment extends Fragment implements AMapLocationListener {
         removeHeatmap();
         aMap.clear();
         markerDataMap.clear();
+        hospitalMarkers.clear();
 
         float zoom = aMap.getCameraPosition().zoom;
 
@@ -772,6 +1000,9 @@ public class MapFragment extends Fragment implements AMapLocationListener {
             heatmapOverlay = aMap.addTileOverlay(options);
 
             catCountText.setText("热力图（精确）: " + latLngList.size() + " 个点");
+            if (showHospitals && !hospitalPoiList.isEmpty()) {
+                addHospitalMarkers();
+            }
         } catch (Exception e) {
             Log.e(TAG, "Render precise heatmap failed", e);
         }
@@ -834,6 +1065,9 @@ public class MapFragment extends Fragment implements AMapLocationListener {
                     total += ((Number) w).intValue();
             }
             catCountText.setText("热力图: " + heatmapData.size() + " 区域, " + total + " 次上报");
+            if (showHospitals && !hospitalPoiList.isEmpty()) {
+                addHospitalMarkers();
+            }
         } catch (Exception e) {
             Log.e(TAG, "Render aggregated heatmap failed", e);
             if (isAdded()) {
@@ -1220,6 +1454,7 @@ public class MapFragment extends Fragment implements AMapLocationListener {
                         return;
                     aMap.clear();
                     markerDataMap.clear();
+                    hospitalMarkers.clear();
 
                     for (List<Map<String, Object>> cluster : clusters) {
                         if (cluster.size() == 1) {
@@ -1227,6 +1462,9 @@ public class MapFragment extends Fragment implements AMapLocationListener {
                         } else {
                             addClusterMarker(cluster);
                         }
+                    }
+                    if (showHospitals && !hospitalPoiList.isEmpty()) {
+                        addHospitalMarkers();
                     }
                 });
             }
@@ -1549,6 +1787,8 @@ public class MapFragment extends Fragment implements AMapLocationListener {
             locationClient = null;
         }
         removeHeatmap();
+        removeHospitalMarkers();
+        hospitalPoiList.clear();
         if (aMap != null) {
             try {
                 aMap.setMyLocationEnabled(false);

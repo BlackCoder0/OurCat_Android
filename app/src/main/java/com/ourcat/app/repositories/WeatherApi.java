@@ -11,4 +11,13 @@ public interface WeatherApi {
 
     @GET("/api/weather/warning")
     Call<Map<String, Object>> getWarning(@Query("location") String location);
+
+    @GET("/api/weather/warning")
+    Call<Map<String, Object>> getWarningMock(
+            @Query("location") String location,
+            @Query("mock") boolean mock,
+            @Query("mockMode") String mockMode);
+
+    @GET("/api/weather/now")
+    Call<Map<String, Object>> getNow(@Query("location") String location);
 }
