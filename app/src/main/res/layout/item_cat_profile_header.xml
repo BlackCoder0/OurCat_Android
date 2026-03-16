@@ -175,4 +175,23 @@
         android:textColor="@color/text_primary"
         android:layout_marginBottom="8dp" />
 
+    <TextView
+        android:id="@+id/cat_rescue_history_title"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="🩺 救助历史"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        android:textColor="@color/text_primary"
+        android:layout_marginTop="4dp" />
+
+    <TextView
+        android:id="@+id/cat_rescue_history"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:layout_marginBottom="12dp"
+        android:textColor="@color/text_secondary"
+        android:textSize="13sp" />
+
 </LinearLayout>

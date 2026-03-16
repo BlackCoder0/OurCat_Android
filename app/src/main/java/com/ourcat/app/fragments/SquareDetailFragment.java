@@ -237,11 +237,38 @@ public class SquareDetailFragment extends Fragment {
         bindReferencedCat(postData.get("referencedCat"), postData.get("referencedCatId"));
         bindRescueSection(type, status);
 
-        boolean isAuthor = currentUserId != 0 && currentUserId == postUserId;
-        btnMarkSolved.setVisibility(!"resolved".equals(status) && isAuthor ? View.VISIBLE : View.GONE);
+        boolean canMarkSolved = canCurrentUserMarkSolved(type, status, postUserId);
+        btnMarkSolved.setVisibility(canMarkSolved ? View.VISIBLE : View.GONE);
         if (resolvedOverlay != null) {
             resolvedOverlay.setVisibility(View.GONE);
         }
+    }
+
+    private boolean canCurrentUserMarkSolved(String type, String postStatus, long postUserId) {
+        if (currentUserId <= 0 || "resolved".equals(postStatus)) {
+            return false;
+        }
+        if (!"rescue".equals(type)) {
+            return currentUserId == postUserId || currentUserRole >= 2;
+        }
+        if (currentUserId == postUserId) {
+            return true;
+        }
+        long createdBy = longValue(postData != null ? postData.get("rescueActivityCreatedBy") : null);
+        if (createdBy > 0 && currentUserId == createdBy) {
+            return true;
+        }
+        for (Map<String, Object> task : rescueTasks) {
+            long assigneeId = longValue(task.get("assigneeUserId"));
+            long assignerId = longValue(task.get("assignerUserId"));
+            if (assigneeId > 0 && assigneeId == currentUserId) {
+                return true;
+            }
+            if (assignerId > 0 && assignerId == currentUserId) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private void bindImages(Object imagesObj) {
@@ -562,12 +589,26 @@ public class SquareDetailFragment extends Fragment {
         return value instanceof Number ? ((Number) value).longValue() : 0L;
     }
 
+    private String mapTaskStatusText(String status) {
+        if (status == null) {
+            return "未知";
+        }
+        switch (status) {
+            case "assigned":
+                return "待执行";
+            case "done":
+                return "已完成";
+            default:
+                return status;
+        }
+    }
+
     private class RescueTasksAdapter extends RecyclerView.Adapter<RescueTasksAdapter.TaskHolder> {
         @NonNull
         @Override
         public TaskHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
             View view = LayoutInflater.from(parent.getContext())
-                    .inflate(android.R.layout.simple_list_item_2, parent, false);
+                    .inflate(R.layout.item_rescue_task, parent, false);
             return new TaskHolder(view);
         }
 
@@ -575,9 +616,26 @@ public class SquareDetailFragment extends Fragment {
         public void onBindViewHolder(@NonNull TaskHolder holder, int position) {
             Map<String, Object> task = rescueTasks.get(position);
             long assigneeId = longValue(task.get("assigneeUserId"));
-            holder.title.setText(assigneeId > 0 ? "成员 #" + assigneeId : "待领取任务");
             String status = stringValue(task.get("status"), "assigned");
-            holder.subtitle.setText("状态: " + status);
+            String assigneeName = stringValue(task.get("assigneeName"), "");
+            String assigneeAvatar = stringValue(task.get("assigneeAvatar"), "");
+            if (assigneeId > 0) {
+                holder.name.setText(!assigneeName.isEmpty() ? assigneeName : ("成员 #" + assigneeId));
+                if (!assigneeAvatar.isEmpty()) {
+                    Glide.with(SquareDetailFragment.this)
+                            .load(assigneeAvatar)
+                            .circleCrop()
+                            .placeholder(R.drawable.ic_default_avatar)
+                            .into(holder.avatar);
+                } else {
+                    holder.avatar.setImageResource(R.drawable.ic_default_avatar);
+                }
+                holder.status.setText("状态: " + mapTaskStatusText(status));
+            } else {
+                holder.name.setText("待领取任务");
+                holder.avatar.setImageResource(R.drawable.ic_default_avatar);
+                holder.status.setText("状态: 待领取");
+            }
         }
 
         @Override
@@ -586,13 +644,15 @@ public class SquareDetailFragment extends Fragment {
         }
 
         class TaskHolder extends RecyclerView.ViewHolder {
-            TextView title;
-            TextView subtitle;
+            ImageView avatar;
+            TextView name;
+            TextView status;
 
             TaskHolder(@NonNull View itemView) {
                 super(itemView);
-                title = itemView.findViewById(android.R.id.text1);
-                subtitle = itemView.findViewById(android.R.id.text2);
+                avatar = itemView.findViewById(R.id.task_avatar);
+                name = itemView.findViewById(R.id.task_name);
+                status = itemView.findViewById(R.id.task_status);
             }
         }
     }

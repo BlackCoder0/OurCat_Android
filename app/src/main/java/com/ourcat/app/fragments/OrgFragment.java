@@ -11,9 +11,11 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
+import androidx.navigation.fragment.NavHostFragment;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.bumptech.glide.Glide;
 import com.ourcat.app.R;
 import com.ourcat.app.repositories.OrgApi;
 import com.ourcat.app.utils.RetrofitHelper;
@@ -29,38 +31,35 @@ import retrofit2.Response;
 public class OrgFragment extends Fragment {
 
     private TextView orgName, orgDesc, orgStatus;
+    private TextView statMemberCount, statCompletedRescues, statOngoingRescues;
     private Button btnJoin, btnLeave;
-    private RecyclerView membersList;
+    private RecyclerView membersList, recentActivitiesList;
     private final List<Map<String, Object>> members = new ArrayList<>();
+    private final List<Map<String, Object>> recentActivities = new ArrayList<>();
+    private MembersAdapter membersAdapter;
+    private RecentActivitiesAdapter recentActivitiesAdapter;
 
     @Nullable
     @Override
-    public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
+    public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,
+            @Nullable Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_org, container, false);
         orgName = view.findViewById(R.id.org_name);
         orgDesc = view.findViewById(R.id.org_desc);
         orgStatus = view.findViewById(R.id.org_status);
+        statMemberCount = view.findViewById(R.id.stat_member_count);
+        statCompletedRescues = view.findViewById(R.id.stat_completed_rescues);
+        statOngoingRescues = view.findViewById(R.id.stat_ongoing_rescues);
         btnJoin = view.findViewById(R.id.btn_join);
         btnLeave = view.findViewById(R.id.btn_leave);
         membersList = view.findViewById(R.id.members_list);
+        recentActivitiesList = view.findViewById(R.id.recent_activities_list);
         membersList.setLayoutManager(new LinearLayoutManager(requireContext()));
-        membersList.setAdapter(new RecyclerView.Adapter<RecyclerView.ViewHolder>() {
-            @NonNull
-            @Override
-            public RecyclerView.ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-                View v = LayoutInflater.from(parent.getContext()).inflate(android.R.layout.simple_list_item_1, parent, false);
-                return new RecyclerView.ViewHolder(v) {};
-            }
-            @Override
-            public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder, int position) {
-                Map<String, Object> m = members.get(position);
-                Object nick = m.get("nickname");
-                Object role = m.get("role");
-                ((TextView) holder.itemView.findViewById(android.R.id.text1)).setText((nick != null ? nick.toString() : "") + (role != null ? " (" + role + ")" : ""));
-            }
-            @Override
-            public int getItemCount() { return members.size(); }
-        });
+        membersAdapter = new MembersAdapter();
+        membersList.setAdapter(membersAdapter);
+        recentActivitiesList.setLayoutManager(new LinearLayoutManager(requireContext()));
+        recentActivitiesAdapter = new RecentActivitiesAdapter();
+        recentActivitiesList.setAdapter(recentActivitiesAdapter);
 
         btnJoin.setOnClickListener(v -> doJoin());
         btnLeave.setOnClickListener(v -> doLeave());
@@ -72,7 +71,8 @@ public class OrgFragment extends Fragment {
         RetrofitHelper.get().create(OrgApi.class).getOrg().enqueue(new Callback<Map<String, Object>>() {
             @Override
             public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
-                if (!isAdded()) return;
+                if (!isAdded())
+                    return;
                 if (response.isSuccessful() && response.body() != null) {
                     Map<String, Object> org = response.body();
                     orgName.setText(str(org.get("name")));
@@ -94,12 +94,19 @@ public class OrgFragment extends Fragment {
                         orgStatus.setVisibility(View.GONE);
                     }
                     Object id = org.get("id");
-                    if (id != null) loadMembers(((Number) id).longValue());
-                } else orgName.setText("加载失败");
+                    if (id != null) {
+                        long orgId = ((Number) id).longValue();
+                        loadMembers(orgId);
+                        loadOrgHome(orgId);
+                    }
+                } else
+                    orgName.setText("加载失败");
             }
+
             @Override
             public void onFailure(Call<Map<String, Object>> call, Throwable t) {
-                if (isAdded()) orgName.setText("网络错误");
+                if (isAdded())
+                    orgName.setText("网络错误");
             }
         });
     }
@@ -108,15 +115,50 @@ public class OrgFragment extends Fragment {
         RetrofitHelper.get().create(OrgApi.class).getMembers(orgId).enqueue(new Callback<List<Map<String, Object>>>() {
             @Override
             public void onResponse(Call<List<Map<String, Object>>> call, Response<List<Map<String, Object>>> response) {
-                if (!isAdded()) return;
+                if (!isAdded())
+                    return;
                 if (response.isSuccessful() && response.body() != null) {
                     members.clear();
                     members.addAll(response.body());
-                    membersList.getAdapter().notifyDataSetChanged();
+                    membersAdapter.notifyDataSetChanged();
                 }
             }
+
             @Override
-            public void onFailure(Call<List<Map<String, Object>>> call, Throwable t) {}
+            public void onFailure(Call<List<Map<String, Object>>> call, Throwable t) {
+            }
+        });
+    }
+
+    @SuppressWarnings("unchecked")
+    private void loadOrgHome(long orgId) {
+        RetrofitHelper.get().create(OrgApi.class).getOrgHome(orgId).enqueue(new Callback<Map<String, Object>>() {
+            @Override
+            public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
+                if (!isAdded()) {
+                    return;
+                }
+                if (!response.isSuccessful() || response.body() == null) {
+                    return;
+                }
+                Map<String, Object> home = response.body();
+                Map<String, Object> stats = (Map<String, Object>) home.get("stats");
+                if (stats != null) {
+                    statMemberCount.setText("成员: " + intVal(stats.get("memberCount")));
+                    statCompletedRescues.setText("完成: " + intVal(stats.get("completedRescues")));
+                    statOngoingRescues.setText("进行中: " + intVal(stats.get("ongoingRescues")));
+                }
+                List<Map<String, Object>> activityList = (List<Map<String, Object>>) home.get("recentActivities");
+                recentActivities.clear();
+                if (activityList != null) {
+                    recentActivities.addAll(activityList);
+                }
+                recentActivitiesAdapter.notifyDataSetChanged();
+            }
+
+            @Override
+            public void onFailure(Call<Map<String, Object>> call, Throwable t) {
+            }
         });
     }
 
@@ -124,7 +166,8 @@ public class OrgFragment extends Fragment {
         RetrofitHelper.get().create(OrgApi.class).join().enqueue(new Callback<Map<String, Object>>() {
             @Override
             public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
-                if (!isAdded()) return;
+                if (!isAdded())
+                    return;
                 if (response.isSuccessful() && response.body() != null) {
                     Object msg = response.body().get("message");
                     Toast.makeText(requireContext(),
@@ -142,13 +185,16 @@ public class OrgFragment extends Fragment {
                                 message = raw;
                             }
                         }
-                    } catch (Exception ignored) {}
+                    } catch (Exception ignored) {
+                    }
                     Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show();
                 }
             }
+
             @Override
             public void onFailure(Call<Map<String, Object>> call, Throwable t) {
-                if (isAdded()) Toast.makeText(requireContext(), "网络错误", Toast.LENGTH_SHORT).show();
+                if (isAdded())
+                    Toast.makeText(requireContext(), "网络错误", Toast.LENGTH_SHORT).show();
             }
         });
     }
@@ -165,13 +211,171 @@ public class OrgFragment extends Fragment {
                                 loadOrg();
                             }
                         }
+
                         @Override
-                        public void onFailure(Call<Map<String, Object>> call, Throwable t) {}
+                        public void onFailure(Call<Map<String, Object>> call, Throwable t) {
+                        }
                     });
                 })
                 .setNegativeButton("取消", null)
                 .show();
     }
 
-    private static String str(Object o) { return o != null ? o.toString() : ""; }
+    private static String str(Object o) {
+        return o != null ? o.toString() : "";
+    }
+
+    private static int intVal(Object o) {
+        return o instanceof Number ? ((Number) o).intValue() : 0;
+    }
+
+    private static long longVal(Object o) {
+        return o instanceof Number ? ((Number) o).longValue() : 0L;
+    }
+
+    private static String mapRescueStatusText(String status) {
+        if (status == null) {
+            return "未知";
+        }
+        switch (status) {
+            case "created":
+                return "待处理";
+            case "in_progress":
+                return "进行中";
+            case "completed":
+                return "已完成";
+            default:
+                return status;
+        }
+    }
+
+    private static String mapUrgencyText(String urgency) {
+        if (urgency == null) {
+            return "普通";
+        }
+        if ("urgent".equalsIgnoreCase(urgency)) {
+            return "紧急";
+        }
+        if ("normal".equalsIgnoreCase(urgency)) {
+            return "普通";
+        }
+        return urgency;
+    }
+
+    private static String mapOrgRoleText(String role) {
+        if (role == null) {
+            return "";
+        }
+        switch (role) {
+            case "admin":
+                return "管理员";
+            case "manager":
+                return "负责人";
+            case "member":
+                return "成员";
+            default:
+                return role;
+        }
+    }
+
+    private class MembersAdapter extends RecyclerView.Adapter<MembersAdapter.MemberVH> {
+
+        @NonNull
+        @Override
+        public MemberVH onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+            View v = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_org_member, parent, false);
+            return new MemberVH(v);
+        }
+
+        @Override
+        public void onBindViewHolder(@NonNull MemberVH holder, int position) {
+            Map<String, Object> item = members.get(position);
+            String nickname = str(item.get("nickname"));
+            String role = str(item.get("role"));
+            String avatarUrl = str(item.get("avatarUrl"));
+            int participatedRescues = intVal(item.get("participatedRescues"));
+            int completedTasks = intVal(item.get("completedTasks"));
+            String roleText = mapOrgRoleText(role);
+            holder.name.setText(nickname + (roleText.isEmpty() ? "" : " (" + roleText + ")"));
+            holder.stats.setText("参与救助: " + participatedRescues + " | 完成任务: " + completedTasks);
+            if (!avatarUrl.isEmpty()) {
+                Glide.with(OrgFragment.this)
+                        .load(avatarUrl)
+                        .circleCrop()
+                        .placeholder(R.drawable.ic_default_avatar)
+                        .into(holder.avatar);
+            } else {
+                holder.avatar.setImageResource(R.drawable.ic_default_avatar);
+            }
+        }
+
+        @Override
+        public int getItemCount() {
+            return members.size();
+        }
+
+        class MemberVH extends RecyclerView.ViewHolder {
+            android.widget.ImageView avatar;
+            TextView name;
+            TextView stats;
+
+            MemberVH(@NonNull View itemView) {
+                super(itemView);
+                avatar = itemView.findViewById(R.id.member_avatar);
+                name = itemView.findViewById(R.id.member_name);
+                stats = itemView.findViewById(R.id.member_stats);
+            }
+        }
+    }
+
+    private class RecentActivitiesAdapter extends RecyclerView.Adapter<RecentActivitiesAdapter.ActivityVH> {
+
+        @NonNull
+        @Override
+        public ActivityVH onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+            View v = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_org_activity, parent, false);
+            return new ActivityVH(v);
+        }
+
+        @Override
+        public void onBindViewHolder(@NonNull ActivityVH holder, int position) {
+            Map<String, Object> item = recentActivities.get(position);
+            String title = str(item.get("title"));
+            String status = str(item.get("status"));
+            String urgency = str(item.get("urgency"));
+            holder.title.setText(title.isEmpty() ? "未命名活动" : title);
+            holder.meta.setText("状态: " + mapRescueStatusText(status) + " | 紧急度: " + mapUrgencyText(urgency));
+            holder.itemView.setOnClickListener(v -> {
+                long squarePostId = longVal(item.get("squarePostId"));
+                if (squarePostId > 0) {
+                    Bundle args = new Bundle();
+                    args.putLong("squarePostId", squarePostId);
+                    NavHostFragment.findNavController(OrgFragment.this).navigate(R.id.square_detail, args);
+                    return;
+                }
+                long activityId = longVal(item.get("activityId"));
+                if (activityId > 0) {
+                    Bundle args = new Bundle();
+                    args.putLong("activityId", activityId);
+                    NavHostFragment.findNavController(OrgFragment.this).navigate(R.id.rescue_detail, args);
+                }
+            });
+        }
+
+        @Override
+        public int getItemCount() {
+            return recentActivities.size();
+        }
+
+        class ActivityVH extends RecyclerView.ViewHolder {
+            TextView title;
+            TextView meta;
+
+            ActivityVH(@NonNull View itemView) {
+                super(itemView);
+                title = itemView.findViewById(R.id.activity_title);
+                meta = itemView.findViewById(R.id.activity_meta);
+            }
+        }
+    }
 }

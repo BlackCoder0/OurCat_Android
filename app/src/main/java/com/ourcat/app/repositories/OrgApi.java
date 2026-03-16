@@ -19,6 +19,9 @@ public interface OrgApi {
     @GET("/api/org/{id}/members")
     Call<List<Map<String, Object>>> getMembers(@Path("id") long orgId);
 
+    @GET("/api/org/{id}/home")
+    Call<Map<String, Object>> getOrgHome(@Path("id") long orgId);
+
     @POST("/api/org/join")
     Call<Map<String, Object>> join();
 

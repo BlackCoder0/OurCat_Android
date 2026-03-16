@@ -50,6 +50,12 @@ public interface RescueApi {
     @PATCH("/api/rescue/tasks/{taskId}")
     Call<Map<String, Object>> updateTask(@Path("taskId") long taskId, @Body Map<String, String> body);
 
+    @GET("/api/rescue/tasks/{taskId}/logs")
+    Call<List<Map<String, Object>>> listTaskLogs(@Path("taskId") long taskId);
+
+    @POST("/api/rescue/tasks/{taskId}/logs")
+    Call<Map<String, Object>> addTaskLog(@Path("taskId") long taskId, @Body Map<String, String> body);
+
     @GET("/api/rescue/guide")
     Call<List<Map<String, Object>>> getGuide();
 

@@ -47,6 +47,7 @@ public class CatProfileFragment extends Fragment {
     // Data cache
     private Map<String, Object> catData;
     private List<Map<String, Object>> reportHistory = new ArrayList<>();
+    private List<Map<String, Object>> rescueHistory = new ArrayList<>();
     private List<String> photos = new ArrayList<>();
 
     // State cache
@@ -196,6 +197,11 @@ public class CatProfileFragment extends Fragment {
                     photos.add(imageUrl);
                 }
             }
+        }
+        List<Map<String, Object>> rescues = (List<Map<String, Object>>) data.get("rescueHistory");
+        rescueHistory.clear();
+        if (rescues != null) {
+            rescueHistory.addAll(rescues);
         }
 
         adapter.notifyDataSetChanged();
@@ -378,7 +384,7 @@ public class CatProfileFragment extends Fragment {
 
         // Header ViewHolder
         class HeaderViewHolder extends RecyclerView.ViewHolder {
-            TextView catName, catColor, catReportCount, catStatus, catFeature, catPersonality;
+            TextView catName, catColor, catReportCount, catStatus, catFeature, catPersonality, catRescueHistory;
             View btnEditCat, btnStartRescue;
             RecyclerView photoList;
             PhotoAdapter photoAdapter;
@@ -391,6 +397,7 @@ public class CatProfileFragment extends Fragment {
                 catStatus = v.findViewById(R.id.cat_status);
                 catFeature = v.findViewById(R.id.cat_feature);
                 catPersonality = v.findViewById(R.id.cat_personality);
+                catRescueHistory = v.findViewById(R.id.cat_rescue_history);
                 btnEditCat = v.findViewById(R.id.btn_edit_cat);
                 btnStartRescue = v.findViewById(R.id.btn_start_rescue);
                 photoList = v.findViewById(R.id.photo_list);
@@ -439,6 +446,7 @@ public class CatProfileFragment extends Fragment {
                         }
                     }
                 }
+                catRescueHistory.setText(buildRescueHistoryText());
 
                 // Refresh photos
                 photoAdapter.notifyDataSetChanged();
@@ -512,6 +520,44 @@ public class CatProfileFragment extends Fragment {
         @Override
         public int getItemCount() {
             return photos.size();
+        }
+    }
+
+    private String buildRescueHistoryText() {
+        if (rescueHistory.isEmpty()) {
+            return "暂无救助历史";
+        }
+        StringBuilder builder = new StringBuilder();
+        int limit = Math.min(5, rescueHistory.size());
+        for (int i = 0; i < limit; i++) {
+            Map<String, Object> item = rescueHistory.get(i);
+            if (i > 0) {
+                builder.append("\n");
+            }
+            String title = item.get("title") != null ? item.get("title").toString() : "未命名活动";
+            String status = getRescueStatusText(item.get("status") != null ? item.get("status").toString() : "");
+            String createdAt = formatTime(item.get("createdAt") != null ? item.get("createdAt").toString() : "");
+            builder.append("• ").append(title).append("（").append(status).append("）");
+            if (!createdAt.isEmpty()) {
+                builder.append(" - ").append(createdAt);
+            }
+        }
+        return builder.toString();
+    }
+
+    private String getRescueStatusText(String status) {
+        if (status == null) {
+            return "未知";
+        }
+        switch (status) {
+            case "created":
+                return "待处理";
+            case "in_progress":
+                return "进行中";
+            case "completed":
+                return "已完成";
+            default:
+                return status;
         }
     }
 }
