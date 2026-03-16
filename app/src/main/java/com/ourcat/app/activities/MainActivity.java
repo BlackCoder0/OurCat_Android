@@ -12,6 +12,9 @@ import android.provider.MediaStore;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.widget.ImageView;
+import android.widget.LinearLayout;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.activity.result.ActivityResultLauncher;
@@ -31,7 +34,6 @@ import com.amap.api.location.AMapLocationClientOption;
 import com.google.android.material.appbar.MaterialToolbar;
 import com.google.android.material.badge.BadgeDrawable;
 import com.google.android.material.badge.BadgeUtils;
-import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.ourcat.app.BuildConfig;
 import com.ourcat.app.R;
@@ -52,9 +54,9 @@ public class MainActivity extends AppCompatActivity {
 
     private MaterialToolbar toolbar;
     private NavController navController;
-    private BottomNavigationView bottomNav;
     private View mapContainer;
     private View navHostView;
+    private View bottomBarContainer;
     private MapFragment mapFragment;
     private boolean isMapVisible = false;
     private AMapLocationClient weatherLocationClient;
@@ -148,6 +150,7 @@ public class MainActivity extends AppCompatActivity {
 
         mapContainer = findViewById(R.id.map_container);
         navHostView = findViewById(R.id.nav_host_fragment);
+        bottomBarContainer = findViewById(R.id.bottom_bar_container);
 
         NavHostFragment navHostFragment = (NavHostFragment) getSupportFragmentManager()
                 .findFragmentById(R.id.nav_host_fragment);
@@ -174,29 +177,49 @@ public class MainActivity extends AppCompatActivity {
             }
         }
 
-        bottomNav = findViewById(R.id.bottom_nav);
-        bottomNav.getMenu().findItem(R.id.nav_placeholder).setEnabled(false);
-        bottomNav.setOnItemSelectedListener(item -> {
-            int id = item.getItemId();
-            if (id == R.id.nav_placeholder) {
-                return false;
-            }
-            if (id == R.id.nav_map) {
-                showMap();
-                return true;
-            }
+        // 自定义底部导航栏点击处理
+        LinearLayout navItemCommunity = findViewById(R.id.nav_item_community);
+        LinearLayout navItemMap = findViewById(R.id.nav_item_map);
+        LinearLayout navItemCats = findViewById(R.id.nav_item_cats);
+        LinearLayout navItemSquare = findViewById(R.id.nav_item_square);
+        LinearLayout navItemOrg = findViewById(R.id.nav_item_org);
+        LinearLayout navItemMe = findViewById(R.id.nav_item_me);
+
+        View.OnClickListener navClickListener = v -> {
             hideMap();
-            try {
+            int destId = 0;
+            int id = v.getId();
+            if (id == R.id.nav_item_community) {
+                destId = R.id.nav_community;
+            } else if (id == R.id.nav_item_map) {
+                showMap();
+                updateNavSelection(R.id.nav_item_map);
+                return;
+            } else if (id == R.id.nav_item_cats) {
+                destId = R.id.nav_cats;
+            } else if (id == R.id.nav_item_square) {
+                destId = R.id.nav_square;
+            } else if (id == R.id.nav_item_org) {
+                destId = R.id.nav_org;
+            } else if (id == R.id.nav_item_me) {
+                destId = R.id.nav_me;
+            }
+            if (destId != 0) {
                 NavOptions options = new NavOptions.Builder()
                         .setLaunchSingleTop(true)
                         .setPopUpTo(navController.getGraph().getStartDestinationId(), false, true)
                         .build();
-                navController.navigate(id, null, options);
-                return true;
-            } catch (Exception e) {
-                return false;
+                navController.navigate(destId, null, options);
+                updateNavSelection(id);
             }
-        });
+        };
+
+        navItemCommunity.setOnClickListener(navClickListener);
+        navItemMap.setOnClickListener(navClickListener);
+        navItemCats.setOnClickListener(navClickListener);
+        navItemSquare.setOnClickListener(navClickListener);
+        navItemOrg.setOnClickListener(navClickListener);
+        navItemMe.setOnClickListener(navClickListener);
 
         navController.addOnDestinationChangedListener((controller, dest, args) -> {
             int destId = dest.getId();
@@ -217,16 +240,28 @@ public class MainActivity extends AppCompatActivity {
                     // 只有当回到了社区（首页）时才恢复地图，因为地图逻辑上是在社区之上的覆盖层
                     if (destId == R.id.nav_community) {
                         showMap();
-                        // 强制选中"地图"TAB（如果有的话），或者保持当前TAB
-                        bottomNav.getMenu().findItem(R.id.nav_map).setChecked(true);
+                        updateNavSelection(R.id.nav_item_map);
                         return; // 阻止后续逻辑覆盖选中状态
                     }
                 }
             }
 
+            // 更新选中状态
             if (!isMapVisible) {
-                if (destId == R.id.nav_community || destId == R.id.nav_square || destId == R.id.nav_me) {
-                    bottomNav.getMenu().findItem(destId).setChecked(true);
+                int selectedId = 0;
+                if (destId == R.id.nav_community) {
+                    selectedId = R.id.nav_item_community;
+                } else if (destId == R.id.nav_square) {
+                    selectedId = R.id.nav_item_square;
+                } else if (destId == R.id.nav_me) {
+                    selectedId = R.id.nav_item_me;
+                } else if (destId == R.id.nav_cats) {
+                    selectedId = R.id.nav_item_cats;
+                } else if (destId == R.id.nav_org) {
+                    selectedId = R.id.nav_item_org;
+                }
+                if (selectedId != 0) {
+                    updateNavSelection(selectedId);
                 }
             }
             if (lastDestId == R.id.message_center && destId != R.id.message_center) {
@@ -258,7 +293,7 @@ public class MainActivity extends AppCompatActivity {
 
                 if (isMapVisible) {
                     // 如果地图可见，按返回键回到社区（默认首页）
-                    bottomNav.setSelectedItemId(R.id.nav_community);
+                    updateNavSelection(R.id.nav_item_community);
                     hideMap();
                 } else {
                     setEnabled(false);
@@ -269,6 +304,8 @@ public class MainActivity extends AppCompatActivity {
         });
 
         setupKeyboardListener();
+        // 初始化底部导航选中状态
+        updateNavSelection(R.id.nav_item_community);
         initBadgeRefresh();
         setupQuickCameraFab();
     }
@@ -405,7 +442,62 @@ public class MainActivity extends AppCompatActivity {
         isMapVisible = true;
         mapContainer.setVisibility(View.VISIBLE);
         navHostView.setVisibility(View.GONE);
+        if (bottomBarContainer != null) {
+            bottomBarContainer.setVisibility(View.GONE);
+        }
         toolbar.setTitle(R.string.title_map);
+    }
+
+    /**
+     * 显示地图并移动到指定位置
+     * @param lat 纬度
+     * @param lng 经度
+     */
+    public void showMapAtLocation(double lat, double lng) {
+        showMap();
+        if (mapFragment != null) {
+            mapFragment.navigateTo(lat, lng);
+        }
+    }
+
+    /**
+     * 显示地图并跳转到指定猫咪的位置
+     */
+    public void showMapAtCatLocation(long catId) {
+        showMap();
+        if (mapFragment != null) {
+            mapFragment.navigateToCatLocation(catId);
+        }
+    }
+
+    public void showMapAtCatLocationNear(long catId, double lat, double lng) {
+        showMap();
+        if (mapFragment != null) {
+            mapFragment.navigateToCatLocationNear(catId, lat, lng);
+        }
+    }
+
+    public void showMapAtCatLocationNearestToUser(long catId) {
+        showMap();
+        if (mapFragment != null) {
+            mapFragment.navigateToCatLocationNearestToUser(catId);
+        }
+    }
+
+    /**
+     * 显示地图（不移动到特定位置）
+     */
+    public void showMapView() {
+        showMap();
+    }
+
+    /**
+     * 通过 Navigation Controller 导航到指定页面
+     */
+    public void navigateTo(int destinationId, Bundle args) {
+        if (navController != null) {
+            navController.navigate(destinationId, args);
+        }
     }
 
     private void hideMap() {
@@ -414,19 +506,65 @@ public class MainActivity extends AppCompatActivity {
         navHostView.setVisibility(View.VISIBLE);
     }
 
+    private void updateNavSelection(int selectedId) {
+        int[] navItemIds = {
+            R.id.nav_item_community,
+            R.id.nav_item_map,
+            R.id.nav_item_cats,
+            R.id.nav_item_square,
+            R.id.nav_item_org,
+            R.id.nav_item_me
+        };
+        int[] iconIds = {
+            R.id.nav_icon_community,
+            R.id.nav_icon_map,
+            R.id.nav_icon_cats,
+            R.id.nav_icon_square,
+            R.id.nav_icon_org,
+            R.id.nav_icon_me
+        };
+        int[] textIds = {
+            R.id.nav_text_community,
+            R.id.nav_text_map,
+            R.id.nav_text_cats,
+            R.id.nav_text_square,
+            R.id.nav_text_org,
+            R.id.nav_text_me
+        };
+
+        for (int i = 0; i < navItemIds.length; i++) {
+            View item = findViewById(navItemIds[i]);
+            ImageView icon = findViewById(iconIds[i]);
+            TextView text = findViewById(textIds[i]);
+            boolean isSelected = navItemIds[i] == selectedId;
+            if (item != null) {
+                item.setSelected(isSelected);
+            }
+            if (icon != null) {
+                icon.setColorFilter(isSelected ? getColor(R.color.nav_selected) : getColor(R.color.nav_unselected));
+            }
+            if (text != null) {
+                text.setTextColor(isSelected ? getColor(R.color.nav_selected) : getColor(R.color.nav_unselected));
+            }
+        }
+    }
+
     private void setupKeyboardListener() {
         final View rootView = findViewById(android.R.id.content);
+        final View bottomBarContainer = findViewById(R.id.bottom_bar_container);
         rootView.getViewTreeObserver().addOnGlobalLayoutListener(() -> {
             Rect r = new Rect();
             rootView.getWindowVisibleDisplayFrame(r);
             int screenHeight = rootView.getRootView().getHeight();
             int keypadHeight = screenHeight - r.bottom;
             if (keypadHeight > screenHeight * 0.15) {
-                bottomNav.setVisibility(View.GONE);
+                if (bottomBarContainer != null)
+                    bottomBarContainer.setVisibility(View.GONE);
                 if (fabQuickCamera != null)
                     fabQuickCamera.setVisibility(View.GONE);
             } else {
-                bottomNav.setVisibility(View.VISIBLE);
+                if (bottomBarContainer != null)
+                    bottomBarContainer.setVisibility(View.VISIBLE);
                 if (fabQuickCamera != null)
                     fabQuickCamera.setVisibility(View.VISIBLE);
             }

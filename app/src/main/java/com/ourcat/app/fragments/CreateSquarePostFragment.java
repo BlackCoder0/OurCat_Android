@@ -67,6 +67,8 @@ public class CreateSquarePostFragment extends Fragment {
 
     private AMapLocationClient locationClient;
     private AMapLocationClientOption locationOption;
+    private double currentLat = 0;
+    private double currentLng = 0;
 
     private ActivityResultLauncher<Intent> imagePickerLauncher;
     private ActivityResultLauncher<String[]> locationPermissionLauncher;
@@ -126,6 +128,7 @@ public class CreateSquarePostFragment extends Fragment {
     private void openSelectCatDialog() {
         SelectCatDialogFragment dialog = new SelectCatDialogFragment();
         dialog.setOnCatSelectedListener(cat -> {
+            selectedRefCat = cat;  // 保存选中的猫咪
             CatTagUtils.insertCatTag(requireContext(), etContent, cat);
         });
         dialog.show(requireActivity().getSupportFragmentManager(), "SelectCat");
@@ -158,6 +161,9 @@ public class CreateSquarePostFragment extends Fragment {
                 locationClient.setLocationListener(aMapLocation -> {
                     if (aMapLocation != null) {
                         if (aMapLocation.getErrorCode() == 0) {
+                            // 保存坐标
+                            currentLat = aMapLocation.getLatitude();
+                            currentLng = aMapLocation.getLongitude();
                             // Priority: Address > POI > City+District
                             String address = aMapLocation.getAddress();
                             if (address == null || address.trim().isEmpty()) {
@@ -173,6 +179,7 @@ public class CreateSquarePostFragment extends Fragment {
                                 etLocation.setSelection(address.length());
                                 Toast.makeText(requireContext(), "定位成功", Toast.LENGTH_SHORT).show();
                             } else {
+                                etLocation.setText(currentLat + "," + currentLng);
                                 Toast.makeText(requireContext(), "定位成功，但无法获取详细地址", Toast.LENGTH_SHORT).show();
                             }
                         } else {
@@ -244,12 +251,31 @@ public class CreateSquarePostFragment extends Fragment {
         String anno = etAnnotation.getText() != null ? etAnnotation.getText().toString().trim() : "";
 
         String finalLocation = null;
-        if (!loc.isEmpty() && !anno.isEmpty()) {
+        // 如果有坐标，优先使用坐标格式
+        if (currentLat != 0 && currentLng != 0) {
+            finalLocation = currentLat + "," + currentLng;
+            if (!loc.isEmpty()) {
+                finalLocation = currentLat + "," + currentLng + " " + loc;
+            }
+        } else if (!loc.isEmpty() && !anno.isEmpty()) {
             finalLocation = loc + " (" + anno + ")";
         } else if (!loc.isEmpty()) {
             finalLocation = loc;
         } else if (!anno.isEmpty()) {
             finalLocation = anno;
+        }
+
+        // 救助类型校验
+        if ("rescue".equals(type)) {
+            List<Uri> newUris = imageAdapter.getNewUris();
+            Object refCatIdObj = selectedRefCat != null ? selectedRefCat.get("id") : null;
+            boolean hasCat = refCatIdObj != null && refCatIdObj instanceof Number && ((Number) refCatIdObj).longValue() > 0;
+            boolean hasLocation = finalLocation != null && !finalLocation.isEmpty();
+            boolean hasImages = !newUris.isEmpty();
+            if (!hasCat && !hasLocation && !hasImages) {
+                Toast.makeText(requireContext(), "发布救助广播需要：添加图片、获取定位或关联猫咪档案", Toast.LENGTH_LONG).show();
+                return;
+            }
         }
 
         btnSubmit.setEnabled(false);
@@ -349,6 +375,99 @@ public class CreateSquarePostFragment extends Fragment {
         if (selectedRefCat != null && selectedRefCat.get("id") != null)
             body.put("referencedCatId", ((Number) selectedRefCat.get("id")).longValue());
 
+        // 如果是救助类型，创建一个救助活动
+        if ("rescue".equals(type) && location != null && !location.isEmpty()) {
+            createRescueActivityAndPost(text, imageUrls, location, type, location);
+        } else {
+            doCreatePost(body);
+        }
+    }
+
+    private void createRescueActivityAndPost(String text, List<String> imageUrls, String location, 
+            String type, String finalLocation) {
+        // 先创建救助活动
+        Map<String, Object> activityBody = new HashMap<>();
+        activityBody.put("title", "救助广播");
+        activityBody.put("description", text);
+        
+        // 解析坐标
+        if (finalLocation != null && finalLocation.contains(",")) {
+            String[] parts = finalLocation.split(" ");
+            if (parts.length > 0) {
+                String[] coords = parts[0].split(",");
+                if (coords.length >= 2) {
+                    try {
+                        activityBody.put("latitude", Double.parseDouble(coords[0].trim()));
+                        activityBody.put("longitude", Double.parseDouble(coords[1].trim()));
+                    } catch (NumberFormatException ignored) {}
+                }
+            }
+        }
+        
+        // 关联猫咪
+        if (selectedRefCat != null && selectedRefCat.get("id") != null) {
+            activityBody.put("catId", ((Number) selectedRefCat.get("id")).longValue());
+        }
+        
+        RetrofitHelper.get().create(com.ourcat.app.repositories.RescueApi.class)
+                .createActivity(activityBody)
+                .enqueue(new Callback<Map<String, Object>>() {
+                    @Override
+                    public void onResponse(Call<Map<String, Object>> call, 
+                            Response<Map<String, Object>> response) {
+                        if (response.isSuccessful() && response.body() != null) {
+                            // 救助活动创建成功，获取活动ID
+                            Object activityIdObj = response.body().get("id");
+                            if (activityIdObj != null) {
+                                long activityId = ((Number) activityIdObj).longValue();
+                                Log.d("CreateSquarePost", "救助活动创建成功: " + activityId);
+                                
+                                // 创建广播并关联救助活动
+                                Map<String, Object> postBody = new HashMap<>();
+                                postBody.put("text", text);
+                                postBody.put("images", imageUrls);
+                                postBody.put("type", type);
+                                if (location != null)
+                                    postBody.put("location", location);
+                                if (selectedRefCat != null && selectedRefCat.get("id") != null)
+                                    postBody.put("referencedCatId", ((Number) selectedRefCat.get("id")).longValue());
+                                postBody.put("rescueActivityId", activityId);
+                                
+                                doCreatePost(postBody);
+                                return;
+                            }
+                        }
+                        // 如果创建救助活动失败，仍然创建广播
+                        Log.d("CreateSquarePost", "救助活动创建失败，创建普通广播");
+                        Map<String, Object> postBody = new HashMap<>();
+                        postBody.put("text", text);
+                        postBody.put("images", imageUrls);
+                        postBody.put("type", type);
+                        if (location != null)
+                            postBody.put("location", location);
+                        if (selectedRefCat != null && selectedRefCat.get("id") != null)
+                            postBody.put("referencedCatId", ((Number) selectedRefCat.get("id")).longValue());
+                        doCreatePost(postBody);
+                    }
+
+                    @Override
+                    public void onFailure(Call<Map<String, Object>> call, Throwable t) {
+                        // 如果创建救助活动失败，仍然创建广播
+                        Log.d("CreateSquarePost", "救助活动创建失败: " + t.getMessage());
+                        Map<String, Object> postBody = new HashMap<>();
+                        postBody.put("text", text);
+                        postBody.put("images", imageUrls);
+                        postBody.put("type", type);
+                        if (location != null)
+                            postBody.put("location", location);
+                        if (selectedRefCat != null && selectedRefCat.get("id") != null)
+                            postBody.put("referencedCatId", ((Number) selectedRefCat.get("id")).longValue());
+                        doCreatePost(postBody);
+                    }
+                });
+    }
+
+    private void doCreatePost(Map<String, Object> body) {
         RetrofitHelper.get().create(com.ourcat.app.repositories.SquareApi.class)
                 .createPost(body)
                 .enqueue(new Callback<Map<String, Object>>() {
@@ -360,7 +479,21 @@ public class CreateSquarePostFragment extends Fragment {
                             Toast.makeText(requireContext(), "发布成功", Toast.LENGTH_SHORT).show();
                             Navigation.findNavController(requireView()).navigateUp();
                         } else {
-                            Toast.makeText(requireContext(), "发布失败: " + response.code(), Toast.LENGTH_SHORT).show();
+                            String errorMsg = "发布失败: " + response.code();
+                            try {
+                                if (response.errorBody() != null) {
+                                    String json = response.errorBody().string();
+                                    // 尝试解析后端返回的错误消息
+                                    if (json.contains("message")) {
+                                        int start = json.indexOf("\"message\":\"") + 10;
+                                        int end = json.indexOf("\"", start);
+                                        if (start > 9 && end > start) {
+                                            errorMsg = json.substring(start, end);
+                                        }
+                                    }
+                                }
+                            } catch (Exception ignored) {}
+                            Toast.makeText(requireContext(), errorMsg, Toast.LENGTH_SHORT).show();
                         }
                     }
 

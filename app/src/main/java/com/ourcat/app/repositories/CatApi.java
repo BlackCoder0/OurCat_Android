@@ -17,6 +17,9 @@ public interface CatApi {
     @GET("/api/cat/locations")
     Call<List<Map<String, Object>>> getLocations();
 
+    @GET("/api/cat/{id}/location")
+    Call<Map<String, Object>> getCatLocation(@Path("id") long catId);
+
     @GET("/api/cat/heatmap")
     Call<List<Map<String, Object>>> getHeatmap();
 

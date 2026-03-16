@@ -141,6 +141,12 @@ public class MessageCenterFragment extends Fragment {
             NavHostFragment.findNavController(this).navigate(R.id.square_detail, args);
             return;
         }
+        if ("rescue_activity".equals(targetType) && targetIdObj instanceof Number) {
+            Bundle args = new Bundle();
+            args.putLong("activityId", ((Number) targetIdObj).longValue());
+            NavHostFragment.findNavController(this).navigate(R.id.rescue_detail, args);
+            return;
+        }
         if ("weather_warning".equals(targetType)) {
             String content = item.get("content") != null ? item.get("content").toString() : "";
             new AlertDialog.Builder(requireContext())
@@ -158,6 +164,10 @@ public class MessageCenterFragment extends Fragment {
             return "广场回复";
         if ("rescue_response".equals(type))
             return "救助响应";
+        if ("rescue_task_assigned".equals(type))
+            return "救助任务指派";
+        if ("rescue_task_claimed".equals(type))
+            return "救助任务申领";
         if ("weather_warning".equals(type))
             return "天气预警";
         return "消息";

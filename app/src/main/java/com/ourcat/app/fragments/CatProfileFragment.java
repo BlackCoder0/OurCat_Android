@@ -4,19 +4,23 @@ import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.appcompat.app.AlertDialog;
 import androidx.fragment.app.Fragment;
+import androidx.navigation.fragment.NavHostFragment;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.bumptech.glide.Glide;
 import com.ourcat.app.R;
 import com.ourcat.app.repositories.CatApi;
+import com.ourcat.app.repositories.RescueApi;
 import com.ourcat.app.utils.RetrofitHelper;
 
 import java.util.ArrayList;
@@ -50,6 +54,8 @@ public class CatProfileFragment extends Fragment {
 
     // 当前猫咪信息缓存，用于编辑
     private String currentName, currentColor, currentFeature, currentPersonality, currentStatus, currentAvatarUrl;
+    private boolean hasActiveRescue;
+    private long rescueSquarePostId;
 
     public static CatProfileFragment newInstance(long catId) {
         CatProfileFragment f = new CatProfileFragment();
@@ -167,6 +173,9 @@ public class CatProfileFragment extends Fragment {
         currentPersonality = (String) data.get("personality");
         currentStatus = (String) data.get("status");
         currentAvatarUrl = (String) data.get("primaryImageUrl");
+        hasActiveRescue = Boolean.TRUE.equals(data.get("hasActiveRescue"));
+        Object rescueSquarePostIdObj = data.get("rescueSquarePostId");
+        rescueSquarePostId = rescueSquarePostIdObj instanceof Number ? ((Number) rescueSquarePostIdObj).longValue() : 0L;
 
         // Update main image (in CollapsingToolbar)
         if (currentAvatarUrl != null && !currentAvatarUrl.isEmpty()) {
@@ -189,6 +198,100 @@ public class CatProfileFragment extends Fragment {
         }
 
         adapter.notifyDataSetChanged();
+    }
+
+    private void showStartRescueDialog() {
+        if (hasActiveRescue) {
+            Toast.makeText(requireContext(), "当前处于待救助状态", Toast.LENGTH_SHORT).show();
+            if (rescueSquarePostId > 0) {
+                Bundle args = new Bundle();
+                args.putLong("squarePostId", rescueSquarePostId);
+                NavHostFragment.findNavController(this).navigate(R.id.square_detail, args);
+            }
+            return;
+        }
+        EditText titleInput = new EditText(requireContext());
+        titleInput.setHint("救助标题");
+        titleInput.setMinEms(12);
+        EditText descInput = new EditText(requireContext());
+        descInput.setHint("描述（选填）");
+        descInput.setMinLines(2);
+        final String[] urgencies = new String[] { "normal", "urgent" };
+        final int[] selected = new int[] { 0 };
+        android.widget.RadioGroup radio = new android.widget.RadioGroup(requireContext());
+        radio.setOrientation(android.widget.LinearLayout.HORIZONTAL);
+        android.widget.RadioButton rbNormal = new android.widget.RadioButton(requireContext());
+        rbNormal.setText("普通");
+        rbNormal.setId(View.generateViewId());
+        android.widget.RadioButton rbUrgent = new android.widget.RadioButton(requireContext());
+        rbUrgent.setText("紧急");
+        rbUrgent.setId(View.generateViewId());
+        radio.addView(rbNormal);
+        radio.addView(rbUrgent);
+        rbNormal.setChecked(true);
+        radio.setOnCheckedChangeListener((g, id) -> selected[0] = id == rbUrgent.getId() ? 1 : 0);
+
+        android.widget.LinearLayout layout = new android.widget.LinearLayout(requireContext());
+        layout.setOrientation(android.widget.LinearLayout.VERTICAL);
+        layout.setPadding(50, 40, 50, 10);
+        layout.addView(titleInput);
+        layout.addView(descInput);
+        layout.addView(radio);
+
+        new AlertDialog.Builder(requireContext())
+                .setTitle("发起救助")
+                .setView(layout)
+                .setPositiveButton("创建", (d, w) -> {
+                    String title = titleInput.getText().toString().trim();
+                    if (title.isEmpty()) {
+                        Toast.makeText(requireContext(), "请填写标题", Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+                    Map<String, Object> body = new java.util.HashMap<>();
+                    body.put("title", title);
+                    body.put("description", descInput.getText().toString().trim());
+                    body.put("catId", catId);
+                    body.put("urgency", urgencies[selected[0]]);
+                    RetrofitHelper.get().create(RescueApi.class).createActivity(body)
+                            .enqueue(new Callback<Map<String, Object>>() {
+                                @Override
+                                public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
+                                    if (!isAdded())
+                                        return;
+                                    if (response.isSuccessful() && response.body() != null) {
+                                        Toast.makeText(requireContext(), "已创建救助活动", Toast.LENGTH_SHORT).show();
+                                        Object squarePostIdObj = response.body().get("squarePostId");
+                                        if (squarePostIdObj instanceof Number && ((Number) squarePostIdObj).longValue() > 0) {
+                                            Bundle args = new Bundle();
+                                            args.putLong("squarePostId", ((Number) squarePostIdObj).longValue());
+                                            NavHostFragment.findNavController(CatProfileFragment.this).navigate(R.id.square_detail, args);
+                                        } else {
+                                            Object activityIdObj = response.body().get("id");
+                                            if (activityIdObj instanceof Number) {
+                                                Bundle args = new Bundle();
+                                                args.putLong("activityId", ((Number) activityIdObj).longValue());
+                                                NavHostFragment.findNavController(CatProfileFragment.this).navigate(R.id.rescue_detail, args);
+                                            }
+                                        }
+                                        loadCatDetail();
+                                    } else if (response.code() == 409) {
+                                        Toast.makeText(requireContext(), "该猫咪当前已处于待救助状态", Toast.LENGTH_SHORT).show();
+                                        loadCatDetail();
+                                    } else {
+                                        Toast.makeText(requireContext(), "创建失败", Toast.LENGTH_SHORT).show();
+                                    }
+                                }
+
+                                @Override
+                                public void onFailure(Call<Map<String, Object>> call, Throwable t) {
+                                    if (isAdded()) {
+                                        Toast.makeText(requireContext(), "网络错误", Toast.LENGTH_SHORT).show();
+                                    }
+                                }
+                            });
+                })
+                .setNegativeButton("取消", null)
+                .show();
     }
 
     private String getStatusText(String status) {
@@ -271,7 +374,7 @@ public class CatProfileFragment extends Fragment {
         // Header ViewHolder
         class HeaderViewHolder extends RecyclerView.ViewHolder {
             TextView catName, catColor, catReportCount, catStatus, catFeature, catPersonality;
-            View btnEditCat;
+            View btnEditCat, btnStartRescue;
             RecyclerView photoList;
             PhotoAdapter photoAdapter;
 
@@ -284,9 +387,13 @@ public class CatProfileFragment extends Fragment {
                 catFeature = v.findViewById(R.id.cat_feature);
                 catPersonality = v.findViewById(R.id.cat_personality);
                 btnEditCat = v.findViewById(R.id.btn_edit_cat);
+                btnStartRescue = v.findViewById(R.id.btn_start_rescue);
                 photoList = v.findViewById(R.id.photo_list);
 
                 btnEditCat.setOnClickListener(view -> showEditDialog());
+                if (btnStartRescue != null) {
+                    btnStartRescue.setOnClickListener(view -> showStartRescueDialog());
+                }
 
                 // Setup nested horizontal recycler view
                 photoList.setLayoutManager(
@@ -314,6 +421,19 @@ public class CatProfileFragment extends Fragment {
 
                 // Role check
                 btnEditCat.setVisibility(userRole >= 2 ? View.VISIBLE : View.GONE);
+                if (btnStartRescue != null) {
+                    if (hasActiveRescue) {
+                        btnStartRescue.setEnabled(false);
+                        if (btnStartRescue instanceof TextView) {
+                            ((TextView) btnStartRescue).setText("当前处于待救助状态");
+                        }
+                    } else {
+                        btnStartRescue.setEnabled(true);
+                        if (btnStartRescue instanceof TextView) {
+                            ((TextView) btnStartRescue).setText("发起救助");
+                        }
+                    }
+                }
 
                 // Refresh photos
                 photoAdapter.notifyDataSetChanged();

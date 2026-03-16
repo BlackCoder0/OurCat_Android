@@ -9,17 +9,15 @@
         android:icon="@android:drawable/ic_menu_mylocation"
         android:title="@string/nav_map" />
     <item
-        android:id="@+id/nav_placeholder"
-        android:enabled="false"
-        android:checkable="false"
-        android:icon="@drawable/ic_transparent"
-        android:title="" />
-    <item
         android:id="@+id/nav_square"
         android:icon="@android:drawable/ic_menu_share"
         android:title="@string/nav_square" />
     <item
+        android:id="@+id/nav_cats"
+        android:icon="@android:drawable/ic_menu_gallery"
+        android:title="@string/nav_cats" />
+    <item
         android:id="@+id/nav_me"
-        android:icon="@android:drawable/ic_menu_my_calendar"
+        android:icon="@android:drawable/ic_menu_myplaces"
         android:title="@string/nav_me" />
 </menu>

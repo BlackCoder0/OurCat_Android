@@ -20,11 +20,28 @@
         <argument
             android:name="squarePostId"
             app:argType="long" />
+        <action
+            android:id="@+id/action_square_detail_to_cat_profile"
+            app:destination="@id/cat_profile" />
+        <action
+            android:id="@+id/action_square_detail_to_rescue_detail"
+            app:destination="@id/rescue_detail" />
     </fragment>
     <fragment
         android:id="@+id/create_square_post"
         android:name="com.ourcat.app.fragments.CreateSquarePostFragment"
         android:label="发布广播" />
+
+    <fragment
+        android:id="@+id/nav_cats"
+        android:name="com.ourcat.app.fragments.CatsListFragment"
+        android:label="@string/title_cats" />
+
+    <fragment
+        android:id="@+id/nav_org"
+        android:name="com.ourcat.app.fragments.OrgFragment"
+        android:label="@string/title_org" />
+
     <fragment
         android:id="@+id/nav_me"
         android:name="com.ourcat.app.fragments.ProfileFragment"
@@ -91,4 +108,12 @@
             android:name="catId"
             app:argType="long" />
     </fragment>
+    <fragment android:id="@+id/rescue_list" android:name="com.ourcat.app.fragments.RescueListFragment" android:label="救助动态" />
+    <fragment android:id="@+id/rescue_detail" android:name="com.ourcat.app.fragments.RescueDetailFragment" android:label="救助活动详情">
+        <argument android:name="activityId" app:argType="long" />
+    </fragment>
+    <fragment android:id="@+id/my_tasks" android:name="com.ourcat.app.fragments.MyTasksFragment" android:label="我的任务" />
+    <fragment android:id="@+id/rescue_guide" android:name="com.ourcat.app.fragments.RescueGuideFragment" android:label="救助指南" />
+    <fragment android:id="@+id/org_fragment" android:name="com.ourcat.app.fragments.OrgFragment" android:label="组织" />
+    <fragment android:id="@+id/join_requests" android:name="com.ourcat.app.fragments.JoinRequestsFragment" android:label="加入申请审核" />
 </navigation>

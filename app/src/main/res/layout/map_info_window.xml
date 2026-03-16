@@ -44,4 +44,12 @@
         android:textColor="@color/primary"
         android:gravity="center"
         android:background="@drawable/bg_action_hint" />
+
+    <Button
+        android:id="@+id/info_btn_start_rescue"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:text="发起救助"
+        android:visibility="gone" />
 </LinearLayout>

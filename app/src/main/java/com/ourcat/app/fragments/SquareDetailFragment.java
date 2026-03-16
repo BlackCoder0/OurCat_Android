@@ -1,7 +1,9 @@
 package com.ourcat.app.fragments;
 
-import android.os.Bundle;
+import android.content.res.ColorStateList;
+import android.graphics.Color;
 import android.os.Build;
+import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -10,29 +12,31 @@ import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
-import android.content.res.ColorStateList;
-import android.graphics.Color;
 
 import androidx.annotation.NonNull;
-import androidx.navigation.Navigation;
-import androidx.navigation.fragment.NavHostFragment;
-
-import com.bumptech.glide.Glide;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
+import androidx.navigation.Navigation;
+import androidx.navigation.fragment.NavHostFragment;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 import androidx.viewpager2.widget.ViewPager2;
 
+import com.bumptech.glide.Glide;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.chip.Chip;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import com.ourcat.app.R;
 import com.ourcat.app.adapters.ImagePagerAdapter;
-import com.ourcat.app.utils.TimeUtils;
+import com.ourcat.app.repositories.RescueApi;
 import com.ourcat.app.repositories.SquareApi;
 import com.ourcat.app.utils.CatTagUtils;
 import com.ourcat.app.utils.RetrofitHelper;
+import com.ourcat.app.utils.TimeUtils;
 
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -40,15 +44,13 @@ import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
 
-/**
- * 广场广播详情页。对应计划文档「阶段 6 → 前端 → 详情页 + 评论展示、标记已解决 UI 交互」。
- */
 public class SquareDetailFragment extends Fragment {
 
     private long squarePostId;
     private long currentUserId;
     private int currentUserRole;
     private Map<String, Object> postData;
+    private final List<Map<String, Object>> rescueTasks = new ArrayList<>();
 
     private View resolvedOverlay;
     private Chip typeChip;
@@ -60,6 +62,15 @@ public class SquareDetailFragment extends Fragment {
     private ImagePagerAdapter imagePagerAdapter;
     private TextView locationText;
     private MaterialButton btnMarkSolved;
+    private View rescueActivityCard;
+    private TextView rescueActivityTitle;
+    private TextView rescueActivityStatus;
+    private View rescueActionsCard;
+    private MaterialButton rescueClaimButton;
+    private MaterialButton rescueAssignButton;
+    private RecyclerView rescueTasksView;
+    private TextView rescueTasksEmpty;
+    private RescueTasksAdapter rescueTasksAdapter;
     private View refCatCard;
     private ImageView refCatAvatar;
     private TextView refCatName;
@@ -95,6 +106,14 @@ public class SquareDetailFragment extends Fragment {
         imagePager = view.findViewById(R.id.square_detail_image_pager);
         locationText = view.findViewById(R.id.square_detail_location);
         btnMarkSolved = view.findViewById(R.id.btn_mark_solved);
+        rescueActivityCard = view.findViewById(R.id.square_rescue_activity_card);
+        rescueActivityTitle = view.findViewById(R.id.square_rescue_activity_title);
+        rescueActivityStatus = view.findViewById(R.id.square_rescue_activity_status);
+        rescueActionsCard = view.findViewById(R.id.square_rescue_actions_card);
+        rescueClaimButton = view.findViewById(R.id.square_rescue_claim);
+        rescueAssignButton = view.findViewById(R.id.square_rescue_assign);
+        rescueTasksView = view.findViewById(R.id.square_rescue_tasks);
+        rescueTasksEmpty = view.findViewById(R.id.square_rescue_tasks_empty);
         refCatCard = view.findViewById(R.id.square_ref_cat_card);
         refCatAvatar = view.findViewById(R.id.square_ref_cat_avatar);
         refCatName = view.findViewById(R.id.square_ref_cat_name);
@@ -103,8 +122,17 @@ public class SquareDetailFragment extends Fragment {
 
         imagePagerAdapter = new ImagePagerAdapter();
         imagePager.setAdapter(imagePagerAdapter);
+        rescueTasksAdapter = new RescueTasksAdapter();
+        rescueTasksView.setLayoutManager(new LinearLayoutManager(requireContext()));
+        rescueTasksView.setAdapter(rescueTasksAdapter);
+
+        rescueActivityCard.setVisibility(View.GONE);
+        rescueActionsCard.setVisibility(View.GONE);
+        refCatCard.setVisibility(View.GONE);
 
         btnMarkSolved.setOnClickListener(v -> markSolved());
+        rescueClaimButton.setOnClickListener(v -> claimRescueTask());
+        rescueAssignButton.setOnClickListener(v -> openAssignDialog());
         view.findViewById(R.id.btn_send_square_comment).setOnClickListener(v -> sendComment());
         commentInput.setOnEditorActionListener((v, actionId, event) -> {
             if (actionId == EditorInfo.IME_ACTION_SEND) {
@@ -157,8 +185,9 @@ public class SquareDetailFragment extends Fragment {
 
                     @Override
                     public void onFailure(Call<Map<String, Object>> call, Throwable t) {
-                        if (isAdded())
+                        if (isAdded()) {
                             Toast.makeText(requireContext(), "加载失败", Toast.LENGTH_SHORT).show();
+                        }
                     }
                 });
     }
@@ -166,36 +195,35 @@ public class SquareDetailFragment extends Fragment {
     private void bindPost() {
         if (postData == null || getView() == null)
             return;
-        String type = postData.get("type") != null ? postData.get("type").toString() : "inquiry";
-        String status = postData.get("status") != null ? postData.get("status").toString() : "open";
-        String authorName = postData.get("authorName") != null ? postData.get("authorName").toString() : "匿名";
-        String avatarUrl = postData.get("authorAvatar") != null ? postData.get("authorAvatar").toString() : null;
-        Object userIdObj = postData.get("userId");
-        long postUserId = userIdObj instanceof Number ? ((Number) userIdObj).longValue() : 0;
+        String type = stringValue(postData.get("type"), "inquiry");
+        String status = stringValue(postData.get("status"), "open");
+        String authorName = stringValue(postData.get("authorName"), "匿名");
+        String avatarUrl = stringValue(postData.get("authorAvatar"), "");
+        long postUserId = longValue(postData.get("userId"));
 
         typeChip.setText("rescue".equals(type) ? "救助" : "询问");
-        int color = "rescue".equals(type) ? Color.parseColor("#E65100") : Color.parseColor("#1976D2");
-        typeChip.setChipBackgroundColor(ColorStateList.valueOf(color));
+        int chipColor = "rescue".equals(type) ? Color.parseColor("#E65100") : Color.parseColor("#1976D2");
+        typeChip.setChipBackgroundColor(ColorStateList.valueOf(chipColor));
         typeChip.setTextColor(Color.WHITE);
         statusText.setText("resolved".equals(status) ? "已解决" : "进行中");
         statusText.setTextColor("resolved".equals(status) ? 0xFF4CAF50 : 0xFFFF9800);
         authorText.setText(authorName);
 
-        String content = postData.get("text") != null ? postData.get("text").toString() : "";
+        String content = stringValue(postData.get("text"), "");
         CatTagUtils.parseAndBind(requireContext(), textView, content, catId -> {
             Bundle args = new Bundle();
             args.putLong("catId", catId);
             Navigation.findNavController(requireView()).navigate(R.id.cat_profile, args);
         });
 
-        if (avatarUrl != null && !avatarUrl.isEmpty()) {
+        if (!avatarUrl.isEmpty()) {
             Glide.with(this).load(avatarUrl).circleCrop().placeholder(R.drawable.ic_default_avatar).into(authorAvatar);
         } else {
             authorAvatar.setImageResource(R.drawable.ic_default_avatar);
         }
 
         View.OnClickListener profileListener = v -> {
-            if (postUserId != 0) {
+            if (postUserId > 0) {
                 Bundle args = new Bundle();
                 args.putLong("userId", postUserId);
                 NavHostFragment.findNavController(this).navigate(R.id.user_profile, args);
@@ -204,61 +232,187 @@ public class SquareDetailFragment extends Fragment {
         authorAvatar.setOnClickListener(profileListener);
         authorText.setOnClickListener(profileListener);
 
-        Object imgs = postData.get("images");
-        if (imgs != null) {
-            try {
-                List<String> urls = new Gson().fromJson(imgs.toString(), new TypeToken<List<String>>() {
-                }.getType());
-                if (urls != null && !urls.isEmpty()) {
-                    imagePager.setVisibility(View.VISIBLE);
-                    imagePagerAdapter.setUrls(urls);
-                }
-            } catch (Exception ignored) {
-            }
-        }
-        Object loc = postData.get("location");
-        if (loc != null && !loc.toString().trim().isEmpty()) {
-            locationText.setVisibility(View.VISIBLE);
-            locationText.setText("位置: " + loc.toString());
-        }
-
-        Object refCat = postData.get("referencedCat");
-        Object refCatId = postData.get("referencedCatId");
-        if (refCat instanceof Map && refCatId instanceof Number) {
-            refCatCard.setVisibility(View.VISIBLE);
-            Map<?, ?> rc = (Map<?, ?>) refCat;
-            String name = rc.get("name") != null ? rc.get("name").toString() : "";
-            refCatName.setText(name.isEmpty() ? "未命名" : name);
-            String imgUrl = rc.get("primaryImageUrl") != null ? rc.get("primaryImageUrl").toString() : null;
-            if (imgUrl != null && !imgUrl.isEmpty()) {
-                Glide.with(this).load(imgUrl).centerCrop().into(refCatAvatar);
-            } else {
-                refCatAvatar.setImageResource(R.drawable.ic_default_avatar);
-            }
-            long catId = ((Number) refCatId).longValue();
-            refCatCard.setOnClickListener(v -> {
-                Bundle args = new Bundle();
-                args.putLong("catId", catId);
-                Navigation.findNavController(requireView()).navigate(R.id.cat_profile, args);
-            });
-        } else {
-            refCatCard.setVisibility(View.GONE);
-        }
+        bindImages(postData.get("images"));
+        bindLocation(postData.get("location"));
+        bindReferencedCat(postData.get("referencedCat"), postData.get("referencedCatId"));
+        bindRescueSection(type, status);
 
         boolean isAuthor = currentUserId != 0 && currentUserId == postUserId;
-        boolean canManage = currentUserRole >= 2;
-        boolean resolved = "resolved".equals(status);
-        if (!resolved && isAuthor) { // Only author can mark solved
-            btnMarkSolved.setVisibility(View.VISIBLE);
+        btnMarkSolved.setVisibility(!"resolved".equals(status) && isAuthor ? View.VISIBLE : View.GONE);
+        if (resolvedOverlay != null) {
+            resolvedOverlay.setVisibility(View.GONE);
+        }
+    }
+
+    private void bindImages(Object imagesObj) {
+        imagePager.setVisibility(View.GONE);
+        imagePagerAdapter.setUrls(new ArrayList<>());
+        if (imagesObj == null) {
+            return;
+        }
+        try {
+            List<String> urls = new Gson().fromJson(imagesObj.toString(), new TypeToken<List<String>>() {
+            }.getType());
+            if (urls != null && !urls.isEmpty()) {
+                imagePager.setVisibility(View.VISIBLE);
+                imagePagerAdapter.setUrls(urls);
+            }
+        } catch (Exception ignored) {
+        }
+    }
+
+    private void bindLocation(Object locationObj) {
+        String location = stringValue(locationObj, "").trim();
+        if (location.isEmpty()) {
+            locationText.setVisibility(View.GONE);
+            locationText.setOnClickListener(null);
+            return;
+        }
+        locationText.setVisibility(View.VISIBLE);
+        locationText.setText("位置: " + location);
+        locationText.setOnClickListener(v -> {
+            double[] coords = parseLocation(location);
+            if (coords == null) {
+                Toast.makeText(requireContext(), "位置信息格式错误", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            if (getActivity() instanceof com.ourcat.app.activities.MainActivity) {
+                ((com.ourcat.app.activities.MainActivity) getActivity()).showMapAtLocation(coords[0], coords[1]);
+            }
+        });
+    }
+
+    private void bindReferencedCat(Object refCatObj, Object refCatIdObj) {
+        long refCatId = longValue(refCatIdObj);
+        if (!(refCatObj instanceof Map) || refCatId <= 0) {
+            refCatCard.setVisibility(View.GONE);
+            return;
+        }
+        @SuppressWarnings("unchecked")
+        Map<String, Object> refCat = (Map<String, Object>) refCatObj;
+        refCatCard.setVisibility(View.VISIBLE);
+        refCatName.setText(stringValue(refCat.get("name"), "未命名"));
+        String imageUrl = stringValue(refCat.get("primaryImageUrl"), "");
+        if (!imageUrl.isEmpty()) {
+            Glide.with(this).load(imageUrl).centerCrop().into(refCatAvatar);
         } else {
-            btnMarkSolved.setVisibility(View.GONE);
+            refCatAvatar.setImageResource(R.drawable.ic_default_avatar);
+        }
+        refCatCard.setOnClickListener(v -> {
+            Bundle args = new Bundle();
+            args.putLong("catId", refCatId);
+            Navigation.findNavController(requireView()).navigate(R.id.action_square_detail_to_cat_profile, args);
+        });
+    }
+
+    private void bindRescueSection(String type, String postStatus) {
+        long rescueActivityId = longValue(postData.get("rescueActivityId"));
+        if (!"rescue".equals(type) || rescueActivityId <= 0) {
+            rescueActivityCard.setVisibility(View.GONE);
+            rescueActionsCard.setVisibility(View.GONE);
+            return;
         }
 
-        if (resolved && resolvedOverlay != null) {
-            resolvedOverlay.setVisibility(View.GONE);
-        } else if (resolvedOverlay != null) {
-            resolvedOverlay.setVisibility(View.GONE);
+        rescueActivityCard.setVisibility(View.VISIBLE);
+        rescueActionsCard.setVisibility(View.VISIBLE);
+        rescueActivityTitle.setText(stringValue(postData.get("rescueActivityTitle"), "救助活动"));
+        String rescueStatus = stringValue(postData.get("rescueActivityStatus"), "created");
+        rescueActivityStatus.setText(mapRescueStatusText(rescueStatus));
+        rescueActivityStatus.setTextColor(mapRescueStatusColor(rescueStatus));
+        View.OnClickListener rescueMapJumpListener = v -> jumpRescueActivityToMap();
+        rescueActivityCard.setOnClickListener(rescueMapJumpListener);
+        rescueActivityTitle.setOnClickListener(rescueMapJumpListener);
+        rescueActivityStatus.setOnClickListener(rescueMapJumpListener);
+
+        boolean isCompleted = "completed".equals(rescueStatus) || "resolved".equals(postStatus);
+        rescueClaimButton.setVisibility(isCompleted ? View.GONE : View.VISIBLE);
+        rescueClaimButton.setEnabled(!isCompleted);
+
+        long createdBy = longValue(postData.get("rescueActivityCreatedBy"));
+        boolean showAssign = !isCompleted && currentUserId > 0 && currentUserId == createdBy;
+        rescueAssignButton.setVisibility(showAssign ? View.VISIBLE : View.GONE);
+
+        rescueTasks.clear();
+        Object tasksObj = postData.get("rescueTasks");
+        if (tasksObj instanceof List) {
+            for (Object task : (List<?>) tasksObj) {
+                if (task instanceof Map) {
+                    @SuppressWarnings("unchecked")
+                    Map<String, Object> map = (Map<String, Object>) task;
+                    rescueTasks.add(map);
+                }
+            }
         }
+        rescueTasksAdapter.notifyDataSetChanged();
+        rescueTasksEmpty.setVisibility(rescueTasks.isEmpty() ? View.VISIBLE : View.GONE);
+        rescueTasksView.setVisibility(rescueTasks.isEmpty() ? View.GONE : View.VISIBLE);
+    }
+
+    private void jumpRescueActivityToMap() {
+        if (!(getActivity() instanceof com.ourcat.app.activities.MainActivity) || postData == null) {
+            return;
+        }
+        com.ourcat.app.activities.MainActivity mainActivity = (com.ourcat.app.activities.MainActivity) getActivity();
+        long refCatId = longValue(postData.get("referencedCatId"));
+        String location = stringValue(postData.get("location"), "").trim();
+        double[] coords = location.isEmpty() ? null : parseLocation(location);
+
+        if (refCatId > 0) {
+            if (coords != null) {
+                mainActivity.showMapAtCatLocationNear(refCatId, coords[0], coords[1]);
+            } else {
+                mainActivity.showMapAtCatLocationNearestToUser(refCatId);
+            }
+            return;
+        }
+
+        if (coords != null) {
+            mainActivity.showMapAtLocation(coords[0], coords[1]);
+            return;
+        }
+
+        Toast.makeText(requireContext(), "该救助活动暂无可用定位", Toast.LENGTH_SHORT).show();
+    }
+
+    private void claimRescueTask() {
+        long activityId = longValue(postData != null ? postData.get("rescueActivityId") : null);
+        if (activityId <= 0) {
+            return;
+        }
+        RetrofitHelper.get().create(RescueApi.class).claimTask(activityId)
+                .enqueue(new Callback<Map<String, Object>>() {
+                    @Override
+                    public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
+                        if (!isAdded())
+                            return;
+                        if (response.isSuccessful()) {
+                            Toast.makeText(requireContext(), "申领成功", Toast.LENGTH_SHORT).show();
+                            loadPost();
+                        } else {
+                            Toast.makeText(requireContext(), "申领失败", Toast.LENGTH_SHORT).show();
+                        }
+                    }
+
+                    @Override
+                    public void onFailure(Call<Map<String, Object>> call, Throwable t) {
+                        if (isAdded()) {
+                            Toast.makeText(requireContext(), "网络错误", Toast.LENGTH_SHORT).show();
+                        }
+                    }
+                });
+    }
+
+    private void openAssignDialog() {
+        long activityId = longValue(postData != null ? postData.get("rescueActivityId") : null);
+        if (activityId <= 0) {
+            return;
+        }
+        AssignMemberDialogFragment dialog = new AssignMemberDialogFragment();
+        Bundle args = new Bundle();
+        args.putLong("activityId", activityId);
+        dialog.setArguments(args);
+        dialog.setListener(this::loadPost);
+        dialog.show(getParentFragmentManager(), "AssignMember");
     }
 
     private void loadComments() {
@@ -287,7 +441,7 @@ public class SquareDetailFragment extends Fragment {
                     public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
                         if (!isAdded())
                             return;
-                        if (response.isSuccessful()) {
+                        if (response.isSuccessful() && response.body() != null) {
                             Toast.makeText(requireContext(), "已标记为已解决", Toast.LENGTH_SHORT).show();
                             postData = response.body();
                             bindPost();
@@ -298,8 +452,9 @@ public class SquareDetailFragment extends Fragment {
 
                     @Override
                     public void onFailure(Call<Map<String, Object>> call, Throwable t) {
-                        if (isAdded())
+                        if (isAdded()) {
                             Toast.makeText(requireContext(), "网络错误", Toast.LENGTH_SHORT).show();
+                        }
                     }
                 });
     }
@@ -310,7 +465,7 @@ public class SquareDetailFragment extends Fragment {
             Toast.makeText(requireContext(), "请输入评论内容", Toast.LENGTH_SHORT).show();
             return;
         }
-        Map<String, String> body = new java.util.HashMap<>();
+        Map<String, String> body = new HashMap<>();
         body.put("content", content);
         RetrofitHelper.get().create(SquareApi.class).addComment(squarePostId, body)
                 .enqueue(new Callback<Map<String, Object>>() {
@@ -328,36 +483,117 @@ public class SquareDetailFragment extends Fragment {
 
                     @Override
                     public void onFailure(Call<Map<String, Object>> call, Throwable t) {
-                        if (isAdded())
+                        if (isAdded()) {
                             Toast.makeText(requireContext(), "网络错误", Toast.LENGTH_SHORT).show();
+                        }
                     }
                 });
     }
 
     private void bindComments(List<Map<String, Object>> comments) {
         commentsContainer.removeAllViews();
-        if (comments == null) return;
-        for (Map<String, Object> m : comments) {
-            View item = getLayoutInflater().inflate(R.layout.item_comment, commentsContainer, false);
-            TextView author = item.findViewById(R.id.item_comment_author);
-            TextView content = item.findViewById(R.id.item_comment_content);
-            TextView time = item.findViewById(R.id.item_comment_time);
-            ImageView avatar = item.findViewById(R.id.item_comment_avatar);
-            ImageView btnMore = item.findViewById(R.id.btn_comment_more);
+        if (comments == null)
+            return;
+        for (Map<String, Object> item : comments) {
+            View view = getLayoutInflater().inflate(R.layout.item_comment, commentsContainer, false);
+            TextView author = view.findViewById(R.id.item_comment_author);
+            TextView content = view.findViewById(R.id.item_comment_content);
+            TextView time = view.findViewById(R.id.item_comment_time);
+            ImageView avatar = view.findViewById(R.id.item_comment_avatar);
+            ImageView btnMore = view.findViewById(R.id.btn_comment_more);
             btnMore.setVisibility(View.GONE);
 
-            author.setText(m.get("authorName") != null ? m.get("authorName").toString() : "");
-            content.setText(m.get("content") != null ? m.get("content").toString() : "");
-            time.setText(TimeUtils.getRelativeTime((String) m.get("createdAt")));
+            author.setText(stringValue(item.get("authorName"), ""));
+            content.setText(stringValue(item.get("content"), ""));
+            time.setText(TimeUtils.getRelativeTime(stringValue(item.get("createdAt"), "")));
 
-            Object avatarUrl = m.get("authorAvatar");
-            if (avatarUrl != null && !avatarUrl.toString().isEmpty()) {
-                Glide.with(requireContext()).load(avatarUrl.toString()).circleCrop()
+            String avatarUrl = stringValue(item.get("authorAvatar"), "");
+            if (!avatarUrl.isEmpty()) {
+                Glide.with(requireContext()).load(avatarUrl).circleCrop()
                         .placeholder(R.drawable.ic_default_avatar).into(avatar);
             } else {
                 avatar.setImageResource(R.drawable.ic_default_avatar);
             }
-            commentsContainer.addView(item);
+            commentsContainer.addView(view);
+        }
+    }
+
+    private double[] parseLocation(String location) {
+        String[] parts = location.split(",");
+        if (parts.length < 2) {
+            return null;
+        }
+        try {
+            double lat = Double.parseDouble(parts[0].trim());
+            double lng = Double.parseDouble(parts[1].trim().split("\\s+")[0]);
+            return new double[] { lat, lng };
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    private String mapRescueStatusText(String status) {
+        switch (status) {
+            case "completed":
+                return "已完成";
+            case "in_progress":
+                return "进行中";
+            default:
+                return "待响应";
+        }
+    }
+
+    private int mapRescueStatusColor(String status) {
+        switch (status) {
+            case "completed":
+                return Color.parseColor("#4CAF50");
+            case "in_progress":
+                return Color.parseColor("#FF9800");
+            default:
+                return Color.parseColor("#2196F3");
+        }
+    }
+
+    private String stringValue(Object value, String defaultValue) {
+        return value != null ? value.toString() : defaultValue;
+    }
+
+    private long longValue(Object value) {
+        return value instanceof Number ? ((Number) value).longValue() : 0L;
+    }
+
+    private class RescueTasksAdapter extends RecyclerView.Adapter<RescueTasksAdapter.TaskHolder> {
+        @NonNull
+        @Override
+        public TaskHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+            View view = LayoutInflater.from(parent.getContext())
+                    .inflate(android.R.layout.simple_list_item_2, parent, false);
+            return new TaskHolder(view);
+        }
+
+        @Override
+        public void onBindViewHolder(@NonNull TaskHolder holder, int position) {
+            Map<String, Object> task = rescueTasks.get(position);
+            long assigneeId = longValue(task.get("assigneeUserId"));
+            holder.title.setText(assigneeId > 0 ? "成员 #" + assigneeId : "待领取任务");
+            String status = stringValue(task.get("status"), "assigned");
+            holder.subtitle.setText("状态: " + status);
+        }
+
+        @Override
+        public int getItemCount() {
+            return rescueTasks.size();
+        }
+
+        class TaskHolder extends RecyclerView.ViewHolder {
+            TextView title;
+            TextView subtitle;
+
+            TaskHolder(@NonNull View itemView) {
+                super(itemView);
+                title = itemView.findViewById(android.R.id.text1);
+                subtitle = itemView.findViewById(android.R.id.text2);
+            }
         }
     }
 }

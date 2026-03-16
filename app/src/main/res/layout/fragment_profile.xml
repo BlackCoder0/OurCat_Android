@@ -70,11 +70,17 @@
                 android:id="@+id/btn_my_cat_reports"
                 layout="@layout/item_profile_option" />
 
-            <View
-                android:layout_width="match_parent"
-                android:layout_height="1dp"
-                android:background="@color/secondary"
-                android:layout_marginStart="16dp" />
+            <View android:layout_width="match_parent" android:layout_height="1dp" android:background="@color/secondary" android:layout_marginStart="16dp" />
+            <include android:id="@+id/btn_org" layout="@layout/item_profile_option" />
+            <View android:layout_width="match_parent" android:layout_height="1dp" android:background="@color/secondary" android:layout_marginStart="16dp" />
+            <include android:id="@+id/btn_rescue_list" layout="@layout/item_profile_option" />
+            <View android:layout_width="match_parent" android:layout_height="1dp" android:background="@color/secondary" android:layout_marginStart="16dp" />
+            <include android:id="@+id/btn_my_tasks" layout="@layout/item_profile_option" />
+            <View android:layout_width="match_parent" android:layout_height="1dp" android:background="@color/secondary" android:layout_marginStart="16dp" />
+            <include android:id="@+id/btn_rescue_guide" layout="@layout/item_profile_option" />
+            <View android:layout_width="match_parent" android:layout_height="1dp" android:background="@color/secondary" android:layout_marginStart="16dp" />
+            <include android:id="@+id/btn_join_requests" layout="@layout/item_profile_option" android:visibility="gone" />
+            <View android:layout_width="match_parent" android:layout_height="1dp" android:background="@color/secondary" android:layout_marginStart="16dp" />
 
             <include
                 android:id="@+id/btn_change_password"

@@ -106,13 +106,23 @@
 
             </LinearLayout>
 
+            <!-- 发起救助（所有用户可见） -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_start_rescue"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="发起救助"
+                android:layout_marginTop="12dp"
+                android:textColor="@android:color/white"
+                android:visibility="visible" />
+
             <!-- 管理员编辑按钮 -->
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btn_edit_cat"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="编辑档案"
-                android:layout_marginTop="12dp"
+                android:layout_marginTop="8dp"
                 style="@style/Widget.MaterialComponents.Button.OutlinedButton"
                 android:textColor="@color/primary"
                 app:strokeColor="@color/primary"

@@ -35,7 +35,7 @@ public class ProfileFragment extends Fragment {
 
     private TextView tvNickname, tvRole;
     private ImageView avatar;
-    private View btnUserManage;
+    private View btnUserManage, btnJoinRequests;
     private String currentAvatarUrl;
     private String currentNicknameStr;
     private String currentBio;
@@ -49,6 +49,7 @@ public class ProfileFragment extends Fragment {
         tvNickname = view.findViewById(R.id.tv_nickname);
         tvRole = view.findViewById(R.id.tv_role);
         btnUserManage = view.findViewById(R.id.btn_user_manage);
+        btnJoinRequests = view.findViewById(R.id.btn_join_requests);
 
         setupOption(view, R.id.btn_my_posts, "我的帖子",
                 v -> NavHostFragment.findNavController(ProfileFragment.this).navigate(R.id.my_posts));
@@ -56,6 +57,13 @@ public class ProfileFragment extends Fragment {
                 v -> NavHostFragment.findNavController(ProfileFragment.this).navigate(R.id.my_comments));
         setupOption(view, R.id.btn_my_cat_reports, "我的上报",
                 v -> NavHostFragment.findNavController(ProfileFragment.this).navigate(R.id.my_cat_reports));
+        // 救助动态已移至广场页面
+        setupOption(view, R.id.btn_my_tasks, "我的任务",
+                v -> NavHostFragment.findNavController(ProfileFragment.this).navigate(R.id.my_tasks));
+        setupOption(view, R.id.btn_rescue_guide, "救助指南",
+                v -> NavHostFragment.findNavController(ProfileFragment.this).navigate(R.id.rescue_guide));
+        setupOption(view, R.id.btn_join_requests, "加入申请审核",
+                v -> NavHostFragment.findNavController(ProfileFragment.this).navigate(R.id.join_requests));
 
         // 点击头像编辑资料
         avatar.setOnClickListener(v -> {
@@ -104,6 +112,7 @@ public class ProfileFragment extends Fragment {
                             int r = role != null ? ((Number) role).intValue() : 1;
                             tvRole.setText(r == 1 ? "普通用户" : r == 2 ? "志愿者" : "管理员");
                             btnUserManage.setVisibility(r >= 3 ? View.VISIBLE : View.GONE);
+                            if (btnJoinRequests != null) btnJoinRequests.setVisibility(r >= 3 ? View.VISIBLE : View.GONE);
 
                             currentNicknameStr = nickname != null ? nickname.toString() : "";
                             currentAvatarUrl = (String) user.get("avatarUrl");

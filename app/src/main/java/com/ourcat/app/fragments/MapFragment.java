@@ -51,6 +51,7 @@ import com.bumptech.glide.request.transition.Transition;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.ourcat.app.R;
 import com.ourcat.app.repositories.CatApi;
+import com.ourcat.app.repositories.RescueApi;
 import com.ourcat.app.utils.RetrofitHelper;
 
 import java.util.ArrayList;
@@ -91,6 +92,10 @@ public class MapFragment extends Fragment implements AMapLocationListener {
     private double currentLng = 0;
     private boolean firstLocate = true;
     private boolean pendingMoveToCurrentLocation = false;
+    private LatLng pendingNavigateLatLng;
+    private Long pendingNavigateCatId;
+    private LatLng pendingNavigateCatReference;
+    private boolean pendingNavigateCatUseCurrentLocation = false;
     private float density;
 
     private boolean isHeatmapMode = false;
@@ -113,6 +118,10 @@ public class MapFragment extends Fragment implements AMapLocationListener {
     private final List<Marker> hospitalMarkers = new ArrayList<>();
     private final List<PoiItem> hospitalPoiList = new ArrayList<>();
     private static final String HOSPITAL_MARKER_TYPE = "hospital";
+    private static final String NEED_RESCUE_MARKER_TYPE = "need_rescue";
+    private static final String RESCUE_CAT_MARKER_TYPE = "rescue_cat";
+    private final List<Map<String, Object>> needRescueList = new ArrayList<>();
+    private final List<Marker> needRescueMarkers = new ArrayList<>();
 
     private final ActivityResultLauncher<String[]> permissionLauncher = registerForActivityResult(
             new ActivityResultContracts.RequestMultiplePermissions(), result -> {
@@ -157,6 +166,7 @@ public class MapFragment extends Fragment implements AMapLocationListener {
                 loadHeatmapData();
             } else {
                 loadLocations();
+                loadNeedRescue();
             }
         });
 
@@ -177,6 +187,7 @@ public class MapFragment extends Fragment implements AMapLocationListener {
         });
 
         loadLocations();
+        loadNeedRescue();
         return view;
     }
 
@@ -481,6 +492,19 @@ public class MapFragment extends Fragment implements AMapLocationListener {
 
         aMap.setOnMarkerClickListener(marker -> {
             Object data = markerDataMap.get(marker.getId());
+            if (data instanceof Map) {
+                Object type = ((Map<?, ?>) data).get("type");
+                if (HOSPITAL_MARKER_TYPE.equals(type)
+                        || NEED_RESCUE_MARKER_TYPE.equals(type)
+                        || RESCUE_CAT_MARKER_TYPE.equals(type)) {
+                    if (currentMarker != null && currentMarker.isInfoWindowShown()) {
+                        currentMarker.hideInfoWindow();
+                    }
+                    currentMarker = marker;
+                    marker.showInfoWindow();
+                    return true;
+                }
+            }
             if (data instanceof Map && HOSPITAL_MARKER_TYPE.equals(((Map<?, ?>) data).get("type"))) {
                 if (currentMarker != null && currentMarker.isInfoWindowShown()) {
                     currentMarker.hideInfoWindow();
@@ -510,6 +534,15 @@ public class MapFragment extends Fragment implements AMapLocationListener {
 
         aMap.setOnInfoWindowClickListener(marker -> {
             Object data = markerDataMap.get(marker.getId());
+            if (data instanceof Map && NEED_RESCUE_MARKER_TYPE.equals(((Map<?, ?>) data).get("type"))) {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> rescueData = (Map<String, Object>) data;
+                Object squarePostIdObj = rescueData.get("squarePostId");
+                if (squarePostIdObj instanceof Number && ((Number) squarePostIdObj).longValue() > 0) {
+                    navigateToSquarePost(((Number) squarePostIdObj).longValue());
+                }
+                return;
+            }
             if (data instanceof Map && HOSPITAL_MARKER_TYPE.equals(((Map<?, ?>) data).get("type"))) {
                 @SuppressWarnings("unchecked")
                 Map<String, Object> hospitalData = (Map<String, Object>) data;
@@ -526,8 +559,15 @@ public class MapFragment extends Fragment implements AMapLocationListener {
             if (data instanceof Map) {
                 @SuppressWarnings("unchecked")
                 Map<String, Object> catData = (Map<String, Object>) data;
+                if (isTrue(catData.get("hasActiveRescue"))) {
+                    Object squarePostIdObj = catData.get("rescueSquarePostId");
+                    if (squarePostIdObj instanceof Number && ((Number) squarePostIdObj).longValue() > 0) {
+                        navigateToSquarePost(((Number) squarePostIdObj).longValue());
+                        return;
+                    }
+                }
                 Object catIdObj = catData.get("catId");
-                if (catIdObj != null) {
+                if (catIdObj instanceof Number && ((Number) catIdObj).longValue() > 0) {
                     long catId = ((Number) catIdObj).longValue();
                     openCatProfile(catId);
                 } else if (isAdded()) {
@@ -560,6 +600,7 @@ public class MapFragment extends Fragment implements AMapLocationListener {
         });
 
         aMap.moveCamera(CameraUpdateFactory.newLatLngZoom(new LatLng(23.13, 113.26), 14));
+        applyPendingNavigation();
     }
 
     private void showClusterListDialog(List<Map<String, Object>> cluster) {
@@ -693,6 +734,7 @@ public class MapFragment extends Fragment implements AMapLocationListener {
         TextView snippet = view.findViewById(R.id.info_snippet);
         ImageView image = view.findViewById(R.id.info_image);
         TextView actionHint = view.findViewById(R.id.info_action_hint);
+        View btnRescue = view.findViewById(R.id.info_btn_start_rescue);
 
         title.setText(marker.getTitle());
         String snippetText = marker.getSnippet();
@@ -703,15 +745,29 @@ public class MapFragment extends Fragment implements AMapLocationListener {
             snippet.setVisibility(View.GONE);
         }
 
+        if (btnRescue != null) {
+            btnRescue.setVisibility(View.GONE);
+        }
+
         Object data = markerDataMap.get(marker.getId());
         if (data instanceof Map) {
             @SuppressWarnings("unchecked")
             Map<String, Object> catData = (Map<String, Object>) data;
+            if (NEED_RESCUE_MARKER_TYPE.equals(catData.get("type"))) {
+                image.setImageResource(R.drawable.fire_alert);
+                image.setColorFilter(ContextCompat.getColor(requireContext(), R.color.error));
+                image.setVisibility(View.VISIBLE);
+                actionHint.setText("🆘 点击进入救助广场帖");
+                actionHint.setTextColor(ContextCompat.getColor(requireContext(), R.color.error));
+                actionHint.setVisibility(View.VISIBLE);
+                return view;
+            }
             if (HOSPITAL_MARKER_TYPE.equals(catData.get("type"))) {
                 image.setImageResource(R.drawable.hospital_building);
                 image.setColorFilter(ContextCompat.getColor(requireContext(), R.color.primary));
                 image.setVisibility(View.VISIBLE);
                 actionHint.setText("📍 点击导航");
+                actionHint.setTextColor(ContextCompat.getColor(requireContext(), R.color.primary));
                 actionHint.setVisibility(View.VISIBLE);
                 return view;
             }
@@ -725,11 +781,23 @@ public class MapFragment extends Fragment implements AMapLocationListener {
 
             // 根据是否有 catId 显示不同提示
             Object catIdObj = catData.get("catId");
-            if (catIdObj != null) {
-                actionHint.setText("👆 点击查看猫咪档案");
+            if (catIdObj instanceof Number && ((Number) catIdObj).longValue() > 0) {
+                if (isTrue(catData.get("hasActiveRescue"))) {
+                    actionHint.setText("🆘 当前处于待救助状态，点击查看");
+                    actionHint.setTextColor(ContextCompat.getColor(requireContext(), R.color.error));
+                } else {
+                    actionHint.setText("👆 点击查看猫咪档案");
+                    actionHint.setTextColor(ContextCompat.getColor(requireContext(), R.color.primary));
+                    if (btnRescue != null) {
+                        btnRescue.setVisibility(View.VISIBLE);
+                        long catId = ((Number) catIdObj).longValue();
+                        btnRescue.setOnClickListener(v -> showStartRescueFromMapDialog(catId));
+                    }
+                }
                 actionHint.setVisibility(View.VISIBLE);
             } else {
                 actionHint.setText("⏳ 匹配中，稍后可查看档案");
+                actionHint.setTextColor(ContextCompat.getColor(requireContext(), R.color.primary));
                 actionHint.setVisibility(View.VISIBLE);
             }
         } else {
@@ -737,6 +805,94 @@ public class MapFragment extends Fragment implements AMapLocationListener {
             actionHint.setVisibility(View.GONE);
         }
         return view;
+    }
+
+    private void showStartRescueFromMapDialog(long catId) {
+        android.widget.EditText titleInput = new android.widget.EditText(requireContext());
+        titleInput.setHint("救助标题");
+        titleInput.setMinEms(12);
+        android.widget.EditText descInput = new android.widget.EditText(requireContext());
+        descInput.setHint("描述（选填）");
+        descInput.setMinLines(2);
+        final String[] urgencies = new String[] { "normal", "urgent" };
+        final int[] selected = new int[] { 0 };
+        android.widget.RadioGroup radio = new android.widget.RadioGroup(requireContext());
+        radio.setOrientation(android.widget.LinearLayout.HORIZONTAL);
+        android.widget.RadioButton rbNormal = new android.widget.RadioButton(requireContext());
+        rbNormal.setText("普通");
+        android.widget.RadioButton rbUrgent = new android.widget.RadioButton(requireContext());
+        rbUrgent.setText("紧急");
+        radio.addView(rbNormal);
+        radio.addView(rbUrgent);
+        rbNormal.setChecked(true);
+        radio.setOnCheckedChangeListener((g, id) -> selected[0] = id == rbUrgent.getId() ? 1 : 0);
+        android.widget.LinearLayout layout = new android.widget.LinearLayout(requireContext());
+        layout.setOrientation(android.widget.LinearLayout.VERTICAL);
+        layout.setPadding(50, 40, 50, 10);
+        layout.addView(titleInput);
+        layout.addView(descInput);
+        layout.addView(radio);
+        new androidx.appcompat.app.AlertDialog.Builder(requireContext())
+                .setTitle("发起救助")
+                .setView(layout)
+                .setPositiveButton("创建", (d, w) -> {
+                    String title = titleInput.getText().toString().trim();
+                    if (title.isEmpty()) {
+                        Toast.makeText(requireContext(), "请填写标题", Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+                    Map<String, Object> body = new HashMap<>();
+                    body.put("title", title);
+                    body.put("description", descInput.getText().toString().trim());
+                    body.put("catId", catId);
+                    body.put("urgency", urgencies[selected[0]]);
+                    RetrofitHelper.get().create(RescueApi.class).createActivity(body)
+                            .enqueue(new Callback<Map<String, Object>>() {
+                                @Override
+                                public void onResponse(Call<Map<String, Object>> call,
+                                        Response<Map<String, Object>> response) {
+                                    if (!isAdded())
+                                        return;
+                                    if (response.isSuccessful() && response.body() != null) {
+                                        if (currentMarker != null && currentMarker.isInfoWindowShown()) {
+                                            currentMarker.hideInfoWindow();
+                                        }
+                                        Toast.makeText(requireContext(), "已创建救助活动", Toast.LENGTH_SHORT).show();
+                                        Object squarePostIdObj = response.body().get("squarePostId");
+                                        if (squarePostIdObj instanceof Number
+                                                && ((Number) squarePostIdObj).longValue() > 0) {
+                                            navigateToSquarePost(((Number) squarePostIdObj).longValue());
+                                            return;
+                                        }
+                                        Object activityIdObj = response.body().get("id");
+                                        if (activityIdObj instanceof Number) {
+                                            requireActivity().findViewById(R.id.map_container).setVisibility(View.GONE);
+                                            requireActivity().findViewById(R.id.nav_host_fragment)
+                                                    .setVisibility(View.VISIBLE);
+                                            Bundle args = new Bundle();
+                                            args.putLong("activityId", ((Number) activityIdObj).longValue());
+                                            if (getActivity() instanceof com.ourcat.app.activities.MainActivity) {
+                                                ((com.ourcat.app.activities.MainActivity) getActivity())
+                                                        .navigateTo(R.id.rescue_detail, args);
+                                            }
+                                        }
+                                    } else if (response.code() == 409) {
+                                        Toast.makeText(requireContext(), "该猫咪当前已处于待救助状态", Toast.LENGTH_SHORT).show();
+                                    } else {
+                                        Toast.makeText(requireContext(), "创建失败", Toast.LENGTH_SHORT).show();
+                                    }
+                                }
+
+                                @Override
+                                public void onFailure(Call<Map<String, Object>> call, Throwable t) {
+                                    if (isAdded()) {
+                                        Toast.makeText(requireContext(), "网络错误", Toast.LENGTH_SHORT).show();
+                                    }
+                                }
+                            });
+                })
+                .setNegativeButton("取消", null)
+                .show();
     }
 
     private void enableMyLocation() {
@@ -830,6 +986,9 @@ public class MapFragment extends Fragment implements AMapLocationListener {
                 }
             });
         }
+        if (pendingNavigateCatUseCurrentLocation && pendingNavigateCatId != null) {
+            tryNavigateToCatLocation(pendingNavigateCatId, new LatLng(currentLat, currentLng), false);
+        }
     }
 
     private void moveToCurrentLocation() {
@@ -869,6 +1028,10 @@ public class MapFragment extends Fragment implements AMapLocationListener {
                                 clusterAndDisplay();
                             }
                             catCountText.setText("共发现 " + allLocations.size() + " 只猫咪");
+                            Long pendingCatId = pendingNavigateCatId;
+                            if (pendingCatId != null) {
+                                tryNavigateToCatLocation(pendingCatId, pendingNavigateCatReference, false);
+                            }
                         } else {
                             catCountText.setText("暂无记录");
                         }
@@ -880,6 +1043,79 @@ public class MapFragment extends Fragment implements AMapLocationListener {
                             catCountText.setText("加载失败");
                     }
                 });
+    }
+
+    private void loadNeedRescue() {
+        RetrofitHelper.get().create(RescueApi.class).rescueLocations()
+                .enqueue(new Callback<List<Map<String, Object>>>() {
+                    @Override
+                    public void onResponse(Call<List<Map<String, Object>>> call,
+                            Response<List<Map<String, Object>>> response) {
+                        if (!isAdded())
+                            return;
+                        needRescueList.clear();
+                        if (response.isSuccessful() && response.body() != null) {
+                            needRescueList.addAll(response.body());
+                        }
+                        if (!isHeatmapMode && aMap != null) {
+                            addNeedRescueMarkers();
+                        }
+                    }
+
+                    @Override
+                    public void onFailure(Call<List<Map<String, Object>>> call, Throwable t) {
+                        if (!isAdded())
+                            return;
+                        needRescueList.clear();
+                        removeNeedRescueMarkers();
+                    }
+                });
+    }
+
+    private void addNeedRescueMarkers() {
+        if (aMap == null)
+            return;
+        removeNeedRescueMarkers();
+        BitmapDescriptor redIcon = createDefaultPinMarker(0xFFE53935);
+        for (Map<String, Object> item : needRescueList) {
+            Object latObj = item.get("lat");
+            Object lngObj = item.get("lng");
+            Object activityIdObj = item.get("activityId");
+            if (latObj == null || lngObj == null || activityIdObj == null)
+                continue;
+            Object catIdObj = item.get("catId");
+            if (catIdObj instanceof Number && ((Number) catIdObj).longValue() > 0)
+                continue;
+            double lat = ((Number) latObj).doubleValue();
+            double lng = ((Number) lngObj).doubleValue();
+            String title = str(item.get("title"));
+            String catName = str(item.get("catName"));
+            if (title.isEmpty())
+                title = "需救助";
+            if (!catName.isEmpty())
+                title = catName + " · " + title;
+            Map<String, Object> data = new HashMap<>(item);
+            data.put("type", NEED_RESCUE_MARKER_TYPE);
+            Marker marker = aMap.addMarker(new MarkerOptions()
+                    .position(new LatLng(lat, lng))
+                    .title(title)
+                    .snippet("点击进入救助广场帖")
+                    .icon(redIcon)
+                    .anchor(0.5f, 1.0f)
+                    .zIndex(25));
+            markerDataMap.put(marker.getId(), data);
+            needRescueMarkers.add(marker);
+        }
+    }
+
+    private void removeNeedRescueMarkers() {
+        for (Marker marker : needRescueMarkers) {
+            if (marker != null) {
+                markerDataMap.remove(marker.getId());
+                marker.remove();
+            }
+        }
+        needRescueMarkers.clear();
     }
 
     private void loadHeatmapData() {
@@ -1412,7 +1648,15 @@ public class MapFragment extends Fragment implements AMapLocationListener {
             return;
 
         new Thread(() -> {
-            List<Map<String, Object>> locationsSnapshot = new ArrayList<>(allLocations);
+            List<Map<String, Object>> locationsSnapshot = new ArrayList<>();
+            List<Map<String, Object>> rescueCatLocations = new ArrayList<>();
+            for (Map<String, Object> item : allLocations) {
+                if (isTrue(item.get("hasActiveRescue"))) {
+                    rescueCatLocations.add(item);
+                } else {
+                    locationsSnapshot.add(item);
+                }
+            }
 
             // 在子线程计算
             float zoom = aMap.getCameraPosition().zoom;
@@ -1455,6 +1699,7 @@ public class MapFragment extends Fragment implements AMapLocationListener {
                     aMap.clear();
                     markerDataMap.clear();
                     hospitalMarkers.clear();
+                    needRescueMarkers.clear();
 
                     for (List<Map<String, Object>> cluster : clusters) {
                         if (cluster.size() == 1) {
@@ -1463,15 +1708,22 @@ public class MapFragment extends Fragment implements AMapLocationListener {
                             addClusterMarker(cluster);
                         }
                     }
+                    for (Map<String, Object> rescueCatLocation : rescueCatLocations) {
+                        addRescueCatMarker(rescueCatLocation);
+                    }
                     if (showHospitals && !hospitalPoiList.isEmpty()) {
                         addHospitalMarkers();
                     }
+                    addNeedRescueMarkers();
                 });
             }
         }).start();
     }
 
     private void addSingleMarker(Map<String, Object> loc) {
+        if (isTrue(loc.get("hasActiveRescue"))) {
+            return;
+        }
         double lat = ((Number) loc.get("lat")).doubleValue();
         double lng = ((Number) loc.get("lng")).doubleValue();
         String color = str(loc.get("color"));
@@ -1531,6 +1783,71 @@ public class MapFragment extends Fragment implements AMapLocationListener {
                     .anchor(0.5f, 1.0f)
                     .zIndex(10));
             markerDataMap.put(marker.getId(), loc);
+        }
+    }
+
+    private void addRescueCatMarker(Map<String, Object> loc) {
+        double lat = ((Number) loc.get("lat")).doubleValue();
+        double lng = ((Number) loc.get("lng")).doubleValue();
+        String color = str(loc.get("color"));
+        String desc = str(loc.get("description"));
+        String time = str(loc.get("reportTime"));
+        String feature = str(loc.get("feature"));
+        String imageUrl = str(loc.get("imageUrl"));
+
+        String title = color.isEmpty() ? "猫咪" : color + "猫";
+        StringBuilder snippet = new StringBuilder();
+        if (!feature.isEmpty())
+            snippet.append("特征: ").append(feature);
+        if (!desc.isEmpty()) {
+            if (snippet.length() > 0)
+                snippet.append("\n");
+            snippet.append(desc);
+        }
+        if (!time.isEmpty()) {
+            if (snippet.length() > 0)
+                snippet.append("\n");
+            snippet.append("上报: ").append(time);
+        }
+
+        Map<String, Object> markerData = new HashMap<>(loc);
+        markerData.put("type", RESCUE_CAT_MARKER_TYPE);
+        LatLng pos = new LatLng(lat, lng);
+        int rescueColor = 0xFFE53935;
+
+        if (!imageUrl.isEmpty()) {
+            Glide.with(this)
+                    .asBitmap()
+                    .load(imageUrl)
+                    .circleCrop()
+                    .override((int) (44 * density), (int) (44 * density))
+                    .into(new SimpleTarget<Bitmap>() {
+                        @Override
+                        public void onResourceReady(@NonNull Bitmap resource,
+                                @Nullable Transition<? super Bitmap> transition) {
+                            if (!isAdded() || aMap == null)
+                                return;
+                            BitmapDescriptor icon = createImagePinMarker(resource, rescueColor);
+                            Marker marker = aMap.addMarker(new MarkerOptions()
+                                    .position(pos)
+                                    .title(title)
+                                    .snippet(snippet.toString())
+                                    .icon(icon)
+                                    .anchor(0.5f, 1.0f)
+                                    .zIndex(20));
+                            markerDataMap.put(marker.getId(), markerData);
+                        }
+                    });
+        } else {
+            BitmapDescriptor icon = createDefaultPinMarker(rescueColor);
+            Marker marker = aMap.addMarker(new MarkerOptions()
+                    .position(pos)
+                    .title(title)
+                    .snippet(snippet.toString())
+                    .icon(icon)
+                    .anchor(0.5f, 1.0f)
+                    .zIndex(20));
+            markerDataMap.put(marker.getId(), markerData);
         }
     }
 
@@ -1743,6 +2060,150 @@ public class MapFragment extends Fragment implements AMapLocationListener {
         loadHeatmapData();
     }
 
+    public void navigateTo(double lat, double lng) {
+        if (lat == 0 && lng == 0) {
+            return;
+        }
+        pendingNavigateLatLng = new LatLng(lat, lng);
+        applyPendingNavigation();
+    }
+
+    public void navigateToCatLocation(long catId) {
+        if (catId <= 0) {
+            return;
+        }
+        pendingNavigateCatUseCurrentLocation = false;
+        tryNavigateToCatLocation(catId, null, true);
+    }
+
+    public void navigateToCatLocationNear(long catId, double lat, double lng) {
+        if (catId <= 0 || (lat == 0 && lng == 0)) {
+            return;
+        }
+        pendingNavigateCatUseCurrentLocation = false;
+        tryNavigateToCatLocation(catId, new LatLng(lat, lng), true);
+    }
+
+    public void navigateToCatLocationNearestToUser(long catId) {
+        if (catId <= 0) {
+            return;
+        }
+        LatLng current = getCurrentLocationLatLng();
+        if (current != null) {
+            pendingNavigateCatUseCurrentLocation = false;
+            tryNavigateToCatLocation(catId, current, true);
+            return;
+        }
+
+        pendingNavigateCatId = catId;
+        pendingNavigateCatReference = null;
+        pendingNavigateCatUseCurrentLocation = true;
+        requestLocationForPendingCatNavigation();
+        if (isAdded()) {
+            Toast.makeText(requireContext(), "正在定位后跳转到最近猫咪标点", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void tryNavigateToCatLocation(long catId, LatLng reference, boolean allowReload) {
+        LatLng latLng = findCatLatLng(catId, reference);
+        if (latLng != null) {
+            pendingNavigateCatId = null;
+            pendingNavigateCatReference = null;
+            pendingNavigateCatUseCurrentLocation = false;
+            navigateTo(latLng.latitude, latLng.longitude);
+            return;
+        }
+
+        if (allowReload) {
+            pendingNavigateCatId = catId;
+            pendingNavigateCatReference = reference;
+            loadLocations();
+        }
+    }
+
+    private LatLng findCatLatLng(long catId, LatLng reference) {
+        LatLng target = null;
+        double bestDistance = Double.MAX_VALUE;
+        for (Map<String, Object> item : allLocations) {
+            Object idObj = item.get("catId");
+            if (!(idObj instanceof Number) || ((Number) idObj).longValue() != catId) {
+                continue;
+            }
+            Object latObj = item.get("lat");
+            Object lngObj = item.get("lng");
+            if (!(latObj instanceof Number) || !(lngObj instanceof Number)) {
+                continue;
+            }
+            LatLng candidate = new LatLng(((Number) latObj).doubleValue(), ((Number) lngObj).doubleValue());
+            if (reference == null) {
+                return candidate;
+            }
+            double dist = haversineMeters(reference.latitude, reference.longitude,
+                    candidate.latitude, candidate.longitude);
+            if (dist < bestDistance) {
+                bestDistance = dist;
+                target = candidate;
+            }
+        }
+        return target;
+    }
+
+    private LatLng getCurrentLocationLatLng() {
+        if (currentLat == 0 && currentLng == 0) {
+            return null;
+        }
+        return new LatLng(currentLat, currentLng);
+    }
+
+    private void requestLocationForPendingCatNavigation() {
+        if (!isAdded()) {
+            return;
+        }
+        if (ContextCompat.checkSelfPermission(requireContext(),
+                Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+            startLocation();
+        } else {
+            permissionLauncher.launch(new String[] {
+                    Manifest.permission.ACCESS_FINE_LOCATION,
+                    Manifest.permission.ACCESS_COARSE_LOCATION
+            });
+        }
+    }
+
+    private void applyPendingNavigation() {
+        if (!isAdded() || aMap == null) {
+            return;
+        }
+        LatLng latLng = pendingNavigateLatLng;
+        pendingNavigateLatLng = null;
+        if (latLng != null) {
+            requireActivity().runOnUiThread(() -> {
+                if (aMap != null) {
+                    aMap.animateCamera(CameraUpdateFactory.newLatLngZoom(latLng, MAX_ZOOM));
+                }
+            });
+        }
+    }
+
+    private void navigateToSquarePost(long squarePostId) {
+        if (!isAdded())
+            return;
+        requireActivity().findViewById(R.id.map_container).setVisibility(View.GONE);
+        requireActivity().findViewById(R.id.nav_host_fragment).setVisibility(View.VISIBLE);
+        Bundle args = new Bundle();
+        args.putLong("squarePostId", squarePostId);
+        if (getActivity() instanceof com.ourcat.app.activities.MainActivity) {
+            ((com.ourcat.app.activities.MainActivity) getActivity()).navigateTo(R.id.square_detail, args);
+        }
+    }
+
+    private boolean isTrue(Object value) {
+        if (value instanceof Boolean) {
+            return (Boolean) value;
+        }
+        return value != null && Boolean.parseBoolean(String.valueOf(value));
+    }
+
     @Override
     public void onResume() {
         super.onResume();
@@ -1788,6 +2249,7 @@ public class MapFragment extends Fragment implements AMapLocationListener {
         }
         removeHeatmap();
         removeHospitalMarkers();
+        removeNeedRescueMarkers();
         hospitalPoiList.clear();
         if (aMap != null) {
             try {
