@@ -175,7 +175,8 @@ public class CatProfileFragment extends Fragment {
         currentAvatarUrl = (String) data.get("primaryImageUrl");
         hasActiveRescue = Boolean.TRUE.equals(data.get("hasActiveRescue"));
         Object rescueSquarePostIdObj = data.get("rescueSquarePostId");
-        rescueSquarePostId = rescueSquarePostIdObj instanceof Number ? ((Number) rescueSquarePostIdObj).longValue() : 0L;
+        rescueSquarePostId = rescueSquarePostIdObj instanceof Number ? ((Number) rescueSquarePostIdObj).longValue()
+                : 0L;
 
         // Update main image (in CollapsingToolbar)
         if (currentAvatarUrl != null && !currentAvatarUrl.isEmpty()) {
@@ -255,22 +256,26 @@ public class CatProfileFragment extends Fragment {
                     RetrofitHelper.get().create(RescueApi.class).createActivity(body)
                             .enqueue(new Callback<Map<String, Object>>() {
                                 @Override
-                                public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
+                                public void onResponse(Call<Map<String, Object>> call,
+                                        Response<Map<String, Object>> response) {
                                     if (!isAdded())
                                         return;
                                     if (response.isSuccessful() && response.body() != null) {
                                         Toast.makeText(requireContext(), "已创建救助活动", Toast.LENGTH_SHORT).show();
                                         Object squarePostIdObj = response.body().get("squarePostId");
-                                        if (squarePostIdObj instanceof Number && ((Number) squarePostIdObj).longValue() > 0) {
+                                        if (squarePostIdObj instanceof Number
+                                                && ((Number) squarePostIdObj).longValue() > 0) {
                                             Bundle args = new Bundle();
                                             args.putLong("squarePostId", ((Number) squarePostIdObj).longValue());
-                                            NavHostFragment.findNavController(CatProfileFragment.this).navigate(R.id.square_detail, args);
+                                            NavHostFragment.findNavController(CatProfileFragment.this)
+                                                    .navigate(R.id.square_detail, args);
                                         } else {
                                             Object activityIdObj = response.body().get("id");
                                             if (activityIdObj instanceof Number) {
                                                 Bundle args = new Bundle();
                                                 args.putLong("activityId", ((Number) activityIdObj).longValue());
-                                                NavHostFragment.findNavController(CatProfileFragment.this).navigate(R.id.rescue_detail, args);
+                                                NavHostFragment.findNavController(CatProfileFragment.this)
+                                                        .navigate(R.id.rescue_detail, args);
                                             }
                                         }
                                         loadCatDetail();

@@ -367,7 +367,7 @@ public class SquareDetailFragment extends Fragment {
         }
 
         if (coords != null) {
-            mainActivity.showMapAtLocation(coords[0], coords[1]);
+            mainActivity.showMapAtRescueLocation(coords[0], coords[1]);
             return;
         }
 

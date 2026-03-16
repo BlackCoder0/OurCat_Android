@@ -10,6 +10,7 @@ import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.bumptech.glide.Glide;
+import com.ourcat.app.R;
 import com.ourcat.app.utils.ImageUtils;
 
 import java.util.ArrayList;
@@ -21,7 +22,8 @@ public class ImagePagerAdapter extends RecyclerView.Adapter<ImagePagerAdapter.Vi
 
     public void setUrls(List<String> list) {
         urls.clear();
-        if (list != null) urls.addAll(list);
+        if (list != null)
+            urls.addAll(list);
         notifyDataSetChanged();
     }
 
@@ -40,11 +42,13 @@ public class ImagePagerAdapter extends RecyclerView.Adapter<ImagePagerAdapter.Vi
         String url = urls.get(position);
         Glide.with(holder.itemView.getContext())
                 .load(url)
+                .placeholder(R.drawable.cat_blink)
+                .error(R.drawable.cat_blink)
                 .into((ImageView) holder.itemView);
 
         holder.itemView.setOnLongClickListener(v -> {
             new AlertDialog.Builder(v.getContext())
-                    .setItems(new String[]{"保存图片"}, (dialog, which) -> {
+                    .setItems(new String[] { "保存图片" }, (dialog, which) -> {
                         if (which == 0) {
                             ImageUtils.saveImage(v.getContext(), url);
                         }
@@ -60,6 +64,8 @@ public class ImagePagerAdapter extends RecyclerView.Adapter<ImagePagerAdapter.Vi
     }
 
     static class ViewHolder extends RecyclerView.ViewHolder {
-        ViewHolder(View v) { super(v); }
+        ViewHolder(View v) {
+            super(v);
+        }
     }
 }

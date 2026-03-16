@@ -11,6 +11,7 @@ import android.graphics.Path;
 import android.graphics.RectF;
 import android.graphics.Shader;
 import android.graphics.Typeface;
+import android.graphics.drawable.Drawable;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -25,6 +26,7 @@ import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
+import androidx.appcompat.content.res.AppCompatResources;
 import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.LinearLayoutManager;
@@ -122,6 +124,15 @@ public class MapFragment extends Fragment implements AMapLocationListener {
     private static final String RESCUE_CAT_MARKER_TYPE = "rescue_cat";
     private final List<Map<String, Object>> needRescueList = new ArrayList<>();
     private final List<Marker> needRescueMarkers = new ArrayList<>();
+    private final java.util.Map<String, Marker> rescuePulseMarkers = new HashMap<>();
+    private final java.util.Map<String, Bitmap> rescuePulsePhotos = new HashMap<>();
+    private final java.util.Map<String, Integer> rescuePulseColors = new HashMap<>();
+    private final java.util.Map<Integer, Bitmap> rescuePlaceholderPhotoCache = new HashMap<>();
+    private Runnable rescueIconPulseRunnable;
+    private float rescueIconPulseProgress = 0f;
+    private static final long RESCUE_ICON_PULSE_FRAME_MS = 90;
+    private LatLng pendingRescueFocusLatLng;
+    private Marker rescueFocusMarker;
 
     private final ActivityResultLauncher<String[]> permissionLauncher = registerForActivityResult(
             new ActivityResultContracts.RequestMultiplePermissions(), result -> {
@@ -754,7 +765,7 @@ public class MapFragment extends Fragment implements AMapLocationListener {
             @SuppressWarnings("unchecked")
             Map<String, Object> catData = (Map<String, Object>) data;
             if (NEED_RESCUE_MARKER_TYPE.equals(catData.get("type"))) {
-                image.setImageResource(R.drawable.fire_alert);
+                image.setImageResource(R.drawable.cat_blink);
                 image.setColorFilter(ContextCompat.getColor(requireContext(), R.color.error));
                 image.setVisibility(View.VISIBLE);
                 actionHint.setText("🆘 点击进入救助广场帖");
@@ -866,14 +877,12 @@ public class MapFragment extends Fragment implements AMapLocationListener {
                                         }
                                         Object activityIdObj = response.body().get("id");
                                         if (activityIdObj instanceof Number) {
-                                            requireActivity().findViewById(R.id.map_container).setVisibility(View.GONE);
-                                            requireActivity().findViewById(R.id.nav_host_fragment)
-                                                    .setVisibility(View.VISIBLE);
                                             Bundle args = new Bundle();
                                             args.putLong("activityId", ((Number) activityIdObj).longValue());
                                             if (getActivity() instanceof com.ourcat.app.activities.MainActivity) {
                                                 ((com.ourcat.app.activities.MainActivity) getActivity())
-                                                        .navigateTo(R.id.rescue_detail, args);
+                                                        .navigateFromMap(R.id.rescue_detail, args,
+                                                                R.id.nav_item_square);
                                             }
                                         }
                                     } else if (response.code() == 409) {
@@ -1076,7 +1085,9 @@ public class MapFragment extends Fragment implements AMapLocationListener {
         if (aMap == null)
             return;
         removeNeedRescueMarkers();
-        BitmapDescriptor redIcon = createDefaultPinMarker(0xFFE53935);
+        int rescueColor = 0xFFE53935;
+        Bitmap placeholderPhoto = getRescuePlaceholderPhoto(rescueColor);
+        BitmapDescriptor redIcon = createImagePinMarker(placeholderPhoto, rescueColor);
         for (Map<String, Object> item : needRescueList) {
             Object latObj = item.get("lat");
             Object lngObj = item.get("lng");
@@ -1105,6 +1116,7 @@ public class MapFragment extends Fragment implements AMapLocationListener {
                     .zIndex(25));
             markerDataMap.put(marker.getId(), data);
             needRescueMarkers.add(marker);
+            registerRescueIconPulseMarker(marker, placeholderPhoto, rescueColor);
         }
     }
 
@@ -1176,6 +1188,7 @@ public class MapFragment extends Fragment implements AMapLocationListener {
             return;
 
         removeHeatmap();
+        clearRescueIconPulseMarkers();
         aMap.clear();
         markerDataMap.clear();
         hospitalMarkers.clear();
@@ -1696,6 +1709,7 @@ public class MapFragment extends Fragment implements AMapLocationListener {
                 getActivity().runOnUiThread(() -> {
                     if (aMap == null || isHeatmapMode)
                         return;
+                    clearRescueIconPulseMarkers();
                     aMap.clear();
                     markerDataMap.clear();
                     hospitalMarkers.clear();
@@ -1715,6 +1729,7 @@ public class MapFragment extends Fragment implements AMapLocationListener {
                         addHospitalMarkers();
                     }
                     addNeedRescueMarkers();
+                    applyPendingRescueFocusMarker();
                 });
             }
         }).start();
@@ -1836,6 +1851,7 @@ public class MapFragment extends Fragment implements AMapLocationListener {
                                     .anchor(0.5f, 1.0f)
                                     .zIndex(20));
                             markerDataMap.put(marker.getId(), markerData);
+                            registerRescueIconPulseMarker(marker, resource, rescueColor);
                         }
                     });
         } else {
@@ -1848,16 +1864,171 @@ public class MapFragment extends Fragment implements AMapLocationListener {
                     .anchor(0.5f, 1.0f)
                     .zIndex(20));
             markerDataMap.put(marker.getId(), markerData);
+            registerRescueIconPulseMarker(marker, null, rescueColor);
         }
     }
 
+    private void registerRescueIconPulseMarker(Marker marker, Bitmap photo, int color) {
+        if (marker == null) {
+            return;
+        }
+        String markerId = marker.getId();
+        rescuePulseMarkers.put(markerId, marker);
+        rescuePulseColors.put(markerId, color);
+        if (photo != null) {
+            rescuePulsePhotos.put(markerId, photo);
+        } else {
+            rescuePulsePhotos.remove(markerId);
+        }
+        startRescueIconPulseAnimation();
+    }
+
+    private void clearRescueIconPulseMarkers() {
+        rescuePulseMarkers.clear();
+        rescuePulsePhotos.clear();
+        rescuePulseColors.clear();
+        stopRescueIconPulseAnimation();
+    }
+
+    private void startRescueIconPulseAnimation() {
+        if (rescueIconPulseRunnable != null || rescuePulseMarkers.isEmpty()) {
+            return;
+        }
+        rescueIconPulseRunnable = new Runnable() {
+            @Override
+            public void run() {
+                if (aMap == null || rescuePulseMarkers.isEmpty()) {
+                    stopRescueIconPulseAnimation();
+                    return;
+                }
+                rescueIconPulseProgress += 0.08f;
+                if (rescueIconPulseProgress >= 1f) {
+                    rescueIconPulseProgress -= 1f;
+                }
+                int index = 0;
+                List<String> removedIds = new ArrayList<>();
+                for (Map.Entry<String, Marker> entry : rescuePulseMarkers.entrySet()) {
+                    String markerId = entry.getKey();
+                    Marker marker = entry.getValue();
+                    if (marker == null || !marker.isVisible()) {
+                        removedIds.add(markerId);
+                        continue;
+                    }
+                    float phase = rescueIconPulseProgress + index * 0.21f;
+                    phase = phase - (float) Math.floor(phase);
+                    int color = rescuePulseColors.containsKey(markerId) ? rescuePulseColors.get(markerId) : 0xFFE53935;
+                    Bitmap photo = rescuePulsePhotos.get(markerId);
+                    BitmapDescriptor icon = photo != null
+                            ? createImagePinMarker(photo, color, phase)
+                            : createDefaultPinMarker(color, phase);
+                    marker.setIcon(icon);
+                    index++;
+                }
+                if (!removedIds.isEmpty()) {
+                    for (String markerId : removedIds) {
+                        rescuePulseMarkers.remove(markerId);
+                        rescuePulsePhotos.remove(markerId);
+                        rescuePulseColors.remove(markerId);
+                    }
+                }
+                if (rescuePulseMarkers.isEmpty()) {
+                    stopRescueIconPulseAnimation();
+                    return;
+                }
+                heatmapHandler.postDelayed(this, RESCUE_ICON_PULSE_FRAME_MS);
+            }
+        };
+        heatmapHandler.post(rescueIconPulseRunnable);
+    }
+
+    private void stopRescueIconPulseAnimation() {
+        if (rescueIconPulseRunnable != null) {
+            heatmapHandler.removeCallbacks(rescueIconPulseRunnable);
+            rescueIconPulseRunnable = null;
+        }
+    }
+
+    public void showRescueFocusMarker(double lat, double lng) {
+        if (lat == 0 && lng == 0) {
+            return;
+        }
+        pendingRescueFocusLatLng = new LatLng(lat, lng);
+        applyPendingRescueFocusMarker();
+    }
+
+    private void applyPendingRescueFocusMarker() {
+        if (aMap == null || pendingRescueFocusLatLng == null) {
+            return;
+        }
+        if (rescueFocusMarker != null) {
+            markerDataMap.remove(rescueFocusMarker.getId());
+            rescuePulseMarkers.remove(rescueFocusMarker.getId());
+            rescuePulsePhotos.remove(rescueFocusMarker.getId());
+            rescuePulseColors.remove(rescueFocusMarker.getId());
+            rescueFocusMarker.remove();
+            rescueFocusMarker = null;
+        }
+        int rescueColor = 0xFFE53935;
+        Bitmap placeholderPhoto = getRescuePlaceholderPhoto(rescueColor);
+        BitmapDescriptor icon = createImagePinMarker(placeholderPhoto, rescueColor);
+        rescueFocusMarker = aMap.addMarker(new MarkerOptions()
+                .position(pendingRescueFocusLatLng)
+                .title("救助点位")
+                .snippet("正在跟踪该救助位置")
+                .icon(icon)
+                .anchor(0.5f, 1.0f)
+                .zIndex(30));
+        if (rescueFocusMarker != null) {
+            Map<String, Object> data = new HashMap<>();
+            data.put("type", NEED_RESCUE_MARKER_TYPE);
+            data.put("isFocus", true);
+            data.put("lat", pendingRescueFocusLatLng.latitude);
+            data.put("lng", pendingRescueFocusLatLng.longitude);
+            markerDataMap.put(rescueFocusMarker.getId(), data);
+            registerRescueIconPulseMarker(rescueFocusMarker, placeholderPhoto, rescueColor);
+        }
+    }
+
+    private Bitmap getRescuePlaceholderPhoto(int accentColor) {
+        Bitmap cached = rescuePlaceholderPhotoCache.get(accentColor);
+        if (cached != null && !cached.isRecycled()) {
+            return cached;
+        }
+        int size = (int) (40 * density);
+        if (size <= 0) {
+            size = 40;
+        }
+        Bitmap bmp = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888);
+        Canvas canvas = new Canvas(bmp);
+        canvas.drawColor(Color.WHITE);
+        Drawable drawable = AppCompatResources.getDrawable(requireContext(), R.drawable.cat_blink);
+        if (drawable != null) {
+            drawable.setBounds(0, 0, size, size);
+            drawable.draw(canvas);
+        }
+        rescuePlaceholderPhotoCache.put(accentColor, bmp);
+        return bmp;
+    }
+
     private BitmapDescriptor createImagePinMarker(Bitmap photo, int borderColor) {
-        int w = (int) (48 * density);
-        int h = (int) (58 * density);
+        return createImagePinMarker(photo, borderColor, -1f);
+    }
+
+    private BitmapDescriptor createImagePinMarker(Bitmap photo, int borderColor, float pulsePhase) {
+        int baseW = (int) (48 * density);
+        int baseH = (int) (58 * density);
         int circleR = (int) (20 * density);
-        int cx = w / 2;
-        int cy = (int) (22 * density);
+        int baseCx = baseW / 2;
+        int baseCy = (int) (22 * density);
         float border = 3f * density;
+        int ripplePad = (int) (14 * density);
+        int w = baseW + ripplePad * 2;
+        int h = baseH + ripplePad;
+        int offsetX = ripplePad;
+        int offsetY = ripplePad;
+        int cx = offsetX + baseCx;
+        int cy = offsetY + baseCy;
+        int tipY = offsetY + baseH - (int) (2 * density);
 
         Bitmap bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
         Canvas c = new Canvas(bmp);
@@ -1866,17 +2037,21 @@ public class MapFragment extends Fragment implements AMapLocationListener {
         shadowP.setColor(0x40000000);
         Path shadowPath = new Path();
         shadowPath.moveTo(cx - 6 * density, cy + circleR * 0.5f);
-        shadowPath.lineTo(cx + 1 * density, h);
+        shadowPath.lineTo(cx + 1 * density, tipY + 2 * density);
         shadowPath.lineTo(cx + 8 * density, cy + circleR * 0.5f);
         shadowPath.close();
         c.drawPath(shadowPath, shadowP);
         c.drawCircle(cx + 1 * density, cy + 1 * density, circleR + border / 2, shadowP);
 
+        if (pulsePhase >= 0f) {
+            drawRippleRings(c, cx, cy, circleR + border, borderColor, pulsePhase, 10f * density);
+        }
+
         Paint borderP = new Paint(Paint.ANTI_ALIAS_FLAG);
         borderP.setColor(borderColor);
         Path pinPath = new Path();
         pinPath.moveTo(cx - 6 * density, cy + circleR * 0.5f);
-        pinPath.lineTo(cx, h - 2 * density);
+        pinPath.lineTo(cx, tipY);
         pinPath.lineTo(cx + 6 * density, cy + circleR * 0.5f);
         pinPath.close();
         c.drawPath(pinPath, borderP);
@@ -1895,12 +2070,24 @@ public class MapFragment extends Fragment implements AMapLocationListener {
     }
 
     private BitmapDescriptor createDefaultPinMarker(int fillColor) {
-        int w = (int) (36 * density);
-        int h = (int) (48 * density);
+        return createDefaultPinMarker(fillColor, -1f);
+    }
+
+    private BitmapDescriptor createDefaultPinMarker(int fillColor, float pulsePhase) {
+        int baseW = (int) (36 * density);
+        int baseH = (int) (48 * density);
         int circleR = (int) (14 * density);
-        int cx = w / 2;
-        int cy = (int) (16 * density);
+        int baseCx = baseW / 2;
+        int baseCy = (int) (16 * density);
         float border = 2.5f * density;
+        int ripplePad = (int) (10 * density);
+        int w = baseW + ripplePad * 2;
+        int h = baseH + ripplePad;
+        int offsetX = ripplePad;
+        int offsetY = ripplePad;
+        int cx = offsetX + baseCx;
+        int cy = offsetY + baseCy;
+        int tipY = offsetY + baseH - (int) (2 * density);
 
         Bitmap bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
         Canvas c = new Canvas(bmp);
@@ -1909,17 +2096,21 @@ public class MapFragment extends Fragment implements AMapLocationListener {
         shadowP.setColor(0x30000000);
         Path shadowPath = new Path();
         shadowPath.moveTo(cx - 4 * density, cy + circleR * 0.6f);
-        shadowPath.lineTo(cx + 1 * density, h);
+        shadowPath.lineTo(cx + 1 * density, tipY + 2 * density);
         shadowPath.lineTo(cx + 6 * density, cy + circleR * 0.6f);
         shadowPath.close();
         c.drawPath(shadowPath, shadowP);
         c.drawCircle(cx + 1 * density, cy + 1 * density, circleR, shadowP);
 
+        if (pulsePhase >= 0f) {
+            drawRippleRings(c, cx, cy, circleR, fillColor, pulsePhase, 8f * density);
+        }
+
         Paint fillP = new Paint(Paint.ANTI_ALIAS_FLAG);
         fillP.setColor(fillColor);
         Path pinPath = new Path();
         pinPath.moveTo(cx - 5 * density, cy + circleR * 0.6f);
-        pinPath.lineTo(cx, h - 2 * density);
+        pinPath.lineTo(cx, tipY);
         pinPath.lineTo(cx + 5 * density, cy + circleR * 0.6f);
         pinPath.close();
         c.drawPath(pinPath, fillP);
@@ -1948,6 +2139,32 @@ public class MapFragment extends Fragment implements AMapLocationListener {
         c.drawArc(mouth, 0, 180, false, dotP);
 
         return BitmapDescriptorFactory.fromBitmap(bmp);
+    }
+
+    private void drawRippleRings(Canvas canvas, int cx, int cy, float baseRadius, int color, float pulsePhase,
+            float maxExpand) {
+        drawRippleRing(canvas, cx, cy, baseRadius, color, pulsePhase, maxExpand);
+        float phase2 = pulsePhase + 0.5f;
+        if (phase2 >= 1f) {
+            phase2 -= 1f;
+        }
+        drawRippleRing(canvas, cx, cy, baseRadius, color, phase2, maxExpand);
+    }
+
+    private void drawRippleRing(Canvas canvas, int cx, int cy, float baseRadius, int color, float phase,
+            float maxExpand) {
+        float radius = baseRadius + maxExpand * phase;
+        float fade = 1f - phase;
+        int alpha = Math.max(0, Math.min(255, (int) (140f * fade * fade)));
+        if (alpha <= 0) {
+            return;
+        }
+        Paint ripplePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        ripplePaint.setStyle(Paint.Style.STROKE);
+        ripplePaint.setColor(color);
+        ripplePaint.setAlpha(alpha);
+        ripplePaint.setStrokeWidth(Math.max(1f, 2.4f * density * fade));
+        canvas.drawCircle(cx, cy, radius, ripplePaint);
     }
 
     private void addClusterMarker(List<Map<String, Object>> cluster) {
@@ -2188,12 +2405,11 @@ public class MapFragment extends Fragment implements AMapLocationListener {
     private void navigateToSquarePost(long squarePostId) {
         if (!isAdded())
             return;
-        requireActivity().findViewById(R.id.map_container).setVisibility(View.GONE);
-        requireActivity().findViewById(R.id.nav_host_fragment).setVisibility(View.VISIBLE);
         Bundle args = new Bundle();
         args.putLong("squarePostId", squarePostId);
         if (getActivity() instanceof com.ourcat.app.activities.MainActivity) {
-            ((com.ourcat.app.activities.MainActivity) getActivity()).navigateTo(R.id.square_detail, args);
+            ((com.ourcat.app.activities.MainActivity) getActivity())
+                    .navigateFromMap(R.id.square_detail, args, R.id.nav_item_square);
         }
     }
 
@@ -2250,6 +2466,9 @@ public class MapFragment extends Fragment implements AMapLocationListener {
         removeHeatmap();
         removeHospitalMarkers();
         removeNeedRescueMarkers();
+        rescueFocusMarker = null;
+        pendingRescueFocusLatLng = null;
+        clearRescueIconPulseMarkers();
         hospitalPoiList.clear();
         if (aMap != null) {
             try {
@@ -2278,16 +2497,11 @@ public class MapFragment extends Fragment implements AMapLocationListener {
         Bundle args = new Bundle();
         args.putLong("catId", catId);
         try {
-            // Find NavController via NavHostFragment to avoid issues with Activity/View
-            // lookup
-            Fragment navHostFragment = requireActivity().getSupportFragmentManager()
-                    .findFragmentById(R.id.nav_host_fragment);
-            if (navHostFragment != null) {
-                androidx.navigation.fragment.NavHostFragment.findNavController(navHostFragment)
-                        .navigate(R.id.cat_profile, args);
+            if (getActivity() instanceof com.ourcat.app.activities.MainActivity) {
+                ((com.ourcat.app.activities.MainActivity) getActivity())
+                        .navigateFromMap(R.id.cat_profile, args, R.id.nav_item_cats);
             } else {
-                Log.e(TAG, "NavHostFragment not found");
-                Toast.makeText(requireContext(), "无法打开档案: 导航组件缺失", Toast.LENGTH_SHORT).show();
+                Toast.makeText(requireContext(), "无法打开档案", Toast.LENGTH_SHORT).show();
             }
         } catch (Exception e) {
             Log.e(TAG, "Open cat profile failed", e);
