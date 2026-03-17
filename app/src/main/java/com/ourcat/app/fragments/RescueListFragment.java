@@ -35,7 +35,8 @@ public class RescueListFragment extends Fragment {
 
     @Nullable
     @Override
-    public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
+    public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,
+            @Nullable Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_rescue_list, container, false);
         recycler = view.findViewById(R.id.rescue_list);
         progress = view.findViewById(R.id.progress);
@@ -46,15 +47,16 @@ public class RescueListFragment extends Fragment {
             @Override
             public RecyclerView.ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
                 View v = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_rescue_activity, parent, false);
-                return new RecyclerView.ViewHolder(v) {};
+                return new RecyclerView.ViewHolder(v) {
+                };
             }
+
             @Override
             public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder, int position) {
                 Map<String, Object> m = items.get(position);
                 View v = holder.itemView;
                 ((TextView) v.findViewById(R.id.item_rescue_title)).setText(str(m, "title"));
                 ((TextView) v.findViewById(R.id.item_rescue_desc)).setText(str(m, "description"));
-                ((TextView) v.findViewById(R.id.item_rescue_urgency)).setText("urgent".equalsIgnoreCase(str(m, "urgency")) ? "紧急" : "一般");
                 ((TextView) v.findViewById(R.id.item_rescue_status)).setText(str(m, "status"));
                 ((TextView) v.findViewById(R.id.item_rescue_time)).setText(str(m, "createdAt"));
                 Object id = m.get("id");
@@ -66,8 +68,11 @@ public class RescueListFragment extends Fragment {
                     }
                 });
             }
+
             @Override
-            public int getItemCount() { return items.size(); }
+            public int getItemCount() {
+                return items.size();
+            }
         });
         load();
         return view;
@@ -76,29 +81,39 @@ public class RescueListFragment extends Fragment {
     private void load() {
         progress.setVisibility(View.VISIBLE);
         emptyText.setVisibility(View.GONE);
-        RetrofitHelper.get().create(RescueApi.class).listActivities(0, 50, null, null).enqueue(new Callback<Map<String, Object>>() {
-            @Override
-            public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
-                if (!isAdded()) return;
-                progress.setVisibility(View.GONE);
-                if (response.isSuccessful() && response.body() != null) {
-                    Object content = response.body().get("content");
-                    items.clear();
-                    if (content instanceof List) {
-                        for (Object o : (List<?>) content) {
-                            if (o instanceof Map) items.add((Map<String, Object>) o);
+        RetrofitHelper.get().create(RescueApi.class).listActivities(0, 50, null, null)
+                .enqueue(new Callback<Map<String, Object>>() {
+                    @Override
+                    public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
+                        if (!isAdded())
+                            return;
+                        progress.setVisibility(View.GONE);
+                        if (response.isSuccessful() && response.body() != null) {
+                            Object content = response.body().get("content");
+                            items.clear();
+                            if (content instanceof List) {
+                                for (Object o : (List<?>) content) {
+                                    if (o instanceof Map)
+                                        items.add((Map<String, Object>) o);
+                                }
+                            }
+                            recycler.getAdapter().notifyDataSetChanged();
+                            emptyText.setVisibility(items.isEmpty() ? View.VISIBLE : View.GONE);
                         }
                     }
-                    recycler.getAdapter().notifyDataSetChanged();
-                    emptyText.setVisibility(items.isEmpty() ? View.VISIBLE : View.GONE);
-                }
-            }
-            @Override
-            public void onFailure(Call<Map<String, Object>> call, Throwable t) {
-                if (isAdded()) { progress.setVisibility(View.GONE); emptyText.setVisibility(View.VISIBLE); }
-            }
-        });
+
+                    @Override
+                    public void onFailure(Call<Map<String, Object>> call, Throwable t) {
+                        if (isAdded()) {
+                            progress.setVisibility(View.GONE);
+                            emptyText.setVisibility(View.VISIBLE);
+                        }
+                    }
+                });
     }
 
-    private static String str(Map<String, Object> m, String k) { Object v = m.get(k); return v != null ? v.toString() : ""; }
+    private static String str(Map<String, Object> m, String k) {
+        Object v = m.get(k);
+        return v != null ? v.toString() : "";
+    }
 }

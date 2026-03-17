@@ -4,6 +4,9 @@ import android.app.AlertDialog;
 import android.graphics.Typeface;
 import android.os.Bundle;
 import android.view.LayoutInflater;
+import android.view.Menu;
+import android.view.MenuInflater;
+import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
@@ -33,6 +36,12 @@ public class MessageCenterFragment extends Fragment {
 
     private final List<Map<String, Object>> items = new ArrayList<>();
     private RecyclerView.Adapter<RecyclerView.ViewHolder> adapter;
+
+    @Override
+    public void onCreate(@Nullable Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setHasOptionsMenu(true);
+    }
 
     @Nullable
     @Override
@@ -79,6 +88,21 @@ public class MessageCenterFragment extends Fragment {
         return view;
     }
 
+    @Override
+    public void onCreateOptionsMenu(@NonNull Menu menu, @NonNull MenuInflater inflater) {
+        menu.clear();
+        inflater.inflate(R.menu.menu_message_center, menu);
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(@NonNull MenuItem item) {
+        if (item.getItemId() == R.id.action_mark_all_read) {
+            onClickMarkAllRead();
+            return true;
+        }
+        return super.onOptionsItemSelected(item);
+    }
+
     private void loadMessages() {
         RetrofitHelper.get().create(MessageApi.class).list(0, 50)
                 .enqueue(new Callback<Map<String, Object>>() {
@@ -104,6 +128,60 @@ public class MessageCenterFragment extends Fragment {
                         if (getView() != null)
                             ((SwipeRefreshLayout) getView().findViewById(R.id.msg_swipe)).setRefreshing(false);
                         Toast.makeText(requireContext(), "加载失败", Toast.LENGTH_SHORT).show();
+                    }
+                });
+    }
+
+    private void onClickMarkAllRead() {
+        int unread = 0;
+        for (Map<String, Object> item : items) {
+            boolean read = item.get("read") instanceof Boolean && (Boolean) item.get("read");
+            if (!read) {
+                unread++;
+            }
+        }
+        if (unread <= 0) {
+            Toast.makeText(requireContext(), "没有未读消息", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        new AlertDialog.Builder(requireContext())
+                .setTitle("全部标为已读")
+                .setMessage("确定要将全部未读消息标记为已读吗？")
+                .setNegativeButton("取消", null)
+                .setPositiveButton("确定", (d, w) -> markAllRead())
+                .show();
+    }
+
+    private void markAllRead() {
+        RetrofitHelper.get().create(MessageApi.class).markAllRead()
+                .enqueue(new Callback<Map<String, Object>>() {
+                    @Override
+                    public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
+                        if (!isAdded()) {
+                            return;
+                        }
+                        if (!response.isSuccessful()) {
+                            Toast.makeText(requireContext(), "操作失败", Toast.LENGTH_SHORT).show();
+                            return;
+                        }
+                        int changed = 0;
+                        for (Map<String, Object> item : items) {
+                            boolean read = item.get("read") instanceof Boolean && (Boolean) item.get("read");
+                            if (!read) {
+                                item.put("read", true);
+                                changed++;
+                            }
+                        }
+                        adapter.notifyDataSetChanged();
+                        Toast.makeText(requireContext(), changed > 0 ? "已全部标为已读" : "没有未读消息", Toast.LENGTH_SHORT)
+                                .show();
+                    }
+
+                    @Override
+                    public void onFailure(Call<Map<String, Object>> call, Throwable t) {
+                        if (isAdded()) {
+                            Toast.makeText(requireContext(), "网络错误", Toast.LENGTH_SHORT).show();
+                        }
                     }
                 });
     }

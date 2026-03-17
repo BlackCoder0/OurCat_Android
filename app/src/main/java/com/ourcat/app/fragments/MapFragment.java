@@ -132,6 +132,9 @@ public class MapFragment extends Fragment implements AMapLocationListener {
     private float rescueIconPulseProgress = 0f;
     private static final long RESCUE_ICON_PULSE_FRAME_MS = 90;
     private LatLng pendingRescueFocusLatLng;
+    private boolean pendingRescueFocusSolved = false;
+    private boolean pendingRescueFocusOneShot = false;
+    private boolean pendingRescueFocusAppliedOnce = false;
     private Marker rescueFocusMarker;
 
     private final ActivityResultLauncher<String[]> permissionLauncher = registerForActivityResult(
@@ -825,24 +828,11 @@ public class MapFragment extends Fragment implements AMapLocationListener {
         android.widget.EditText descInput = new android.widget.EditText(requireContext());
         descInput.setHint("描述（选填）");
         descInput.setMinLines(2);
-        final String[] urgencies = new String[] { "normal", "urgent" };
-        final int[] selected = new int[] { 0 };
-        android.widget.RadioGroup radio = new android.widget.RadioGroup(requireContext());
-        radio.setOrientation(android.widget.LinearLayout.HORIZONTAL);
-        android.widget.RadioButton rbNormal = new android.widget.RadioButton(requireContext());
-        rbNormal.setText("普通");
-        android.widget.RadioButton rbUrgent = new android.widget.RadioButton(requireContext());
-        rbUrgent.setText("紧急");
-        radio.addView(rbNormal);
-        radio.addView(rbUrgent);
-        rbNormal.setChecked(true);
-        radio.setOnCheckedChangeListener((g, id) -> selected[0] = id == rbUrgent.getId() ? 1 : 0);
         android.widget.LinearLayout layout = new android.widget.LinearLayout(requireContext());
         layout.setOrientation(android.widget.LinearLayout.VERTICAL);
         layout.setPadding(50, 40, 50, 10);
         layout.addView(titleInput);
         layout.addView(descInput);
-        layout.addView(radio);
         new androidx.appcompat.app.AlertDialog.Builder(requireContext())
                 .setTitle("发起救助")
                 .setView(layout)
@@ -856,7 +846,6 @@ public class MapFragment extends Fragment implements AMapLocationListener {
                     body.put("title", title);
                     body.put("description", descInput.getText().toString().trim());
                     body.put("catId", catId);
-                    body.put("urgency", urgencies[selected[0]]);
                     RetrofitHelper.get().create(RescueApi.class).createActivity(body)
                             .enqueue(new Callback<Map<String, Object>>() {
                                 @Override
@@ -1949,10 +1938,19 @@ public class MapFragment extends Fragment implements AMapLocationListener {
     }
 
     public void showRescueFocusMarker(double lat, double lng) {
+        showRescueFocusMarker(lat, lng, false, false);
+    }
+
+    public void showRescueFocusMarker(double lat, double lng, boolean solved, boolean oneShot) {
         if (lat == 0 && lng == 0) {
             return;
         }
         pendingRescueFocusLatLng = new LatLng(lat, lng);
+        pendingRescueFocusSolved = solved;
+        pendingRescueFocusOneShot = oneShot;
+        if (!oneShot) {
+            pendingRescueFocusAppliedOnce = false;
+        }
         applyPendingRescueFocusMarker();
     }
 
@@ -1968,13 +1966,15 @@ public class MapFragment extends Fragment implements AMapLocationListener {
             rescueFocusMarker.remove();
             rescueFocusMarker = null;
         }
-        int rescueColor = 0xFFE53935;
+        int rescueColor = pendingRescueFocusSolved ? 0xFF2E7D32 : 0xFFE53935;
         Bitmap placeholderPhoto = getRescuePlaceholderPhoto(rescueColor);
         BitmapDescriptor icon = createImagePinMarker(placeholderPhoto, rescueColor);
+        String title = pendingRescueFocusSolved ? "已解决救助点位" : "救助点位";
+        String snippet = pendingRescueFocusSolved ? "该事件已解决，刷新地图后该标点将消失" : "正在跟踪该救助位置";
         rescueFocusMarker = aMap.addMarker(new MarkerOptions()
                 .position(pendingRescueFocusLatLng)
-                .title("救助点位")
-                .snippet("正在跟踪该救助位置")
+                .title(title)
+                .snippet(snippet)
                 .icon(icon)
                 .anchor(0.5f, 1.0f)
                 .zIndex(30));
@@ -1985,7 +1985,20 @@ public class MapFragment extends Fragment implements AMapLocationListener {
             data.put("lat", pendingRescueFocusLatLng.latitude);
             data.put("lng", pendingRescueFocusLatLng.longitude);
             markerDataMap.put(rescueFocusMarker.getId(), data);
-            registerRescueIconPulseMarker(rescueFocusMarker, placeholderPhoto, rescueColor);
+            if (!pendingRescueFocusSolved) {
+                registerRescueIconPulseMarker(rescueFocusMarker, placeholderPhoto, rescueColor);
+            }
+        }
+
+        if (pendingRescueFocusOneShot) {
+            if (!pendingRescueFocusAppliedOnce) {
+                pendingRescueFocusAppliedOnce = true;
+            } else {
+                pendingRescueFocusLatLng = null;
+                pendingRescueFocusSolved = false;
+                pendingRescueFocusOneShot = false;
+                pendingRescueFocusAppliedOnce = false;
+            }
         }
     }
 
@@ -2301,6 +2314,16 @@ public class MapFragment extends Fragment implements AMapLocationListener {
         tryNavigateToCatLocation(catId, new LatLng(lat, lng), true);
     }
 
+    public void navigateToCatLocationNearForceReload(long catId, double lat, double lng) {
+        if (catId <= 0 || (lat == 0 && lng == 0)) {
+            return;
+        }
+        pendingNavigateCatUseCurrentLocation = false;
+        pendingNavigateCatId = catId;
+        pendingNavigateCatReference = new LatLng(lat, lng);
+        loadLocations();
+    }
+
     public void navigateToCatLocationNearestToUser(long catId) {
         if (catId <= 0) {
             return;
@@ -2425,6 +2448,10 @@ public class MapFragment extends Fragment implements AMapLocationListener {
         super.onResume();
         if (mapView != null)
             mapView.onResume();
+        if (!isHeatmapMode) {
+            loadNeedRescue();
+            loadLocations();
+        }
         if (isAdded()
                 && ContextCompat.checkSelfPermission(requireContext(),
                         Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {

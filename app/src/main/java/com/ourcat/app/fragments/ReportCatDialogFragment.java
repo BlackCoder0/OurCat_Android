@@ -73,6 +73,7 @@ public class ReportCatDialogFragment extends DialogFragment {
     private TextureMapView mapView;
     private AMap aMap;
     private TextView locationText;
+    private String lastRegeoKey;
 
     private final List<Uri> selectedImages = new ArrayList<>();
     private ImageAdapter imageAdapter;
@@ -299,7 +300,59 @@ public class ReportCatDialogFragment extends DialogFragment {
 
     private void updateLocationText(double lat, double lng) {
         if (locationText != null) {
-            locationText.setText(String.format("已选: %.5f, %.5f", lat, lng));
+            String key = String.format(java.util.Locale.US, "%.5f,%.5f", lat, lng);
+            if (key.equals(lastRegeoKey)) {
+                return;
+            }
+            lastRegeoKey = key;
+            locationText.setText("已选: 获取中...");
+            try {
+                com.amap.api.services.geocoder.GeocodeSearch geocodeSearch = new com.amap.api.services.geocoder.GeocodeSearch(
+                        requireContext());
+                geocodeSearch.setOnGeocodeSearchListener(
+                        new com.amap.api.services.geocoder.GeocodeSearch.OnGeocodeSearchListener() {
+                            @Override
+                            public void onRegeocodeSearched(com.amap.api.services.geocoder.RegeocodeResult result,
+                                    int rCode) {
+                                if (!isAdded() || locationText == null) {
+                                    return;
+                                }
+                                if (rCode == 1000 && result != null && result.getRegeocodeAddress() != null) {
+                                    com.amap.api.services.geocoder.RegeocodeAddress addr = result.getRegeocodeAddress();
+                                    String name = "";
+                                    if (addr.getAois() != null && !addr.getAois().isEmpty()
+                                            && addr.getAois().get(0) != null
+                                            && addr.getAois().get(0).getAoiName() != null
+                                            && !addr.getAois().get(0).getAoiName().isEmpty()) {
+                                        name = addr.getAois().get(0).getAoiName() + "附近";
+                                    } else if (addr.getDistrict() != null && !addr.getDistrict().isEmpty()) {
+                                        name = addr.getDistrict() + "附近";
+                                    } else if (addr.getCity() != null && !addr.getCity().isEmpty()) {
+                                        name = addr.getCity();
+                                    } else if (addr.getProvince() != null && !addr.getProvince().isEmpty()) {
+                                        name = addr.getProvince();
+                                    }
+                                    if (name.isEmpty()) {
+                                        name = "附近";
+                                    }
+                                    locationText.setText("已选: " + name);
+                                } else {
+                                    locationText.setText("已选: 附近");
+                                }
+                            }
+
+                            @Override
+                            public void onGeocodeSearched(com.amap.api.services.geocoder.GeocodeResult result,
+                                    int rCode) {
+                            }
+                        });
+                com.amap.api.services.geocoder.RegeocodeQuery query = new com.amap.api.services.geocoder.RegeocodeQuery(
+                        new com.amap.api.services.core.LatLonPoint(lat, lng), 200,
+                        com.amap.api.services.geocoder.GeocodeSearch.AMAP);
+                geocodeSearch.getFromLocationAsyn(query);
+            } catch (Exception e) {
+                locationText.setText("已选: 附近");
+            }
         }
     }
 

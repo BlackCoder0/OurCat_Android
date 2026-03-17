@@ -17,10 +17,12 @@ import com.bumptech.glide.Glide;
 import com.google.android.material.chip.Chip;
 import com.ourcat.app.R;
 import com.ourcat.app.repositories.AuthApi;
+import com.ourcat.app.repositories.OrgApi;
 import com.ourcat.app.utils.RetrofitHelper;
 
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
@@ -32,7 +34,8 @@ public class UserProfileFragment extends Fragment {
 
     private long userId;
     private ImageView ivAvatar;
-    private TextView tvNickname, tvBio, tvJoinedAt, tvStatPosts, tvStatComments, tvStatReports;
+    private TextView tvNickname, tvBio, tvJoinedAt, tvStatPosts, tvStatComments, tvStatReports, tvStatOrgs,
+            tvStatRescues, tvStatTasks;
     private Chip chipRole;
 
     @Nullable
@@ -52,6 +55,9 @@ public class UserProfileFragment extends Fragment {
         tvStatPosts = view.findViewById(R.id.stat_posts);
         tvStatComments = view.findViewById(R.id.stat_comments);
         tvStatReports = view.findViewById(R.id.stat_reports);
+        tvStatOrgs = view.findViewById(R.id.stat_orgs);
+        tvStatRescues = view.findViewById(R.id.stat_rescues);
+        tvStatTasks = view.findViewById(R.id.stat_tasks);
         chipRole = view.findViewById(R.id.user_role_chip);
 
         loadUserProfile();
@@ -69,6 +75,7 @@ public class UserProfileFragment extends Fragment {
                         if (response.isSuccessful() && response.body() != null) {
                             Map<String, Object> data = response.body();
                             bindData(data);
+                            loadOrgStatsForUser();
                         } else {
                             Toast.makeText(requireContext(), "加载用户失败", Toast.LENGTH_SHORT).show();
                         }
@@ -141,6 +148,90 @@ public class UserProfileFragment extends Fragment {
         setStat(tvStatPosts, data.get("postCount"));
         setStat(tvStatComments, data.get("commentCount"));
         setStat(tvStatReports, data.get("catReportCount"));
+        setStat(tvStatOrgs, getFirstValue(data, "orgCount", "organizationCount", "joinedOrgCount"));
+        setStat(tvStatRescues, getFirstValue(data, "participatedRescues", "rescueParticipatedCount", "rescueCount"));
+        setStat(tvStatTasks, getFirstValue(data, "completedTasks", "taskCompletedCount", "completedTaskCount"));
+    }
+
+    private void loadOrgStatsForUser() {
+        if (userId <= 0) {
+            return;
+        }
+        RetrofitHelper.get().create(OrgApi.class).getOrg().enqueue(new Callback<Map<String, Object>>() {
+            @Override
+            public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
+                if (!isAdded()) {
+                    return;
+                }
+                if (!response.isSuccessful() || response.body() == null) {
+                    return;
+                }
+                long orgId = 0L;
+                Object idObj = response.body().get("id");
+                if (idObj instanceof Number) {
+                    orgId = ((Number) idObj).longValue();
+                }
+                if (orgId <= 0) {
+                    return;
+                }
+                loadOrgMembersAndBindStats(orgId);
+            }
+
+            @Override
+            public void onFailure(Call<Map<String, Object>> call, Throwable t) {
+            }
+        });
+    }
+
+    private void loadOrgMembersAndBindStats(long orgId) {
+        RetrofitHelper.get().create(OrgApi.class).getMembers(orgId).enqueue(new Callback<List<Map<String, Object>>>() {
+            @Override
+            public void onResponse(Call<List<Map<String, Object>>> call, Response<List<Map<String, Object>>> response) {
+                if (!isAdded()) {
+                    return;
+                }
+                if (!response.isSuccessful() || response.body() == null) {
+                    return;
+                }
+                for (Map<String, Object> m : response.body()) {
+                    long uid = 0L;
+                    Object userIdObj = m.get("userId");
+                    if (userIdObj instanceof Number) {
+                        uid = ((Number) userIdObj).longValue();
+                    } else if (m.get("id") instanceof Number) {
+                        uid = ((Number) m.get("id")).longValue();
+                    }
+                    if (uid == userId) {
+                        setStat(tvStatOrgs, 1);
+                        setStat(tvStatRescues,
+                                getFirstValue(m, "participatedRescues", "rescueParticipatedCount", "rescueCount"));
+                        setStat(tvStatTasks,
+                                getFirstValue(m, "completedTasks", "taskCompletedCount", "completedTaskCount"));
+                        return;
+                    }
+                }
+            }
+
+            @Override
+            public void onFailure(Call<List<Map<String, Object>>> call, Throwable t) {
+            }
+        });
+    }
+
+    private Object getFirstValue(Map<String, Object> data, String... keys) {
+        if (data == null || keys == null) {
+            return null;
+        }
+        for (String k : keys) {
+            if (k == null) {
+                continue;
+            }
+            Object v = data.get(k);
+            if (v != null) {
+                return v;
+            }
+        }
+        return null;
     }
 
     private void setStat(TextView tv, Object val) {

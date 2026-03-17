@@ -420,6 +420,14 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    public void showMapAtRescueLocationSolved(double lat, double lng) {
+        showMap();
+        if (mapFragment != null) {
+            mapFragment.navigateTo(lat, lng);
+            mapFragment.showRescueFocusMarker(lat, lng, true, true);
+        }
+    }
+
     /**
      * 显示地图并跳转到指定猫咪的位置
      */
@@ -433,7 +441,15 @@ public class MainActivity extends AppCompatActivity {
     public void showMapAtCatLocationNear(long catId, double lat, double lng) {
         showMap();
         if (mapFragment != null) {
-            mapFragment.navigateToCatLocationNear(catId, lat, lng);
+            mapFragment.navigateToCatLocationNearForceReload(catId, lat, lng);
+        }
+    }
+
+    public void showMapAtCatLocationNearSolved(long catId, double lat, double lng) {
+        showMap();
+        if (mapFragment != null) {
+            mapFragment.navigateToCatLocationNearForceReload(catId, lat, lng);
+            mapFragment.showRescueFocusMarker(lat, lng, true, true);
         }
     }
 

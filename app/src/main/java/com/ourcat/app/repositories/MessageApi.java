@@ -17,4 +17,7 @@ public interface MessageApi {
 
     @POST("/api/message/{id}/read")
     Call<Void> markRead(@Path("id") long id);
+
+    @POST("/api/message/readAll")
+    Call<Map<String, Object>> markAllRead();
 }

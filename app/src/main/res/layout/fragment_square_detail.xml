@@ -1,363 +1,429 @@
 <?xml version="1.0" encoding="utf-8"?>
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/background">
+    android:background="@color/background_subtle">
 
-    <ScrollView
+    <androidx.core.widget.NestedScrollView
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:fillViewport="true"
-        android:padding="16dp">
+        android:clipToPadding="false"
+        android:paddingBottom="72dp" 
+        android:fillViewport="true">
 
         <LinearLayout
             android:id="@+id/square_detail_content"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical">
+            android:orientation="vertical"
+            android:padding="8dp">
 
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:gravity="center_vertical"
-                android:orientation="horizontal">
-
-                <com.google.android.material.chip.Chip
-                    android:id="@+id/square_detail_type"
-                    style="@style/Widget.MaterialComponents.Chip.Choice"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="询问" />
-
-                <TextView
-                    android:id="@+id/square_detail_status"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="8dp"
-                    android:text="进行中"
-                    android:textColor="@color/text_secondary"
-                    android:textSize="12sp" />
-            </LinearLayout>
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:gravity="center_vertical"
-                android:orientation="horizontal">
-
-                <ImageView
-                    android:id="@+id/square_detail_avatar"
-                    android:layout_width="32dp"
-                    android:layout_height="32dp"
-                    android:layout_marginEnd="8dp"
-                    android:background="@drawable/bg_circle_white"
-                    android:padding="1dp"
-                    android:scaleType="centerCrop"
-                    android:src="@drawable/ic_default_avatar" />
-
-                <TextView
-                    android:id="@+id/square_detail_author"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:textColor="@color/text_secondary"
-                    android:textSize="14sp" />
-            </LinearLayout>
-
-            <TextView
-                android:id="@+id/square_detail_text"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
-                android:lineSpacingExtra="4dp"
-                android:textColor="@color/text_primary"
-                android:textSize="15sp" />
-
+            <!-- Main Post Content Card -->
             <com.google.android.material.card.MaterialCardView
-                android:id="@+id/square_ref_cat_card"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
-                android:visibility="gone"
-                app:cardCornerRadius="12dp"
-                app:cardElevation="2dp">
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:background="?android:attr/selectableItemBackground"
-                    android:gravity="center_vertical"
-                    android:orientation="horizontal"
-                    android:padding="12dp">
-
-                    <ImageView
-                        android:id="@+id/square_ref_cat_avatar"
-                        android:layout_width="48dp"
-                        android:layout_height="48dp"
-                        android:background="@drawable/bg_circle_white"
-                        android:contentDescription="引用猫咪"
-                        android:scaleType="centerCrop" />
-
-                    <LinearLayout
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="12dp"
-                        android:layout_weight="1"
-                        android:orientation="vertical">
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="引用的猫咪档案"
-                            android:textColor="@color/text_secondary"
-                            android:textSize="12sp" />
-
-                        <TextView
-                            android:id="@+id/square_ref_cat_name"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:textColor="@color/text_primary"
-                            android:textSize="15sp"
-                            android:textStyle="bold" />
-                    </LinearLayout>
-                </LinearLayout>
-            </com.google.android.material.card.MaterialCardView>
-
-            <androidx.viewpager2.widget.ViewPager2
-                android:id="@+id/square_detail_image_pager"
-                android:layout_width="match_parent"
-                android:layout_height="200dp"
-                android:layout_marginTop="12dp"
-                android:visibility="gone" />
-
-            <TextView
-                android:id="@+id/square_detail_location"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:textColor="@color/text_secondary"
-                android:textSize="13sp"
-                android:visibility="gone" />
-
-            <com.google.android.material.card.MaterialCardView
-                android:id="@+id/square_rescue_activity_card"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
-                android:visibility="gone"
-                app:cardBackgroundColor="#FFF3E0"
-                app:cardCornerRadius="12dp"
-                app:cardElevation="2dp">
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:gravity="center_vertical"
-                    android:orientation="horizontal"
-                    android:padding="12dp">
-
-                    <ImageView
-                        android:layout_width="40dp"
-                        android:layout_height="40dp"
-                        android:contentDescription="救助活动"
-                        android:src="@drawable/ic_rescue" />
-
-                    <LinearLayout
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="12dp"
-                        android:layout_weight="1"
-                        android:orientation="vertical">
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="救助活动"
-                            android:textColor="#E65100"
-                            android:textSize="12sp" />
-
-                        <TextView
-                            android:id="@+id/square_rescue_activity_title"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:ellipsize="end"
-                            android:maxLines="2"
-                            android:textColor="@color/text_primary"
-                            android:textSize="14sp"
-                            android:textStyle="bold" />
-
-                        <TextView
-                            android:id="@+id/square_rescue_activity_status"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="4dp"
-                            android:textColor="#E65100"
-                            android:textSize="12sp" />
-                    </LinearLayout>
-                </LinearLayout>
-            </com.google.android.material.card.MaterialCardView>
-
-            <com.google.android.material.card.MaterialCardView
-                android:id="@+id/square_rescue_actions_card"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
-                android:visibility="gone"
-                app:cardCornerRadius="12dp"
-                app:cardElevation="2dp">
+                app:cardElevation="2dp"
+                app:cardUseCompatPadding="true">
 
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
-                    android:padding="12dp">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="任务操作"
-                        android:textColor="@color/text_primary"
-                        android:textSize="15sp"
-                        android:textStyle="bold" />
+                    android:padding="16dp">
 
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="12dp"
+                        android:gravity="center_vertical"
                         android:orientation="horizontal">
 
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/square_rescue_claim"
-                            style="@style/Widget.MaterialComponents.Button"
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:text="我要去（申领）" />
+                        <ImageView
+                            android:id="@+id/square_detail_avatar"
+                            android:layout_width="36dp"
+                            android:layout_height="36dp"
+                            android:scaleType="centerCrop"
+                            tools:src="@drawable/ic_default_avatar" />
 
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/square_rescue_assign"
-                            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                        <LinearLayout
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
-                            android:layout_marginStart="8dp"
+                            android:layout_marginStart="12dp"
                             android:layout_weight="1"
-                            android:text="指派成员"
-                            android:visibility="gone" />
+                            android:orientation="vertical">
+
+                            <TextView
+                                android:id="@+id/square_detail_author"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:textAppearance="?attr/textAppearanceSubtitle1"
+                                tools:text="作者昵称" />
+
+                            <TextView
+                                android:id="@+id/square_detail_time"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:textAppearance="?attr/textAppearanceCaption"
+                                tools:text="发布于 2023-10-27" />
+                        </LinearLayout>
+
+                        <com.google.android.material.chip.Chip
+                            android:id="@+id/square_detail_type"
+                            style="@style/Widget.MaterialComponents.Chip.Action"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            tools:text="救助" />
                     </LinearLayout>
 
                     <TextView
-                        android:layout_width="wrap_content"
+                        android:id="@+id/square_detail_text"
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="16dp"
-                        android:text="任务列表"
-                        android:textColor="@color/text_primary"
-                        android:textSize="14sp"
-                        android:textStyle="bold" />
+                        android:lineSpacingExtra="6dp"
+                        android:textAppearance="?attr/textAppearanceBody1"
+                        tools:text="这里是广播的正文内容..." />
 
-                    <TextView
-                        android:id="@+id/square_rescue_tasks_empty"
+                    <androidx.viewpager2.widget.ViewPager2
+                        android:id="@+id/square_detail_image_pager"
                         android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="8dp"
-                        android:text="暂无任务"
-                        android:textColor="@color/text_secondary"
+                        android:layout_height="220dp"
+                        android:layout_marginTop="12dp"
                         android:visibility="gone" />
 
-                    <androidx.recyclerview.widget.RecyclerView
-                        android:id="@+id/square_rescue_tasks"
+                    <LinearLayout
+                        android:id="@+id/square_detail_meta_block"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="8dp"
-                        android:minHeight="48dp"
-                        android:nestedScrollingEnabled="false" />
+                        android:layout_marginTop="12dp"
+                        android:background="@color/background_subtle"
+                        android:orientation="vertical"
+                        android:padding="12dp">
+
+                        <LinearLayout
+                            android:id="@+id/square_detail_location_row"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal"
+                            android:visibility="gone"
+                            tools:visibility="visible">
+
+                            <ImageView
+                                android:id="@+id/square_detail_location_icon"
+                                android:layout_width="14dp"
+                                android:layout_height="14dp"
+                                android:layout_marginEnd="8dp"
+                                android:contentDescription="@null"
+                                android:src="@drawable/ic_map_crosshair"
+                                app:tint="@color/text_secondary" />
+
+                            <TextView
+                                android:id="@+id/square_detail_location"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:gravity="start"
+                                android:textAppearance="?attr/textAppearanceCaption"
+                                tools:text="位置: 火星" />
+                        </LinearLayout>
+
+                        <TextView
+                            android:id="@+id/square_detail_location_annotation"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="22dp"
+                            android:layout_marginTop="6dp"
+                            android:textAppearance="?attr/textAppearanceCaption"
+                            android:textColor="@color/text_secondary"
+                            android:visibility="gone"
+                            tools:text="批注：附近有幼猫"
+                            tools:visibility="visible" />
+
+                        <TextView
+                            android:id="@+id/square_detail_location_mismatch_hint"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="22dp"
+                            android:layout_marginTop="6dp"
+                            android:textAppearance="?attr/textAppearanceCaption"
+                            android:textColor="@color/error"
+                            android:visibility="gone"
+                            tools:text="提示：猫档案标点距发布定位较远，请核对"
+                            tools:visibility="visible" />
+
+                    </LinearLayout>
+
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Referenced Cat Card -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/square_ref_cat_card"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:visibility="gone"
+                android:clickable="true"
+                android:focusable="true"
+                app:cardElevation="2dp"
+                app:cardUseCompatPadding="true">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:padding="16dp">
+
+                    <ImageView
+                        android:id="@+id/square_ref_cat_avatar"
+                        android:layout_width="48dp"
+                        android:layout_height="48dp"
+                        android:contentDescription="引用的猫咪"
+                        android:scaleType="centerCrop" />
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="16dp"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="相关猫咪档案"
+                            android:textAppearance="?attr/textAppearanceCaption" />
+
+                        <TextView
+                            android:id="@+id/square_ref_cat_name"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:textAppearance="?attr/textAppearanceSubtitle1"
+                            tools:text="猫咪名字" />
+                    </LinearLayout>
+
+                    <ImageView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:contentDescription="@null"
+                        android:src="@drawable/ic_arrow_right"
+                        app:tint="?attr/colorControlNormal" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Rescue Activity & Actions Card -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/square_rescue_card_container"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:visibility="gone"
+                app:cardBackgroundColor="@color/secondary"
+                app:cardElevation="2dp"
+                app:cardUseCompatPadding="true">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+
+                    <!-- Rescue Activity Info -->
+                    <LinearLayout
+                        android:id="@+id/square_rescue_activity_card"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:background="?attr/selectableItemBackground"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        android:padding="16dp">
+
+                        <ImageView
+                            android:layout_width="40dp"
+                            android:layout_height="40dp"
+                            android:contentDescription="救助活动"
+                            android:src="@drawable/ic_rescue"
+                            app:tint="@color/primary" />
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="16dp"
+                            android:layout_weight="1"
+                            android:orientation="vertical">
+
+                            <TextView
+                                android:id="@+id/square_rescue_activity_title"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:ellipsize="end"
+                                android:maxLines="2"
+                                android:textAppearance="?attr/textAppearanceSubtitle1"
+                                tools:text="救助活动标题" />
+
+                            <TextView
+                                android:id="@+id/square_rescue_activity_status"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="4dp"
+                                android:textAppearance="?attr/textAppearanceBody2"
+                                android:textColor="@color/primary"
+                                tools:text="状态: 进行中" />
+                        </LinearLayout>
+
+                        <ImageView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:contentDescription="@null"
+                            android:src="@drawable/ic_arrow_right"
+                            app:tint="?attr/colorControlNormal" />
+                    </LinearLayout>
+
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="1dp"
+                        android:background="@color/divider" />
+
+                    <!-- Rescue Actions & Task List -->
+                    <LinearLayout
+                        android:id="@+id/square_rescue_actions_card"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="16dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="任务列表"
+                            android:textAppearance="?attr/textAppearanceSubtitle2" />
+
+                        <TextView
+                            android:id="@+id/square_rescue_tasks_empty"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp"
+                            android:text="暂无任务，快去申领吧！"
+                            android:textAppearance="?attr/textAppearanceBody2"
+                            android:textColor="?android:attr/textColorSecondary"
+                            android:visibility="gone" />
+
+                        <androidx.recyclerview.widget.RecyclerView
+                            android:id="@+id/square_rescue_tasks"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp"
+                            android:nestedScrollingEnabled="false" />
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="16dp"
+                            android:orientation="horizontal">
+
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/square_rescue_claim"
+                                style="@style/Widget.MaterialComponents.Button"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:text="我要去 (申领)" />
+
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/square_rescue_assign"
+                                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_marginStart="8dp"
+                                android:layout_weight="1"
+                                android:text="指派成员"
+                                android:visibility="gone" />
+                        </LinearLayout>
+
+                    </LinearLayout>
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btn_mark_solved"
-                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                style="@style/Widget.MaterialComponents.Button.TextButton"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="16dp"
-                android:text="标记已解决"
-                android:visibility="gone"
-                app:cornerRadius="8dp" />
+                android:layout_gravity="end"
+                android:layout_marginTop="8dp"
+                android:text="标记为已解决"
+                android:visibility="gone" />
 
-            <View
-                android:layout_width="match_parent"
-                android:layout_height="1dp"
-                android:layout_marginVertical="8dp"
-                android:alpha="0.2"
-                android:background="@color/text_secondary" />
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:gravity="bottom"
-                android:orientation="horizontal"
-                android:paddingVertical="8dp">
-
-                <FrameLayout
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:maxWidth="400dp"
-                    android:minWidth="120dp">
-
-                    <EditText
-                        android:id="@+id/square_comment_input"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:background="@android:color/transparent"
-                        android:gravity="top|start"
-                        android:hint="写评论..."
-                        android:imeOptions="actionSend"
-                        android:inputType="textMultiLine|textCapSentences"
-                        android:maxLines="4"
-                        android:minLines="1"
-                        android:padding="12dp" />
-                </FrameLayout>
-
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/btn_send_square_comment"
-                    style="@style/Widget.MaterialComponents.Button.TextButton"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="发送" />
-            </LinearLayout>
-
-            <View
-                android:layout_width="match_parent"
-                android:layout_height="1dp"
-                android:layout_marginVertical="8dp"
-                android:alpha="0.2"
-                android:background="@color/text_secondary" />
-
+            <!-- Comments Section -->
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:paddingStart="8dp"
+                android:paddingEnd="8dp"
                 android:text="评论"
-                android:textColor="@color/text_primary"
-                android:textSize="16sp"
-                android:textStyle="bold" />
+                android:textAppearance="?attr/textAppearanceHeadline6" />
 
             <LinearLayout
                 android:id="@+id/square_comments_container"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
-                android:orientation="vertical"
-                android:paddingBottom="24dp" />
+                android:orientation="vertical" />
+
         </LinearLayout>
-    </ScrollView>
+    </androidx.core.widget.NestedScrollView>
+
+    <!-- Bottom Comment Input Area -->
+    <com.google.android.material.card.MaterialCardView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom"
+        app:cardCornerRadius="0dp"
+        app:cardElevation="8dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingStart="16dp"
+            android:paddingTop="8dp"
+            android:paddingEnd="8dp"
+            android:paddingBottom="8dp">
+
+            <EditText
+                android:id="@+id/square_comment_input"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:background="@android:color/transparent"
+                android:hint="写评论..."
+                android:imeOptions="actionSend"
+                android:inputType="textMultiLine|textCapSentences"
+                android:maxLines="4"
+                android:minHeight="48dp" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_send_square_comment"
+                style="@style/Widget.MaterialComponents.Button.TextButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="发送" />
+        </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
 
     <View
         android:id="@+id/square_resolved_overlay"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:background="#80000000"
+        android:background="#80FFFFFF"
         android:clickable="true"
         android:focusable="true"
         android:visibility="gone" />
+
 </FrameLayout>

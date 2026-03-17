@@ -16,7 +16,9 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.bumptech.glide.Glide;
+import com.google.android.material.chip.Chip;
 import com.ourcat.app.R;
+import com.ourcat.app.repositories.AuthApi;
 import com.ourcat.app.repositories.OrgApi;
 import com.ourcat.app.utils.RetrofitHelper;
 
@@ -38,6 +40,7 @@ public class OrgFragment extends Fragment {
     private final List<Map<String, Object>> recentActivities = new ArrayList<>();
     private MembersAdapter membersAdapter;
     private RecentActivitiesAdapter recentActivitiesAdapter;
+    private long currentUserId;
 
     @Nullable
     @Override
@@ -63,8 +66,31 @@ public class OrgFragment extends Fragment {
 
         btnJoin.setOnClickListener(v -> doJoin());
         btnLeave.setOnClickListener(v -> doLeave());
-        loadOrg();
+        loadCurrentUserId();
         return view;
+    }
+
+    private void loadCurrentUserId() {
+        RetrofitHelper.get().create(AuthApi.class).getProfile().enqueue(new Callback<Map<String, Object>>() {
+            @Override
+            public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
+                if (!isAdded()) {
+                    return;
+                }
+                if (response.isSuccessful() && response.body() != null) {
+                    currentUserId = longVal(response.body().get("id"));
+                }
+                loadOrg();
+            }
+
+            @Override
+            public void onFailure(Call<Map<String, Object>> call, Throwable t) {
+                if (!isAdded()) {
+                    return;
+                }
+                loadOrg();
+            }
+        });
     }
 
     private void loadOrg() {
@@ -121,6 +147,25 @@ public class OrgFragment extends Fragment {
                     members.clear();
                     members.addAll(response.body());
                     membersAdapter.notifyDataSetChanged();
+
+                    if (currentUserId > 0 && btnJoin.getVisibility() == View.VISIBLE) {
+                        boolean isMemberByList = false;
+                        for (Map<String, Object> m : members) {
+                            long uid = longVal(m.get("userId"));
+                            if (uid <= 0) {
+                                uid = longVal(m.get("id"));
+                            }
+                            if (uid == currentUserId) {
+                                isMemberByList = true;
+                                break;
+                            }
+                        }
+                        if (isMemberByList) {
+                            btnJoin.setVisibility(View.GONE);
+                            btnLeave.setVisibility(View.VISIBLE);
+                            orgStatus.setVisibility(View.GONE);
+                        }
+                    }
                 }
             }
 
@@ -144,9 +189,9 @@ public class OrgFragment extends Fragment {
                 Map<String, Object> home = response.body();
                 Map<String, Object> stats = (Map<String, Object>) home.get("stats");
                 if (stats != null) {
-                    statMemberCount.setText("成员: " + intVal(stats.get("memberCount")));
-                    statCompletedRescues.setText("完成: " + intVal(stats.get("completedRescues")));
-                    statOngoingRescues.setText("进行中: " + intVal(stats.get("ongoingRescues")));
+                    statMemberCount.setText(String.valueOf(intVal(stats.get("memberCount"))));
+                    statCompletedRescues.setText(String.valueOf(intVal(stats.get("completedRescues"))));
+                    statOngoingRescues.setText(String.valueOf(intVal(stats.get("ongoingRescues"))));
                 }
                 List<Map<String, Object>> activityList = (List<Map<String, Object>>) home.get("recentActivities");
                 recentActivities.clear();
@@ -249,19 +294,6 @@ public class OrgFragment extends Fragment {
         }
     }
 
-    private static String mapUrgencyText(String urgency) {
-        if (urgency == null) {
-            return "普通";
-        }
-        if ("urgent".equalsIgnoreCase(urgency)) {
-            return "紧急";
-        }
-        if ("normal".equalsIgnoreCase(urgency)) {
-            return "普通";
-        }
-        return urgency;
-    }
-
     private static String mapOrgRoleText(String role) {
         if (role == null) {
             return "";
@@ -307,6 +339,23 @@ public class OrgFragment extends Fragment {
             } else {
                 holder.avatar.setImageResource(R.drawable.ic_default_avatar);
             }
+
+            long userId = 0L;
+            Object userIdObj = item.get("userId");
+            if (userIdObj instanceof Number) {
+                userId = ((Number) userIdObj).longValue();
+            } else if (item.get("id") instanceof Number) {
+                userId = ((Number) item.get("id")).longValue();
+            }
+            long finalUserId = userId;
+            holder.itemView.setOnClickListener(v -> {
+                if (finalUserId <= 0) {
+                    return;
+                }
+                Bundle args = new Bundle();
+                args.putLong("userId", finalUserId);
+                NavHostFragment.findNavController(OrgFragment.this).navigate(R.id.user_profile, args);
+            });
         }
 
         @Override
@@ -342,9 +391,17 @@ public class OrgFragment extends Fragment {
             Map<String, Object> item = recentActivities.get(position);
             String title = str(item.get("title"));
             String status = str(item.get("status"));
-            String urgency = str(item.get("urgency"));
             holder.title.setText(title.isEmpty() ? "未命名活动" : title);
-            holder.meta.setText("状态: " + mapRescueStatusText(status) + " | 紧急度: " + mapUrgencyText(urgency));
+
+            holder.chipStatus.setText(mapRescueStatusText(status));
+
+            if ("completed".equals(status)) {
+                holder.chipStatus.setChipBackgroundColorResource(R.color.green_100);
+                holder.chipStatus.setTextColor(getResources().getColor(R.color.green_800, null));
+            } else {
+                holder.chipStatus.setChipBackgroundColorResource(R.color.background_subtle);
+                holder.chipStatus.setTextColor(getResources().getColor(R.color.text_secondary, null));
+            }
             holder.itemView.setOnClickListener(v -> {
                 long squarePostId = longVal(item.get("squarePostId"));
                 if (squarePostId > 0) {
@@ -369,12 +426,12 @@ public class OrgFragment extends Fragment {
 
         class ActivityVH extends RecyclerView.ViewHolder {
             TextView title;
-            TextView meta;
+            Chip chipStatus;
 
             ActivityVH(@NonNull View itemView) {
                 super(itemView);
                 title = itemView.findViewById(R.id.activity_title);
-                meta = itemView.findViewById(R.id.activity_meta);
+                chipStatus = itemView.findViewById(R.id.chip_status);
             }
         }
     }

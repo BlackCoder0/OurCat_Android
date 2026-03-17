@@ -4,6 +4,8 @@ import android.app.Activity;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -23,6 +25,9 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.amap.api.location.AMapLocationClient;
 import com.amap.api.location.AMapLocationClientOption;
 import com.amap.api.location.AMapLocationListener;
+import com.amap.api.services.geocoder.GeocodeSearch;
+import com.amap.api.services.geocoder.RegeocodeQuery;
+import com.amap.api.services.core.LatLonPoint;
 import com.bumptech.glide.Glide;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.card.MaterialCardView;
@@ -44,6 +49,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import retrofit2.Call;
 import retrofit2.Callback;
@@ -55,6 +62,7 @@ import retrofit2.Response;
 public class CreateSquarePostFragment extends Fragment {
 
     private static final int MAX_IMAGES = 9;
+    private static final Pattern CAT_TAG_PATTERN = Pattern.compile("\\[cat:(\\d+):([^\\]]+)\\]");
 
     private TextInputEditText etContent, etAnnotation;
     private TextInputEditText etLocation; // Use TextInputEditText for location display
@@ -128,7 +136,7 @@ public class CreateSquarePostFragment extends Fragment {
     private void openSelectCatDialog() {
         SelectCatDialogFragment dialog = new SelectCatDialogFragment();
         dialog.setOnCatSelectedListener(cat -> {
-            selectedRefCat = cat;  // 保存选中的猫咪
+            selectedRefCat = cat; // 保存选中的猫咪
             CatTagUtils.insertCatTag(requireContext(), etContent, cat);
         });
         dialog.show(requireActivity().getSupportFragmentManager(), "SelectCat");
@@ -179,7 +187,7 @@ public class CreateSquarePostFragment extends Fragment {
                                 etLocation.setSelection(address.length());
                                 Toast.makeText(requireContext(), "定位成功", Toast.LENGTH_SHORT).show();
                             } else {
-                                etLocation.setText(currentLat + "," + currentLng);
+                                etLocation.setText("附近");
                                 Toast.makeText(requireContext(), "定位成功，但无法获取详细地址", Toast.LENGTH_SHORT).show();
                             }
                         } else {
@@ -207,6 +215,53 @@ public class CreateSquarePostFragment extends Fragment {
         super.onDestroy();
         if (locationClient != null) {
             locationClient.onDestroy();
+        }
+    }
+
+    private void reverseGeocode(double lat, double lng, String text, String anno, String type, long referencedCatId) {
+        try {
+            GeocodeSearch geocodeSearch = new GeocodeSearch(requireContext());
+            geocodeSearch.setOnGeocodeSearchListener(new GeocodeSearch.OnGeocodeSearchListener() {
+                @Override
+                public void onRegeocodeSearched(com.amap.api.services.geocoder.RegeocodeResult result, int rCode) {
+                    if (!isAdded())
+                        return;
+
+                    String addressName = "附近";
+                    if (rCode == 1000 && result != null && result.getRegeocodeAddress() != null) {
+                        com.amap.api.services.geocoder.RegeocodeAddress address = result.getRegeocodeAddress();
+                        String formatted = address.getFormatAddress();
+                        if (formatted != null && !formatted.isEmpty()) {
+                            addressName = formatted;
+                        } else {
+                            String poi = address.getPois() != null && !address.getPois().isEmpty()
+                                    ? address.getPois().get(0).getTitle()
+                                    : null;
+                            if (poi != null && !poi.isEmpty()) {
+                                addressName = poi;
+                            }
+                        }
+                    }
+
+                    etLocation.setText(addressName);
+                    btnSubmit.setEnabled(true);
+                    btnSubmit.setText("发布");
+                    submit();
+                }
+
+                @Override
+                public void onGeocodeSearched(com.amap.api.services.geocoder.GeocodeResult result, int rCode) {
+                }
+            });
+
+            RegeocodeQuery query = new RegeocodeQuery(new LatLonPoint(lat, lng), 200, GeocodeSearch.AMAP);
+            geocodeSearch.getFromLocationAsyn(query);
+        } catch (Exception e) {
+            Log.e("CreateSquare", "逆地理编码失败", e);
+            etLocation.setText("附近");
+            btnSubmit.setEnabled(true);
+            btnSubmit.setText("发布");
+            submit();
         }
     }
 
@@ -242,6 +297,7 @@ public class CreateSquarePostFragment extends Fragment {
             Toast.makeText(requireContext(), "请输入广播内容", Toast.LENGTH_SHORT).show();
             return;
         }
+        long referencedCatIdInText = extractFirstCatId(text);
         int checkedId = typeGroup.getCheckedChipId();
         String type = "inquiry";
         if (checkedId == R.id.chip_rescue)
@@ -250,13 +306,26 @@ public class CreateSquarePostFragment extends Fragment {
         String loc = etLocation.getText() != null ? etLocation.getText().toString().trim() : "";
         String anno = etAnnotation.getText() != null ? etAnnotation.getText().toString().trim() : "";
 
+        Log.d("CreateSquarePost",
+                "提交时 - loc: [" + loc + "], anno: [" + anno + "], lat: " + currentLat + ", lng: " + currentLng);
+
+        // 如果有坐标但地名为空,先进行逆地理编码
+        if (currentLat != 0 && currentLng != 0 && loc.isEmpty()) {
+            btnSubmit.setEnabled(false);
+            btnSubmit.setText("获取地址中...");
+            reverseGeocode(currentLat, currentLng, text, anno, type, referencedCatIdInText);
+            return;
+        }
+
         String finalLocation = null;
         // 如果有坐标，优先使用坐标格式
         if (currentLat != 0 && currentLng != 0) {
-            finalLocation = currentLat + "," + currentLng;
-            if (!loc.isEmpty()) {
-                finalLocation = currentLat + "," + currentLng + " " + loc;
+            String displayName = loc.isEmpty() ? "附近" : loc;
+            finalLocation = currentLat + "," + currentLng + " " + displayName;
+            if (!anno.isEmpty()) {
+                finalLocation = finalLocation + " (" + anno + ")";
             }
+            Log.d("CreateSquarePost", "最终位置信息: [" + finalLocation + "]");
         } else if (!loc.isEmpty() && !anno.isEmpty()) {
             finalLocation = loc + " (" + anno + ")";
         } else if (!loc.isEmpty()) {
@@ -268,12 +337,11 @@ public class CreateSquarePostFragment extends Fragment {
         // 救助类型校验
         if ("rescue".equals(type)) {
             List<Uri> newUris = imageAdapter.getNewUris();
-            Object refCatIdObj = selectedRefCat != null ? selectedRefCat.get("id") : null;
-            boolean hasCat = refCatIdObj != null && refCatIdObj instanceof Number && ((Number) refCatIdObj).longValue() > 0;
             boolean hasLocation = finalLocation != null && !finalLocation.isEmpty();
             boolean hasImages = !newUris.isEmpty();
-            if (!hasCat && !hasLocation && !hasImages) {
-                Toast.makeText(requireContext(), "发布救助广播需要：添加图片、获取定位或关联猫咪档案", Toast.LENGTH_LONG).show();
+            boolean hasCatTag = referencedCatIdInText > 0;
+            if (!(hasCatTag || (hasLocation && hasImages))) {
+                Toast.makeText(requireContext(), "发布救助帖需要：正文插入猫咪档案，或同时提供定位和照片", Toast.LENGTH_LONG).show();
                 return;
             }
         }
@@ -282,17 +350,21 @@ public class CreateSquarePostFragment extends Fragment {
         btnSubmit.setText("发布中...");
 
         List<Uri> newUris = imageAdapter.getNewUris();
+        long finalReferencedCatId = referencedCatIdInText > 0 ? referencedCatIdInText
+                : (selectedRefCat != null && selectedRefCat.get("id") instanceof Number
+                        ? ((Number) selectedRefCat.get("id")).longValue()
+                        : 0L);
         if (newUris.isEmpty()) {
-            doCreatePost(text, new ArrayList<>(), finalLocation, type);
+            doCreatePost(text, new ArrayList<>(), finalLocation, type, finalReferencedCatId);
         } else {
-            uploadImages(newUris, 0, new ArrayList<>(), text, finalLocation, type);
+            uploadImages(newUris, 0, new ArrayList<>(), text, finalLocation, type, finalReferencedCatId);
         }
     }
 
     private void uploadImages(List<Uri> uris, int index, List<String> urls,
-            String text, String location, String type) {
+            String text, String location, String type, long referencedCatId) {
         if (index >= uris.size()) {
-            doCreatePost(text, urls, location, type);
+            doCreatePost(text, urls, location, type, referencedCatId);
             return;
         }
         Uri uri = uris.get(index);
@@ -316,7 +388,8 @@ public class CreateSquarePostFragment extends Fragment {
                             String ct = response.body().get("contentType");
                             if (ct == null)
                                 ct = finalMimeType;
-                            doUploadFile(uri, uploadUrl, publicUrl, ct, uris, index, urls, text, location, type);
+                            doUploadFile(uri, uploadUrl, publicUrl, ct, uris, index, urls, text, location, type,
+                                    referencedCatId);
                         } else {
                             onFail("获取上传URL失败");
                         }
@@ -331,7 +404,7 @@ public class CreateSquarePostFragment extends Fragment {
 
     private void doUploadFile(Uri uri, String uploadUrl, String publicUrl, String contentType,
             List<Uri> uris, int index, List<String> urls,
-            String text, String location, String type) {
+            String text, String location, String type, long referencedCatId) {
         new Thread(() -> {
             try {
                 File tempFile = uriToTempFile(uri);
@@ -339,7 +412,8 @@ public class CreateSquarePostFragment extends Fragment {
                 uploader.uploadWithPresign(uploadUrl, publicUrl, tempFile, contentType);
                 urls.add(publicUrl);
                 tempFile.delete();
-                requireActivity().runOnUiThread(() -> uploadImages(uris, index + 1, urls, text, location, type));
+                requireActivity().runOnUiThread(
+                        () -> uploadImages(uris, index + 1, urls, text, location, type, referencedCatId));
             } catch (Exception e) {
                 requireActivity().runOnUiThread(() -> onFail("上传失败: " + e.getMessage()));
             }
@@ -365,31 +439,31 @@ public class CreateSquarePostFragment extends Fragment {
         Toast.makeText(requireContext(), msg, Toast.LENGTH_SHORT).show();
     }
 
-    private void doCreatePost(String text, List<String> imageUrls, String location, String type) {
+    private void doCreatePost(String text, List<String> imageUrls, String location, String type, long referencedCatId) {
         Map<String, Object> body = new HashMap<>();
         body.put("text", text);
         body.put("images", imageUrls);
         body.put("type", type);
         if (location != null)
             body.put("location", location);
-        if (selectedRefCat != null && selectedRefCat.get("id") != null)
-            body.put("referencedCatId", ((Number) selectedRefCat.get("id")).longValue());
+        if (referencedCatId > 0)
+            body.put("referencedCatId", referencedCatId);
 
         // 如果是救助类型，创建一个救助活动
         if ("rescue".equals(type) && location != null && !location.isEmpty()) {
-            createRescueActivityAndPost(text, imageUrls, location, type, location);
+            createRescueActivityAndPost(text, imageUrls, location, type, location, referencedCatId);
         } else {
             doCreatePost(body);
         }
     }
 
-    private void createRescueActivityAndPost(String text, List<String> imageUrls, String location, 
-            String type, String finalLocation) {
+    private void createRescueActivityAndPost(String text, List<String> imageUrls, String location,
+            String type, String finalLocation, long referencedCatId) {
         // 先创建救助活动
         Map<String, Object> activityBody = new HashMap<>();
         activityBody.put("title", "救助广播");
         activityBody.put("description", text);
-        
+
         // 解析坐标
         if (finalLocation != null && finalLocation.contains(",")) {
             String[] parts = finalLocation.split(" ");
@@ -397,23 +471,32 @@ public class CreateSquarePostFragment extends Fragment {
                 String[] coords = parts[0].split(",");
                 if (coords.length >= 2) {
                     try {
-                        activityBody.put("latitude", Double.parseDouble(coords[0].trim()));
-                        activityBody.put("longitude", Double.parseDouble(coords[1].trim()));
-                    } catch (NumberFormatException ignored) {}
+                        String a = coords[0].trim();
+                        String b = coords[1].trim();
+                        if (a.matches("-?\\d+(\\.\\d+)?") && b.matches("-?\\d+(\\.\\d+)?")) {
+                            activityBody.put("latitude", Double.parseDouble(a));
+                            activityBody.put("longitude", Double.parseDouble(b));
+                        }
+                    } catch (NumberFormatException ignored) {
+                    }
                 }
             }
         }
-        
-        // 关联猫咪
-        if (selectedRefCat != null && selectedRefCat.get("id") != null) {
-            activityBody.put("catId", ((Number) selectedRefCat.get("id")).longValue());
+
+        String locationName = extractLocationName(location);
+        if (locationName != null && !locationName.isEmpty()) {
+            activityBody.put("locationName", locationName);
         }
-        
+
+        // 关联猫咪
+        if (referencedCatId > 0)
+            activityBody.put("catId", referencedCatId);
+
         RetrofitHelper.get().create(com.ourcat.app.repositories.RescueApi.class)
                 .createActivity(activityBody)
                 .enqueue(new Callback<Map<String, Object>>() {
                     @Override
-                    public void onResponse(Call<Map<String, Object>> call, 
+                    public void onResponse(Call<Map<String, Object>> call,
                             Response<Map<String, Object>> response) {
                         if (response.isSuccessful() && response.body() != null) {
                             // 救助活动创建成功，获取活动ID
@@ -421,7 +504,7 @@ public class CreateSquarePostFragment extends Fragment {
                             if (activityIdObj != null) {
                                 long activityId = ((Number) activityIdObj).longValue();
                                 Log.d("CreateSquarePost", "救助活动创建成功: " + activityId);
-                                
+
                                 // 创建广播并关联救助活动
                                 Map<String, Object> postBody = new HashMap<>();
                                 postBody.put("text", text);
@@ -429,10 +512,10 @@ public class CreateSquarePostFragment extends Fragment {
                                 postBody.put("type", type);
                                 if (location != null)
                                     postBody.put("location", location);
-                                if (selectedRefCat != null && selectedRefCat.get("id") != null)
-                                    postBody.put("referencedCatId", ((Number) selectedRefCat.get("id")).longValue());
+                                if (referencedCatId > 0)
+                                    postBody.put("referencedCatId", referencedCatId);
                                 postBody.put("rescueActivityId", activityId);
-                                
+
                                 doCreatePost(postBody);
                                 return;
                             }
@@ -445,8 +528,8 @@ public class CreateSquarePostFragment extends Fragment {
                         postBody.put("type", type);
                         if (location != null)
                             postBody.put("location", location);
-                        if (selectedRefCat != null && selectedRefCat.get("id") != null)
-                            postBody.put("referencedCatId", ((Number) selectedRefCat.get("id")).longValue());
+                        if (referencedCatId > 0)
+                            postBody.put("referencedCatId", referencedCatId);
                         doCreatePost(postBody);
                     }
 
@@ -460,11 +543,46 @@ public class CreateSquarePostFragment extends Fragment {
                         postBody.put("type", type);
                         if (location != null)
                             postBody.put("location", location);
-                        if (selectedRefCat != null && selectedRefCat.get("id") != null)
-                            postBody.put("referencedCatId", ((Number) selectedRefCat.get("id")).longValue());
+                        if (referencedCatId > 0)
+                            postBody.put("referencedCatId", referencedCatId);
                         doCreatePost(postBody);
                     }
                 });
+    }
+
+    private String extractLocationName(String location) {
+        if (location == null || location.trim().isEmpty()) {
+            return "";
+        }
+        String t = location.trim();
+        int annoIdx = t.lastIndexOf(" (");
+        if (annoIdx > 0 && t.endsWith(")")) {
+            t = t.substring(0, annoIdx).trim();
+        }
+        int space = t.indexOf(' ');
+        if (space > 0) {
+            String prefix = t.substring(0, space);
+            if (prefix.matches("-?\\d+(\\.\\d+)?,-?\\d+(\\.\\d+)?")) {
+                return t.substring(space + 1).trim();
+            }
+        }
+        if (t.matches("-?\\d+(\\.\\d+)?,-?\\d+(\\.\\d+)?")) {
+            return "附近";
+        }
+        return t;
+    }
+
+    private long extractFirstCatId(String text) {
+        if (text == null || text.isEmpty())
+            return 0L;
+        Matcher matcher = CAT_TAG_PATTERN.matcher(text);
+        if (!matcher.find())
+            return 0L;
+        try {
+            return Long.parseLong(matcher.group(1));
+        } catch (Exception ignored) {
+            return 0L;
+        }
     }
 
     private void doCreatePost(Map<String, Object> body) {
@@ -479,6 +597,12 @@ public class CreateSquarePostFragment extends Fragment {
                             Toast.makeText(requireContext(), "发布成功", Toast.LENGTH_SHORT).show();
                             Navigation.findNavController(requireView()).navigateUp();
                         } else {
+                            if (response.code() == 500) {
+                                btnSubmit.setEnabled(false);
+                                btnSubmit.setText("确认中...");
+                                confirmCreatedAfterServerError(body);
+                                return;
+                            }
                             String errorMsg = "发布失败: " + response.code();
                             try {
                                 if (response.errorBody() != null) {
@@ -492,7 +616,8 @@ public class CreateSquarePostFragment extends Fragment {
                                         }
                                     }
                                 }
-                            } catch (Exception ignored) {}
+                            } catch (Exception ignored) {
+                            }
                             Toast.makeText(requireContext(), errorMsg, Toast.LENGTH_SHORT).show();
                         }
                     }
@@ -504,5 +629,103 @@ public class CreateSquarePostFragment extends Fragment {
                         Toast.makeText(requireContext(), "网络错误", Toast.LENGTH_SHORT).show();
                     }
                 });
+    }
+
+    @SuppressWarnings("unchecked")
+    private void confirmCreatedAfterServerError(Map<String, Object> originalBody) {
+        confirmCreatedAfterServerError(originalBody, 0);
+    }
+
+    @SuppressWarnings("unchecked")
+    private void confirmCreatedAfterServerError(Map<String, Object> originalBody, int attempt) {
+        RetrofitHelper.get().create(com.ourcat.app.repositories.SquareApi.class)
+                .listPosts(0, 50, "createdAt,desc")
+                .enqueue(new Callback<Map<String, Object>>() {
+                    @Override
+                    public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
+                        if (!response.isSuccessful() || response.body() == null) {
+                            onConfirmFailed(attempt, originalBody);
+                            return;
+                        }
+                        Object contentObj = response.body().get("content");
+                        if (!(contentObj instanceof List)) {
+                            onConfirmFailed(attempt, originalBody);
+                            return;
+                        }
+                        for (Object o : (List<?>) contentObj) {
+                            if (!(o instanceof Map)) {
+                                continue;
+                            }
+                            Map<String, Object> post = (Map<String, Object>) o;
+                            if (matchesCreatedPost(originalBody, post)) {
+                                btnSubmit.setEnabled(true);
+                                btnSubmit.setText("发布");
+                                Toast.makeText(requireContext(), "发布成功", Toast.LENGTH_SHORT).show();
+                                Navigation.findNavController(requireView()).navigateUp();
+                                return;
+                            }
+                        }
+                        onConfirmFailed(attempt, originalBody);
+                    }
+
+                    @Override
+                    public void onFailure(Call<Map<String, Object>> call, Throwable t) {
+                        onConfirmFailed(attempt, originalBody);
+                    }
+                });
+    }
+
+    private void onConfirmFailed(int attempt, Map<String, Object> originalBody) {
+        if (!isAdded()) {
+            return;
+        }
+        if (attempt < 2) {
+            new Handler(Looper.getMainLooper()).postDelayed(() -> {
+                if (!isAdded()) {
+                    return;
+                }
+                confirmCreatedAfterServerError(originalBody, attempt + 1);
+            }, 900L);
+            return;
+        }
+        btnSubmit.setEnabled(true);
+        btnSubmit.setText("发布");
+        Toast.makeText(requireContext(), "服务器返回异常，请到广场确认是否已发布", Toast.LENGTH_SHORT).show();
+    }
+
+    private boolean matchesCreatedPost(Map<String, Object> originalBody, Map<String, Object> post) {
+        if (originalBody == null || post == null) {
+            return false;
+        }
+
+        long rescueActivityId = originalBody.get("rescueActivityId") instanceof Number
+                ? ((Number) originalBody.get("rescueActivityId")).longValue()
+                : 0L;
+        if (rescueActivityId > 0) {
+            long pActivityId = post.get("rescueActivityId") instanceof Number
+                    ? ((Number) post.get("rescueActivityId")).longValue()
+                    : 0L;
+            return pActivityId == rescueActivityId;
+        }
+
+        String text = originalBody.get("text") != null ? String.valueOf(originalBody.get("text")) : "";
+        String type = originalBody.get("type") != null ? String.valueOf(originalBody.get("type")) : "";
+        long referencedCatId = originalBody.get("referencedCatId") instanceof Number
+                ? ((Number) originalBody.get("referencedCatId")).longValue()
+                : 0L;
+
+        String pText = post.get("text") != null ? String.valueOf(post.get("text")) : "";
+        String pType = post.get("type") != null ? String.valueOf(post.get("type")) : "";
+        long pRefCatId = post.get("referencedCatId") instanceof Number
+                ? ((Number) post.get("referencedCatId")).longValue()
+                : 0L;
+
+        if (!text.equals(pText) || !type.equals(pType)) {
+            return false;
+        }
+        if (referencedCatId > 0 && referencedCatId != pRefCatId) {
+            return false;
+        }
+        return true;
     }
 }

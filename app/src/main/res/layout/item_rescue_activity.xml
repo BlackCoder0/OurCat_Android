@@ -14,8 +14,7 @@
         android:padding="12dp">
 
         <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical">
-            <TextView android:id="@+id/item_rescue_urgency" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="紧急" android:textSize="11sp" android:paddingHorizontal="6dp" android:paddingVertical="2dp" />
-            <TextView android:id="@+id/item_rescue_status" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="8dp" android:textSize="12sp" android:textColor="@color/text_secondary" />
+            <TextView android:id="@+id/item_rescue_status" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textSize="12sp" android:textColor="@color/text_secondary" />
             <View android:layout_width="0dp" android:layout_height="0dp" android:layout_weight="1" />
             <TextView android:id="@+id/item_rescue_time" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textSize="12sp" android:textColor="@color/text_secondary" />
         </LinearLayout>

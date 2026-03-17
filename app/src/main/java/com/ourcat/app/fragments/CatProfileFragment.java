@@ -223,27 +223,12 @@ public class CatProfileFragment extends Fragment {
         EditText descInput = new EditText(requireContext());
         descInput.setHint("描述（选填）");
         descInput.setMinLines(2);
-        final String[] urgencies = new String[] { "normal", "urgent" };
-        final int[] selected = new int[] { 0 };
-        android.widget.RadioGroup radio = new android.widget.RadioGroup(requireContext());
-        radio.setOrientation(android.widget.LinearLayout.HORIZONTAL);
-        android.widget.RadioButton rbNormal = new android.widget.RadioButton(requireContext());
-        rbNormal.setText("普通");
-        rbNormal.setId(View.generateViewId());
-        android.widget.RadioButton rbUrgent = new android.widget.RadioButton(requireContext());
-        rbUrgent.setText("紧急");
-        rbUrgent.setId(View.generateViewId());
-        radio.addView(rbNormal);
-        radio.addView(rbUrgent);
-        rbNormal.setChecked(true);
-        radio.setOnCheckedChangeListener((g, id) -> selected[0] = id == rbUrgent.getId() ? 1 : 0);
 
         android.widget.LinearLayout layout = new android.widget.LinearLayout(requireContext());
         layout.setOrientation(android.widget.LinearLayout.VERTICAL);
         layout.setPadding(50, 40, 50, 10);
         layout.addView(titleInput);
         layout.addView(descInput);
-        layout.addView(radio);
 
         new AlertDialog.Builder(requireContext())
                 .setTitle("发起救助")
@@ -258,7 +243,6 @@ public class CatProfileFragment extends Fragment {
                     body.put("title", title);
                     body.put("description", descInput.getText().toString().trim());
                     body.put("catId", catId);
-                    body.put("urgency", urgencies[selected[0]]);
                     RetrofitHelper.get().create(RescueApi.class).createActivity(body)
                             .enqueue(new Callback<Map<String, Object>>() {
                                 @Override

@@ -79,9 +79,8 @@ public class RescueDetailFragment extends Fragment {
                         }
                         Map<String, Object> activity = response.body();
                         detailTitle.setText(stringValue(activity.get("title")));
-                        String urgency = stringValue(activity.get("urgency"));
                         String status = stringValue(activity.get("status"));
-                        detailUrgencyStatus.setText(("urgent".equals(urgency) ? "紧急 · " : "") + status);
+                        detailUrgencyStatus.setText(status);
                         detailDescription.setText(stringValue(activity.get("description")));
 
                         long squarePostId = longValue(activity.get("squarePostId"));

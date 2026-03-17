@@ -16,13 +16,20 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
+import com.amap.api.services.core.LatLonPoint;
+import com.amap.api.services.geocoder.GeocodeSearch;
+import com.amap.api.services.geocoder.RegeocodeAddress;
+import com.amap.api.services.geocoder.RegeocodeQuery;
+import com.amap.api.services.geocoder.RegeocodeResult;
 import com.google.android.material.chip.ChipGroup;
 import com.ourcat.app.R;
+import com.ourcat.app.repositories.RescueApi;
 import com.ourcat.app.repositories.SquareApi;
 import com.ourcat.app.utils.RetrofitHelper;
 import com.ourcat.app.utils.TimeUtils;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -39,9 +46,36 @@ public class SquareFragment extends Fragment {
     private SwipeRefreshLayout refreshLayout;
     private ChipGroup sortGroup;
     private final List<Map<String, Object>> items = new ArrayList<>();
-    private RecyclerView.Adapter<RecyclerView.ViewHolder> adapter;
+    private RecyclerView.Adapter<SquarePostViewHolder> adapter;
     private static final String KEY_LAYOUT_STATE = "square_layout_state";
     private Parcelable pendingLayoutState;
+    private final Map<String, String> reverseGeocodeCache = new HashMap<>();
+    private final java.util.Set<String> reverseGeocodeInFlight = new java.util.HashSet<>();
+
+    private static class SquarePostViewHolder extends RecyclerView.ViewHolder {
+        final TextView type;
+        final TextView status;
+        final TextView text;
+        final TextView location;
+        final TextView time;
+        final View container;
+        final View refCatRow;
+        final android.widget.ImageView refCatAvatar;
+        final TextView refCatName;
+
+        SquarePostViewHolder(@NonNull View itemView) {
+            super(itemView);
+            type = itemView.findViewById(R.id.item_square_type);
+            status = itemView.findViewById(R.id.item_square_status);
+            text = itemView.findViewById(R.id.item_square_text);
+            location = itemView.findViewById(R.id.item_square_location);
+            time = itemView.findViewById(R.id.item_square_time);
+            container = itemView.findViewById(R.id.item_square_container);
+            refCatRow = itemView.findViewById(R.id.item_square_ref_cat);
+            refCatAvatar = itemView.findViewById(R.id.item_square_ref_cat_avatar);
+            refCatName = itemView.findViewById(R.id.item_square_ref_cat_name);
+        }
+    }
 
     @Nullable
     @Override
@@ -56,38 +90,16 @@ public class SquareFragment extends Fragment {
         sortGroup = view.findViewById(R.id.square_sort_group);
         recyclerView.setLayoutManager(new LinearLayoutManager(requireContext()));
 
-        adapter = new RecyclerView.Adapter<RecyclerView.ViewHolder>() {
-            class ViewHolder extends RecyclerView.ViewHolder {
-                TextView type, status, text, location, time;
-                View container;
-                View refCatRow;
-                android.widget.ImageView refCatAvatar;
-                TextView refCatName;
-
-                ViewHolder(View itemView) {
-                    super(itemView);
-                    type = itemView.findViewById(R.id.item_square_type);
-                    status = itemView.findViewById(R.id.item_square_status);
-                    text = itemView.findViewById(R.id.item_square_text);
-                    location = itemView.findViewById(R.id.item_square_location);
-                    time = itemView.findViewById(R.id.item_square_time);
-                    container = itemView.findViewById(R.id.item_square_container);
-                    refCatRow = itemView.findViewById(R.id.item_square_ref_cat);
-                    refCatAvatar = itemView.findViewById(R.id.item_square_ref_cat_avatar);
-                    refCatName = itemView.findViewById(R.id.item_square_ref_cat_name);
-                }
-            }
-
+        adapter = new RecyclerView.Adapter<SquarePostViewHolder>() {
             @NonNull
             @Override
-            public RecyclerView.ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+            public SquarePostViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
                 View v = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_square_post, parent, false);
-                return new ViewHolder(v);
+                return new SquarePostViewHolder(v);
             }
 
             @Override
-            public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holderRaw, int position) {
-                ViewHolder holder = (ViewHolder) holderRaw;
+            public void onBindViewHolder(@NonNull SquarePostViewHolder holder, int position) {
                 Map<String, Object> item = items.get(position);
                 String t = (String) item.get("type");
                 String s = (String) item.get("status");
@@ -102,19 +114,7 @@ public class SquareFragment extends Fragment {
                 holder.text.setText(txt);
                 holder.time.setText(TimeUtils.getRelativeTime((String) item.get("createdAt")));
 
-                if (loc != null) {
-                    holder.location.setVisibility(View.VISIBLE);
-                    holder.location.setText(loc.toString());
-                    android.graphics.drawable.Drawable locationIcon = androidx.core.content.ContextCompat
-                            .getDrawable(holder.itemView.getContext(), android.R.drawable.ic_menu_mylocation);
-                    if (locationIcon != null) {
-                        int iconSizePx = (int) (holder.itemView.getResources().getDisplayMetrics().density * 14);
-                        locationIcon.setBounds(0, 0, iconSizePx, iconSizePx);
-                        holder.location.setCompoundDrawablesRelative(locationIcon, null, null, null);
-                    }
-                } else {
-                    holder.location.setVisibility(View.GONE);
-                }
+                bindLocationForList(holder, loc);
 
                 Object refCat = item.get("referencedCat");
                 Object refCatId = item.get("referencedCatId");
@@ -130,12 +130,8 @@ public class SquareFragment extends Fragment {
                     } else {
                         holder.refCatAvatar.setImageResource(R.drawable.ic_default_avatar);
                     }
-                    long catId = ((Number) refCatId).longValue();
-                    holder.refCatRow.setOnClickListener(v -> {
-                        Bundle args = new Bundle();
-                        args.putLong("catId", catId);
-                        Navigation.findNavController(v).navigate(R.id.cat_profile, args);
-                    });
+                    holder.refCatRow.setOnClickListener(null);
+                    holder.refCatRow.setClickable(false);
                 } else {
                     holder.refCatRow.setVisibility(View.GONE);
                 }
@@ -193,31 +189,293 @@ public class SquareFragment extends Fragment {
         return view;
     }
 
+    private void bindLocationForList(@NonNull SquarePostViewHolder holder, @Nullable Object loc) {
+        String raw = loc != null ? loc.toString() : "";
+        String t = raw.trim();
+        if (t.isEmpty()) {
+            holder.location.setVisibility(View.GONE);
+            holder.location.setTag(null);
+            return;
+        }
+
+        holder.location.setVisibility(View.VISIBLE);
+        android.graphics.drawable.Drawable locationIcon = androidx.core.content.ContextCompat
+                .getDrawable(holder.itemView.getContext(), R.drawable.ic_map_crosshair);
+        if (locationIcon != null) {
+            int iconSizePx = (int) (holder.itemView.getResources().getDisplayMetrics().density * 14);
+            locationIcon.setBounds(0, 0, iconSizePx, iconSizePx);
+            holder.location.setCompoundDrawablesRelative(locationIcon, null, null, null);
+        }
+
+        String explicitName = extractNameAfterLatLng(t);
+        if (explicitName != null && !explicitName.isEmpty()) {
+            holder.location.setTag(null);
+            holder.location.setText(explicitName);
+            return;
+        }
+
+        String coords = extractLatLngPrefix(t);
+        if (coords != null && isPureLatLng(t)) {
+            holder.location.setTag(coords);
+            String cached = reverseGeocodeCache.get(coords);
+            if (cached != null && !cached.isEmpty()) {
+                holder.location.setText(cached);
+                return;
+            }
+            holder.location.setText("定位中...");
+            requestReverseGeocode(coords);
+            return;
+        }
+
+        holder.location.setTag(null);
+        holder.location.setText(t);
+    }
+
+    @Nullable
+    private String extractLatLngPrefix(@NonNull String raw) {
+        String t = raw.trim();
+        int space = t.indexOf(' ');
+        String head = space > 0 ? t.substring(0, space).trim() : t;
+        if (head.matches("-?\\d+(\\.\\d+)?,-?\\d+(\\.\\d+)?")) {
+            return head;
+        }
+        return null;
+    }
+
+    @Nullable
+    private String extractNameAfterLatLng(@NonNull String raw) {
+        String t = raw.trim();
+        int space = t.indexOf(' ');
+        if (space <= 0) {
+            return null;
+        }
+        String prefix = t.substring(0, space).trim();
+        if (!prefix.matches("-?\\d+(\\.\\d+)?,-?\\d+(\\.\\d+)?")) {
+            return null;
+        }
+        String rest = t.substring(space + 1).trim();
+        return rest.isEmpty() ? null : rest;
+    }
+
+    private boolean isPureLatLng(@NonNull String raw) {
+        String t = raw.trim();
+        return t.matches("-?\\d+(\\.\\d+)?,-?\\d+(\\.\\d+)?");
+    }
+
+    private void requestReverseGeocode(@NonNull String coords) {
+        if (!isAdded()) {
+            return;
+        }
+        if (reverseGeocodeCache.containsKey(coords) || reverseGeocodeInFlight.contains(coords)) {
+            return;
+        }
+        reverseGeocodeInFlight.add(coords);
+        try {
+            String[] parts = coords.split(",");
+            if (parts.length != 2) {
+                reverseGeocodeInFlight.remove(coords);
+                reverseGeocodeCache.put(coords, "附近");
+                updateVisibleLocationViews(coords, "附近");
+                return;
+            }
+            double lat = Double.parseDouble(parts[0].trim());
+            double lng = Double.parseDouble(parts[1].trim());
+
+            GeocodeSearch geocodeSearch = new GeocodeSearch(requireContext());
+            geocodeSearch.setOnGeocodeSearchListener(new GeocodeSearch.OnGeocodeSearchListener() {
+                @Override
+                public void onRegeocodeSearched(RegeocodeResult result, int rCode) {
+                    if (!isAdded()) {
+                        return;
+                    }
+                    String addressName = "附近";
+                    if (rCode == 1000 && result != null && result.getRegeocodeAddress() != null) {
+                        RegeocodeAddress address = result.getRegeocodeAddress();
+                        String aoi = address.getAois() != null && !address.getAois().isEmpty()
+                                && address.getAois().get(0) != null
+                                        ? address.getAois().get(0).getAoiName()
+                                        : null;
+                        String poi = address.getPois() != null && !address.getPois().isEmpty()
+                                && address.getPois().get(0) != null
+                                        ? address.getPois().get(0).getTitle()
+                                        : null;
+                        String neighborhood = address.getNeighborhood();
+                        String township = address.getTownship();
+                        String district = address.getDistrict();
+                        String city = address.getCity();
+                        String province = address.getProvince();
+                        String formatted = address.getFormatAddress();
+
+                        if (aoi != null && !aoi.trim().isEmpty()) {
+                            addressName = aoi.trim();
+                        } else if (poi != null && !poi.trim().isEmpty()) {
+                            addressName = poi.trim();
+                        } else if (neighborhood != null && !neighborhood.trim().isEmpty()) {
+                            addressName = neighborhood.trim();
+                        } else if (township != null && !township.trim().isEmpty()) {
+                            addressName = township.trim();
+                        } else if (district != null && !district.trim().isEmpty()) {
+                            addressName = district.trim();
+                        } else if (city != null && !city.trim().isEmpty()) {
+                            addressName = city.trim();
+                        } else if (province != null && !province.trim().isEmpty()) {
+                            addressName = province.trim();
+                        } else if (formatted != null && !formatted.trim().isEmpty()) {
+                            addressName = formatted.trim();
+                        }
+                        if (addressName.startsWith("中华人民共和国")) {
+                            addressName = addressName.substring("中华人民共和国".length()).trim();
+                        }
+                        if (addressName.startsWith("中国")) {
+                            addressName = addressName.substring("中国".length()).trim();
+                        }
+                        if (addressName.isEmpty() || "中华人民共和国".equals(addressName) || "中国".equals(addressName)) {
+                            addressName = "附近";
+                        }
+                    }
+                    reverseGeocodeInFlight.remove(coords);
+                    reverseGeocodeCache.put(coords, addressName);
+                    updateVisibleLocationViews(coords, addressName);
+                }
+
+                @Override
+                public void onGeocodeSearched(com.amap.api.services.geocoder.GeocodeResult result, int rCode) {
+                }
+            });
+
+            RegeocodeQuery query = new RegeocodeQuery(new LatLonPoint(lat, lng), 200, GeocodeSearch.AMAP);
+            geocodeSearch.getFromLocationAsyn(query);
+        } catch (Exception e) {
+            reverseGeocodeInFlight.remove(coords);
+            reverseGeocodeCache.put(coords, "附近");
+            updateVisibleLocationViews(coords, "附近");
+        }
+    }
+
+    private void updateVisibleLocationViews(@NonNull String coords, @NonNull String addressName) {
+        if (recyclerView == null) {
+            return;
+        }
+        recyclerView.post(() -> {
+            if (recyclerView == null) {
+                return;
+            }
+            for (int i = 0; i < recyclerView.getChildCount(); i++) {
+                View child = recyclerView.getChildAt(i);
+                if (child == null) {
+                    continue;
+                }
+                TextView tv = child.findViewById(R.id.item_square_location);
+                if (tv != null && coords.equals(tv.getTag())) {
+                    tv.setText(addressName);
+                }
+            }
+        });
+    }
+
+    private String formatLocationForDisplay(String raw) {
+        if (raw == null) {
+            return "";
+        }
+        String t = raw.trim();
+        int space = t.indexOf(' ');
+        if (space > 0) {
+            String prefix = t.substring(0, space);
+            if (prefix.matches("-?\\d+(\\.\\d+)?,-?\\d+(\\.\\d+)?")) {
+                String rest = t.substring(space + 1).trim();
+                if (!rest.isEmpty()) {
+                    return rest;
+                }
+                return "附近";
+            }
+        }
+        if (t.matches("-?\\d+(\\.\\d+)?,-?\\d+(\\.\\d+)?")) {
+            return "附近";
+        }
+        return t;
+    }
+
+    private boolean hasCoordinates(String location) {
+        if (location == null || location.trim().isEmpty()) {
+            return false;
+        }
+        String t = location.trim();
+        // 检查是否包含坐标格式 "lat,lng"
+        return t.matches("-?\\d+(\\.\\d+)?,-?\\d+(\\.\\d+)?.*");
+    }
+
     private void deletePost(long postId) {
         new androidx.appcompat.app.AlertDialog.Builder(requireContext())
                 .setTitle("确认删除")
                 .setMessage("确定要删除这条广播吗？")
                 .setPositiveButton("删除", (d, w) -> {
-                    RetrofitHelper.get().create(SquareApi.class).deletePost(postId)
-                            .enqueue(new Callback<Void>() {
+                    RetrofitHelper.get().create(SquareApi.class).getPost(postId)
+                            .enqueue(new Callback<Map<String, Object>>() {
                                 @Override
-                                public void onResponse(Call<Void> call, Response<Void> response) {
-                                    if (response.isSuccessful()) {
-                                        Toast.makeText(requireContext(), "删除成功", Toast.LENGTH_SHORT).show();
-                                        loadPosts();
-                                    } else {
-                                        Toast.makeText(requireContext(), "删除失败: 无权限", Toast.LENGTH_SHORT).show();
+                                public void onResponse(Call<Map<String, Object>> call,
+                                        Response<Map<String, Object>> response) {
+                                    long rescueActivityId = 0L;
+                                    String type = "";
+                                    if (response.isSuccessful() && response.body() != null) {
+                                        Map<String, Object> post = response.body();
+                                        type = post.get("type") != null ? String.valueOf(post.get("type")) : "";
+                                        Object activityIdObj = post.get("rescueActivityId");
+                                        if (activityIdObj instanceof Number) {
+                                            rescueActivityId = ((Number) activityIdObj).longValue();
+                                        }
                                     }
+
+                                    if ("rescue".equals(type) && rescueActivityId > 0) {
+                                        Map<String, String> body = new HashMap<>();
+                                        body.put("status", "completed");
+                                        RetrofitHelper.get().create(RescueApi.class)
+                                                .updateActivityStatus(rescueActivityId, body)
+                                                .enqueue(new Callback<Map<String, Object>>() {
+                                                    @Override
+                                                    public void onResponse(Call<Map<String, Object>> call,
+                                                            Response<Map<String, Object>> response) {
+                                                        performDeletePost(postId);
+                                                    }
+
+                                                    @Override
+                                                    public void onFailure(Call<Map<String, Object>> call, Throwable t) {
+                                                        performDeletePost(postId);
+                                                    }
+                                                });
+                                        return;
+                                    }
+
+                                    performDeletePost(postId);
                                 }
 
                                 @Override
-                                public void onFailure(Call<Void> call, Throwable t) {
-                                    Toast.makeText(requireContext(), "网络错误", Toast.LENGTH_SHORT).show();
+                                public void onFailure(Call<Map<String, Object>> call, Throwable t) {
+                                    performDeletePost(postId);
                                 }
                             });
                 })
                 .setNegativeButton("取消", null)
                 .show();
+    }
+
+    private void performDeletePost(long postId) {
+        RetrofitHelper.get().create(SquareApi.class).deletePost(postId)
+                .enqueue(new Callback<Void>() {
+                    @Override
+                    public void onResponse(Call<Void> call, Response<Void> response) {
+                        if (response.isSuccessful()) {
+                            Toast.makeText(requireContext(), "删除成功", Toast.LENGTH_SHORT).show();
+                            loadPosts();
+                        } else {
+                            Toast.makeText(requireContext(), "删除失败: 无权限", Toast.LENGTH_SHORT).show();
+                        }
+                    }
+
+                    @Override
+                    public void onFailure(Call<Void> call, Throwable t) {
+                        Toast.makeText(requireContext(), "网络错误", Toast.LENGTH_SHORT).show();
+                    }
+                });
     }
 
     private String getCurrentFilter() {
@@ -300,5 +558,19 @@ public class SquareFragment extends Fragment {
                 pendingLayoutState = null;
             }
         });
+    }
+
+    @Override
+    public void onDestroyView() {
+        super.onDestroyView();
+        reverseGeocodeCache.clear();
+        reverseGeocodeInFlight.clear();
+        if (recyclerView != null) {
+            recyclerView.setAdapter(null);
+        }
+        recyclerView = null;
+        refreshLayout = null;
+        sortGroup = null;
+        adapter = null;
     }
 }

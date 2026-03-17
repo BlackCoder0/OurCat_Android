@@ -4,6 +4,7 @@ import android.content.res.ColorStateList;
 import android.graphics.Color;
 import android.os.Build;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -29,6 +30,7 @@ import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import com.ourcat.app.R;
 import com.ourcat.app.adapters.ImagePagerAdapter;
+import com.ourcat.app.repositories.CatApi;
 import com.ourcat.app.repositories.RescueApi;
 import com.ourcat.app.repositories.SquareApi;
 import com.ourcat.app.utils.CatTagUtils;
@@ -38,6 +40,7 @@ import com.ourcat.app.utils.TimeUtils;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 import retrofit2.Call;
@@ -54,14 +57,19 @@ public class SquareDetailFragment extends Fragment {
 
     private View resolvedOverlay;
     private Chip typeChip;
-    private TextView statusText;
-    private TextView authorText;
+    private TextView authorText, timeText;
     private ImageView authorAvatar;
     private TextView textView;
     private ViewPager2 imagePager;
     private ImagePagerAdapter imagePagerAdapter;
+    private View metaBlock;
+    private View locationRow;
+    private ImageView locationIcon;
     private TextView locationText;
+    private TextView locationAnnotationText;
+    private TextView locationMismatchHintText;
     private MaterialButton btnMarkSolved;
+    private View rescueCardContainer;
     private View rescueActivityCard;
     private TextView rescueActivityTitle;
     private TextView rescueActivityStatus;
@@ -76,6 +84,7 @@ public class SquareDetailFragment extends Fragment {
     private TextView refCatName;
     private ViewGroup commentsContainer;
     private EditText commentInput;
+    private static final double CAT_LOCATION_MISMATCH_THRESHOLD_METERS = 3000.0;
 
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
@@ -92,8 +101,8 @@ public class SquareDetailFragment extends Fragment {
         View view = inflater.inflate(R.layout.fragment_square_detail, container, false);
         resolvedOverlay = view.findViewById(R.id.square_resolved_overlay);
         typeChip = view.findViewById(R.id.square_detail_type);
-        statusText = view.findViewById(R.id.square_detail_status);
         authorText = view.findViewById(R.id.square_detail_author);
+        timeText = view.findViewById(R.id.square_detail_time);
         authorAvatar = view.findViewById(R.id.square_detail_avatar);
         if (Build.VERSION.SDK_INT >= 26) {
             authorAvatar.setDefaultFocusHighlightEnabled(false);
@@ -104,8 +113,14 @@ public class SquareDetailFragment extends Fragment {
         authorAvatar.setFocusable(false);
         textView = view.findViewById(R.id.square_detail_text);
         imagePager = view.findViewById(R.id.square_detail_image_pager);
+        metaBlock = view.findViewById(R.id.square_detail_meta_block);
+        locationRow = view.findViewById(R.id.square_detail_location_row);
+        locationIcon = view.findViewById(R.id.square_detail_location_icon);
         locationText = view.findViewById(R.id.square_detail_location);
+        locationAnnotationText = view.findViewById(R.id.square_detail_location_annotation);
+        locationMismatchHintText = view.findViewById(R.id.square_detail_location_mismatch_hint);
         btnMarkSolved = view.findViewById(R.id.btn_mark_solved);
+        rescueCardContainer = view.findViewById(R.id.square_rescue_card_container);
         rescueActivityCard = view.findViewById(R.id.square_rescue_activity_card);
         rescueActivityTitle = view.findViewById(R.id.square_rescue_activity_title);
         rescueActivityStatus = view.findViewById(R.id.square_rescue_activity_status);
@@ -126,8 +141,7 @@ public class SquareDetailFragment extends Fragment {
         rescueTasksView.setLayoutManager(new LinearLayoutManager(requireContext()));
         rescueTasksView.setAdapter(rescueTasksAdapter);
 
-        rescueActivityCard.setVisibility(View.GONE);
-        rescueActionsCard.setVisibility(View.GONE);
+        rescueCardContainer.setVisibility(View.GONE);
         refCatCard.setVisibility(View.GONE);
 
         btnMarkSolved.setOnClickListener(v -> markSolved());
@@ -202,12 +216,12 @@ public class SquareDetailFragment extends Fragment {
         long postUserId = longValue(postData.get("userId"));
 
         typeChip.setText("rescue".equals(type) ? "救助" : "询问");
-        int chipColor = "rescue".equals(type) ? Color.parseColor("#E65100") : Color.parseColor("#1976D2");
+        int chipColor = "rescue".equals(type) ? getResources().getColor(R.color.primary, null)
+                : Color.parseColor("#1976D2");
         typeChip.setChipBackgroundColor(ColorStateList.valueOf(chipColor));
         typeChip.setTextColor(Color.WHITE);
-        statusText.setText("resolved".equals(status) ? "已解决" : "进行中");
-        statusText.setTextColor("resolved".equals(status) ? 0xFF4CAF50 : 0xFFFF9800);
         authorText.setText(authorName);
+        timeText.setText(TimeUtils.getRelativeTime(stringValue(postData.get("createdAt"), "")));
 
         String content = stringValue(postData.get("text"), "");
         CatTagUtils.parseAndBind(requireContext(), textView, content, catId -> {
@@ -233,8 +247,10 @@ public class SquareDetailFragment extends Fragment {
         authorText.setOnClickListener(profileListener);
 
         bindImages(postData.get("images"));
-        bindLocation(postData.get("location"));
+        boolean allowLocationJump = !("rescue".equals(type) && longValue(postData.get("rescueActivityId")) > 0);
+        bindLocation(postData.get("location"), allowLocationJump);
         bindReferencedCat(postData.get("referencedCat"), postData.get("referencedCatId"));
+        bindCatLocationDistanceHint();
         bindRescueSection(type, status);
 
         boolean canMarkSolved = canCurrentUserMarkSolved(type, status, postUserId);
@@ -288,17 +304,53 @@ public class SquareDetailFragment extends Fragment {
         }
     }
 
-    private void bindLocation(Object locationObj) {
+    private void bindLocation(Object locationObj, boolean allowMapJump) {
         String location = stringValue(locationObj, "").trim();
+        Log.d("SquareDetail", "原始位置数据: [" + location + "]");
         if (location.isEmpty()) {
-            locationText.setVisibility(View.GONE);
+            if (metaBlock != null) {
+                metaBlock.setVisibility(View.GONE);
+            }
+            if (locationRow != null) {
+                locationRow.setVisibility(View.GONE);
+            }
             locationText.setOnClickListener(null);
+            locationAnnotationText.setVisibility(View.GONE);
+            if (locationMismatchHintText != null) {
+                locationMismatchHintText.setVisibility(View.GONE);
+            }
             return;
         }
-        locationText.setVisibility(View.VISIBLE);
-        locationText.setText("位置: " + location);
+        if (metaBlock != null) {
+            metaBlock.setVisibility(View.VISIBLE);
+        }
+        String[] parts = splitLocationAndAnnotation(location);
+        String locationMain = parts[0];
+        String locationAnno = parts[1];
+        Log.d("SquareDetail", "分割后 - main: [" + locationMain + "], anno: [" + locationAnno + "]");
+        String displayText = stripLatLngForDisplay(locationMain);
+        Log.d("SquareDetail", "显示文本: [" + displayText + "]");
+        if (locationRow != null) {
+            locationRow.setVisibility(View.VISIBLE);
+        }
+        locationText.setText("位置: " + displayText);
+        if (!locationAnno.isEmpty()) {
+            locationAnnotationText.setVisibility(View.VISIBLE);
+            locationAnnotationText.setText("批注：" + locationAnno);
+        } else {
+            locationAnnotationText.setVisibility(View.GONE);
+        }
+        if (locationMismatchHintText != null) {
+            locationMismatchHintText.setVisibility(View.GONE);
+        }
+        if (!allowMapJump) {
+            locationText.setOnClickListener(null);
+            locationText.setClickable(false);
+            return;
+        }
+        locationText.setClickable(true);
         locationText.setOnClickListener(v -> {
-            double[] coords = parseLocation(location);
+            double[] coords = parseLocation(locationMain);
             if (coords == null) {
                 Toast.makeText(requireContext(), "位置信息格式错误", Toast.LENGTH_SHORT).show();
                 return;
@@ -307,6 +359,265 @@ public class SquareDetailFragment extends Fragment {
                 ((com.ourcat.app.activities.MainActivity) getActivity()).showMapAtLocation(coords[0], coords[1]);
             }
         });
+    }
+
+    private void bindCatLocationDistanceHint() {
+        if (postData == null || locationMismatchHintText == null) {
+            return;
+        }
+        locationMismatchHintText.setVisibility(View.GONE);
+
+        long refCatId = longValue(postData.get("referencedCatId"));
+        if (refCatId <= 0) {
+            return;
+        }
+        String location = stringValue(postData.get("location"), "").trim();
+        if (location.isEmpty()) {
+            return;
+        }
+        String[] parts = splitLocationAndAnnotation(location);
+        String locationMain = parts[0];
+        double[] coords = parseLocation(locationMain);
+        if (coords == null) {
+            return;
+        }
+
+        Log.d("SquareDetail", "距离提示: postCoords=" + coords[0] + "," + coords[1] + " refCatId=" + refCatId);
+        RetrofitHelper.get().create(CatApi.class).getLocations()
+                .enqueue(new Callback<List<Map<String, Object>>>() {
+                    @Override
+                    public void onResponse(Call<List<Map<String, Object>>> call,
+                            Response<List<Map<String, Object>>> response) {
+                        if (!isAdded() || postData == null || locationMismatchHintText == null) {
+                            return;
+                        }
+                        if (!response.isSuccessful() || response.body() == null) {
+                            Log.d("SquareDetail", "距离提示: locations 响应失败 code=" + response.code());
+                            return;
+                        }
+                        double bestDist = Double.MAX_VALUE;
+                        boolean found = false;
+                        for (Map<String, Object> item : response.body()) {
+                            if (item == null) {
+                                continue;
+                            }
+                            Object catIdObj = item.get("catId");
+                            if (!(catIdObj instanceof Number) || ((Number) catIdObj).longValue() != refCatId) {
+                                continue;
+                            }
+                            Object latObj = item.get("lat");
+                            Object lngObj = item.get("lng");
+                            if (!(latObj instanceof Number) || !(lngObj instanceof Number)) {
+                                continue;
+                            }
+                            double lat = ((Number) latObj).doubleValue();
+                            double lng = ((Number) lngObj).doubleValue();
+                            double dist = haversineMeters(coords[0], coords[1], lat, lng);
+                            if (dist < bestDist) {
+                                bestDist = dist;
+                                found = true;
+                            }
+                        }
+                        Log.d("SquareDetail", "距离提示: found=" + found + " bestDistMeters=" + bestDist);
+                        if (!found || bestDist <= CAT_LOCATION_MISMATCH_THRESHOLD_METERS) {
+                            locationMismatchHintText.setVisibility(View.GONE);
+                            return;
+                        }
+                        locationMismatchHintText.setVisibility(View.VISIBLE);
+                        locationMismatchHintText.setText("提示：猫档案最近标点距发布定位约 " + formatDistance(bestDist) + "，请核对");
+                    }
+
+                    @Override
+                    public void onFailure(Call<List<Map<String, Object>>> call, Throwable t) {
+                        Log.d("SquareDetail", "距离提示: locations 请求失败 " + t);
+                    }
+                });
+    }
+
+    private String formatDistance(double meters) {
+        if (meters < 1000) {
+            return String.format(Locale.CHINA, "%.0f 米", meters);
+        }
+        return String.format(Locale.CHINA, "%.1f 公里", meters / 1000.0);
+    }
+
+    private double haversineMeters(double lat1, double lng1, double lat2, double lng2) {
+        double r = 6371000.0;
+        double dLat = Math.toRadians(lat2 - lat1);
+        double dLng = Math.toRadians(lng2 - lng1);
+        double a = Math.sin(dLat / 2) * Math.sin(dLat / 2)
+                + Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2))
+                        * Math.sin(dLng / 2) * Math.sin(dLng / 2);
+        double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        return r * c;
+    }
+
+    private String[] splitLocationAndAnnotation(String location) {
+        String main = location;
+        String anno = "";
+        int idx = location.lastIndexOf(" (");
+        if (idx > 0 && location.endsWith(")")) {
+            String maybeAnno = location.substring(idx + 2, location.length() - 1).trim();
+            String maybeMain = location.substring(0, idx).trim();
+            if (!maybeAnno.isEmpty() && !maybeMain.isEmpty()) {
+                main = maybeMain;
+                anno = maybeAnno;
+            }
+        }
+        return new String[] { main, anno };
+    }
+
+    private String stripLatLngForDisplay(String raw) {
+        if (raw == null) {
+            return "";
+        }
+        String t = raw.trim();
+        int space = t.indexOf(' ');
+        if (space > 0) {
+            String prefix = t.substring(0, space);
+            if (prefix.matches("-?\\d+(\\.\\d+)?,-?\\d+(\\.\\d+)?")) {
+                String rest = t.substring(space + 1).trim();
+                if (!rest.isEmpty()) {
+                    return rest;
+                }
+                return "附近";
+            }
+        }
+        // 如果是纯坐标,尝试逆地理编码
+        if (t.matches("-?\\d+(\\.\\d+)?,-?\\d+(\\.\\d+)?")) {
+            reverseGeocodeForDisplay(t);
+            return "定位中...";
+        }
+        return t;
+    }
+
+    private void reverseGeocodeForDisplay(String coords) {
+        String[] parts = coords.split(",");
+        if (parts.length != 2)
+            return;
+
+        try {
+            double lat = Double.parseDouble(parts[0].trim());
+            double lng = Double.parseDouble(parts[1].trim());
+
+            com.amap.api.services.geocoder.GeocodeSearch geocodeSearch = new com.amap.api.services.geocoder.GeocodeSearch(
+                    requireContext());
+            geocodeSearch.setOnGeocodeSearchListener(
+                    new com.amap.api.services.geocoder.GeocodeSearch.OnGeocodeSearchListener() {
+                        @Override
+                        public void onRegeocodeSearched(com.amap.api.services.geocoder.RegeocodeResult result,
+                                int rCode) {
+                            if (!isAdded())
+                                return;
+
+                            String addressName = "附近";
+                            if (rCode == 1000 && result != null && result.getRegeocodeAddress() != null) {
+                                com.amap.api.services.geocoder.RegeocodeAddress address = result.getRegeocodeAddress();
+                                addressName = pickDisplayAddress(address);
+                            }
+
+                            if (metaBlock != null) {
+                                metaBlock.setVisibility(View.VISIBLE);
+                            }
+                            if (locationRow != null) {
+                                locationRow.setVisibility(View.VISIBLE);
+                            }
+                            locationText.setText("位置: " + addressName);
+                        }
+
+                        @Override
+                        public void onGeocodeSearched(com.amap.api.services.geocoder.GeocodeResult result, int rCode) {
+                        }
+                    });
+
+            com.amap.api.services.geocoder.RegeocodeQuery query = new com.amap.api.services.geocoder.RegeocodeQuery(
+                    new com.amap.api.services.core.LatLonPoint(lat, lng),
+                    200,
+                    com.amap.api.services.geocoder.GeocodeSearch.AMAP);
+            geocodeSearch.getFromLocationAsyn(query);
+        } catch (Exception e) {
+            Log.e("SquareDetail", "逆地理编码失败", e);
+            locationText.setText("位置: 附近");
+        }
+    }
+
+    private String pickDisplayAddress(@NonNull com.amap.api.services.geocoder.RegeocodeAddress address) {
+        String aoi = safeTrim(
+                () -> address.getAois() != null && !address.getAois().isEmpty() && address.getAois().get(0) != null
+                        ? address.getAois().get(0).getAoiName()
+                        : null);
+        if (!aoi.isEmpty()) {
+            return normalizeDisplayAddress(aoi);
+        }
+
+        String poi = safeTrim(
+                () -> address.getPois() != null && !address.getPois().isEmpty() && address.getPois().get(0) != null
+                        ? address.getPois().get(0).getTitle()
+                        : null);
+        if (!poi.isEmpty()) {
+            return normalizeDisplayAddress(poi);
+        }
+
+        String neighborhood = safeTrim(address::getNeighborhood);
+        String township = safeTrim(address::getTownship);
+        String district = safeTrim(address::getDistrict);
+        String city = safeTrim(address::getCity);
+        String province = safeTrim(address::getProvince);
+
+        String area = !neighborhood.isEmpty() ? neighborhood
+                : (!township.isEmpty() ? township
+                        : (!district.isEmpty() ? district : ""));
+        if (!area.isEmpty()) {
+            String candidate = area;
+            if (!city.isEmpty() && !candidate.contains(city)) {
+                candidate = city + candidate;
+            } else if (city.isEmpty() && !province.isEmpty() && !candidate.contains(province)) {
+                candidate = province + candidate;
+            }
+            return normalizeDisplayAddress(candidate);
+        }
+        if (!district.isEmpty()) {
+            return normalizeDisplayAddress(district);
+        }
+        if (!city.isEmpty()) {
+            return normalizeDisplayAddress(city);
+        }
+        if (!province.isEmpty()) {
+            return normalizeDisplayAddress(province);
+        }
+
+        String formatted = safeTrim(address::getFormatAddress);
+        if (!formatted.isEmpty()) {
+            return normalizeDisplayAddress(formatted);
+        }
+        return "附近";
+    }
+
+    private String normalizeDisplayAddress(@NonNull String raw) {
+        String t = raw.trim();
+        if (t.startsWith("中华人民共和国")) {
+            t = t.substring("中华人民共和国".length()).trim();
+        }
+        if (t.startsWith("中国")) {
+            t = t.substring("中国".length()).trim();
+        }
+        if (t.isEmpty() || "中华人民共和国".equals(t) || "中国".equals(t)) {
+            return "附近";
+        }
+        return t;
+    }
+
+    private interface UnsafeStringSupplier {
+        String get() throws Exception;
+    }
+
+    private String safeTrim(@NonNull UnsafeStringSupplier supplier) {
+        try {
+            String s = supplier.get();
+            return s != null ? s.trim() : "";
+        } catch (Exception ignored) {
+            return "";
+        }
     }
 
     private void bindReferencedCat(Object refCatObj, Object refCatIdObj) {
@@ -321,39 +632,32 @@ public class SquareDetailFragment extends Fragment {
         refCatName.setText(stringValue(refCat.get("name"), "未命名"));
         String imageUrl = stringValue(refCat.get("primaryImageUrl"), "");
         if (!imageUrl.isEmpty()) {
-            Glide.with(this).load(imageUrl).centerCrop().into(refCatAvatar);
+            Glide.with(this).load(imageUrl).circleCrop().into(refCatAvatar);
         } else {
             refCatAvatar.setImageResource(R.drawable.ic_default_avatar);
         }
         refCatCard.setOnClickListener(v -> {
             Bundle args = new Bundle();
             args.putLong("catId", refCatId);
-            Navigation.findNavController(requireView()).navigate(R.id.action_square_detail_to_cat_profile, args);
+            Navigation.findNavController(requireView()).navigate(R.id.cat_profile, args);
         });
     }
 
     private void bindRescueSection(String type, String postStatus) {
         long rescueActivityId = longValue(postData.get("rescueActivityId"));
         if (!"rescue".equals(type) || rescueActivityId <= 0) {
-            rescueActivityCard.setVisibility(View.GONE);
-            rescueActionsCard.setVisibility(View.GONE);
+            rescueCardContainer.setVisibility(View.GONE);
             return;
         }
 
-        rescueActivityCard.setVisibility(View.VISIBLE);
-        rescueActionsCard.setVisibility(View.VISIBLE);
+        rescueCardContainer.setVisibility(View.VISIBLE);
         rescueActivityTitle.setText(stringValue(postData.get("rescueActivityTitle"), "救助活动"));
         String rescueStatus = stringValue(postData.get("rescueActivityStatus"), "created");
-        rescueActivityStatus.setText(mapRescueStatusText(rescueStatus));
-        rescueActivityStatus.setTextColor(mapRescueStatusColor(rescueStatus));
+        rescueActivityStatus.setText("状态: " + mapRescueStatusText(rescueStatus));
         View.OnClickListener rescueMapJumpListener = v -> jumpRescueActivityToMap();
         rescueActivityCard.setOnClickListener(rescueMapJumpListener);
-        rescueActivityTitle.setOnClickListener(rescueMapJumpListener);
-        rescueActivityStatus.setOnClickListener(rescueMapJumpListener);
 
         boolean isCompleted = "completed".equals(rescueStatus) || "resolved".equals(postStatus);
-        rescueClaimButton.setVisibility(isCompleted ? View.GONE : View.VISIBLE);
-        rescueClaimButton.setEnabled(!isCompleted);
 
         long createdBy = longValue(postData.get("rescueActivityCreatedBy"));
         boolean showAssign = !isCompleted && currentUserId > 0 && currentUserId == createdBy;
@@ -370,6 +674,16 @@ public class SquareDetailFragment extends Fragment {
                 }
             }
         }
+        boolean currentUserHasTask = false;
+        for (Map<String, Object> task : rescueTasks) {
+            long assigneeId = longValue(task.get("assigneeUserId"));
+            if (assigneeId > 0 && assigneeId == currentUserId) {
+                currentUserHasTask = true;
+                break;
+            }
+        }
+        rescueClaimButton.setVisibility((isCompleted || currentUserHasTask) ? View.GONE : View.VISIBLE);
+        rescueClaimButton.setEnabled(!(isCompleted || currentUserHasTask));
         rescueTasksAdapter.notifyDataSetChanged();
         rescueTasksEmpty.setVisibility(rescueTasks.isEmpty() ? View.VISIBLE : View.GONE);
         rescueTasksView.setVisibility(rescueTasks.isEmpty() ? View.GONE : View.VISIBLE);
@@ -381,12 +695,21 @@ public class SquareDetailFragment extends Fragment {
         }
         com.ourcat.app.activities.MainActivity mainActivity = (com.ourcat.app.activities.MainActivity) getActivity();
         long refCatId = longValue(postData.get("referencedCatId"));
+        boolean isResolved = "resolved".equals(stringValue(postData.get("status"), ""));
         String location = stringValue(postData.get("location"), "").trim();
         double[] coords = location.isEmpty() ? null : parseLocation(location);
 
+        if (isResolved) {
+            completeRescueActivityIfNeeded(postData);
+        }
+
         if (refCatId > 0) {
             if (coords != null) {
-                mainActivity.showMapAtCatLocationNear(refCatId, coords[0], coords[1]);
+                if (isResolved) {
+                    mainActivity.showMapAtCatLocationNearSolved(refCatId, coords[0], coords[1]);
+                } else {
+                    mainActivity.showMapAtCatLocationNear(refCatId, coords[0], coords[1]);
+                }
             } else {
                 mainActivity.showMapAtCatLocationNearestToUser(refCatId);
             }
@@ -394,7 +717,11 @@ public class SquareDetailFragment extends Fragment {
         }
 
         if (coords != null) {
-            mainActivity.showMapAtRescueLocation(coords[0], coords[1]);
+            if (isResolved) {
+                mainActivity.showMapAtRescueLocationSolved(coords[0], coords[1]);
+            } else {
+                mainActivity.showMapAtRescueLocation(coords[0], coords[1]);
+            }
             return;
         }
 
@@ -472,6 +799,8 @@ public class SquareDetailFragment extends Fragment {
                             Toast.makeText(requireContext(), "已标记为已解决", Toast.LENGTH_SHORT).show();
                             postData = response.body();
                             bindPost();
+                            completeRescueActivityIfNeeded(postData);
+                            notifyRescueAssigneesSolved();
                         } else {
                             Toast.makeText(requireContext(), "操作失败", Toast.LENGTH_SHORT).show();
                         }
@@ -482,6 +811,118 @@ public class SquareDetailFragment extends Fragment {
                         if (isAdded()) {
                             Toast.makeText(requireContext(), "网络错误", Toast.LENGTH_SHORT).show();
                         }
+                    }
+                });
+    }
+
+    private void notifyRescueAssigneesSolved() {
+        if (postData == null) {
+            return;
+        }
+        String type = stringValue(postData.get("type"), "");
+        if (!"rescue".equals(type)) {
+            return;
+        }
+        if (!"resolved".equals(stringValue(postData.get("status"), ""))) {
+            return;
+        }
+        if (!rescueTasks.isEmpty()) {
+            sendSolvedUpdatesToTasks(rescueTasks);
+            return;
+        }
+        long activityId = longValue(postData.get("rescueActivityId"));
+        if (activityId <= 0) {
+            return;
+        }
+        RetrofitHelper.get().create(RescueApi.class).listActivityTasks(activityId)
+                .enqueue(new Callback<List<Map<String, Object>>>() {
+                    @Override
+                    public void onResponse(Call<List<Map<String, Object>>> call,
+                            Response<List<Map<String, Object>>> response) {
+                        if (!response.isSuccessful() || response.body() == null) {
+                            return;
+                        }
+                        sendSolvedUpdatesToTasks(response.body());
+                    }
+
+                    @Override
+                    public void onFailure(Call<List<Map<String, Object>>> call, Throwable t) {
+                    }
+                });
+    }
+
+    private void sendSolvedUpdatesToTasks(List<Map<String, Object>> tasks) {
+        if (tasks == null || tasks.isEmpty()) {
+            return;
+        }
+        Map<Long, Boolean> taskIds = new HashMap<>();
+        for (Map<String, Object> task : tasks) {
+            long taskId = longValue(task.get("id"));
+            long assigneeId = longValue(task.get("assigneeUserId"));
+            if (taskId > 0 && assigneeId > 0) {
+                taskIds.put(taskId, true);
+            }
+        }
+        if (taskIds.isEmpty()) {
+            return;
+        }
+        for (Long taskId : taskIds.keySet()) {
+            Map<String, String> update = new HashMap<>();
+            update.put("status", "done");
+            RetrofitHelper.get().create(RescueApi.class).updateTask(taskId, update)
+                    .enqueue(new Callback<Map<String, Object>>() {
+                        @Override
+                        public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
+                        }
+
+                        @Override
+                        public void onFailure(Call<Map<String, Object>> call, Throwable t) {
+                        }
+                    });
+
+            Map<String, String> log = new HashMap<>();
+            log.put("content", "事件已解决");
+            log.put("logType", "progress");
+            RetrofitHelper.get().create(RescueApi.class).addTaskLog(taskId, log)
+                    .enqueue(new Callback<Map<String, Object>>() {
+                        @Override
+                        public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
+                        }
+
+                        @Override
+                        public void onFailure(Call<Map<String, Object>> call, Throwable t) {
+                        }
+                    });
+        }
+    }
+
+    private void completeRescueActivityIfNeeded(Map<String, Object> data) {
+        if (data == null) {
+            return;
+        }
+        String type = stringValue(data.get("type"), "");
+        if (!"rescue".equals(type)) {
+            return;
+        }
+        long activityId = longValue(data.get("rescueActivityId"));
+        if (activityId <= 0) {
+            return;
+        }
+        Map<String, String> body = new HashMap<>();
+        body.put("status", "completed");
+        RetrofitHelper.get().create(RescueApi.class).updateActivityStatus(activityId, body)
+                .enqueue(new Callback<Map<String, Object>>() {
+                    @Override
+                    public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
+                        if (!isAdded())
+                            return;
+                        if (response.isSuccessful()) {
+                            loadPost();
+                        }
+                    }
+
+                    @Override
+                    public void onFailure(Call<Map<String, Object>> call, Throwable t) {
                     }
                 });
     }
