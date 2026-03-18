@@ -58,7 +58,7 @@ public class ProfileFragment extends Fragment {
         setupOption(view, R.id.btn_my_cat_reports, "我的上报",
                 v -> NavHostFragment.findNavController(ProfileFragment.this).navigate(R.id.my_cat_reports));
         // 救助动态已移至广场页面
-        setupOption(view, R.id.btn_my_tasks, "我的任务",
+        setupOption(view, R.id.btn_my_tasks, "我参与的救助",
                 v -> NavHostFragment.findNavController(ProfileFragment.this).navigate(R.id.my_tasks));
         setupOption(view, R.id.btn_rescue_guide, "救助指南",
                 v -> NavHostFragment.findNavController(ProfileFragment.this).navigate(R.id.rescue_guide));
@@ -112,7 +112,8 @@ public class ProfileFragment extends Fragment {
                             int r = role != null ? ((Number) role).intValue() : 1;
                             tvRole.setText(r == 1 ? "普通用户" : r == 2 ? "志愿者" : "管理员");
                             btnUserManage.setVisibility(r >= 3 ? View.VISIBLE : View.GONE);
-                            if (btnJoinRequests != null) btnJoinRequests.setVisibility(r >= 3 ? View.VISIBLE : View.GONE);
+                            if (btnJoinRequests != null)
+                                btnJoinRequests.setVisibility(r >= 3 ? View.VISIBLE : View.GONE);
 
                             currentNicknameStr = nickname != null ? nickname.toString() : "";
                             currentAvatarUrl = (String) user.get("avatarUrl");

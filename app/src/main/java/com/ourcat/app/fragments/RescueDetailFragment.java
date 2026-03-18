@@ -85,12 +85,15 @@ public class RescueDetailFragment extends Fragment {
 
                         long squarePostId = longValue(activity.get("squarePostId"));
                         if (squarePostId > 0) {
-                            Bundle args = new Bundle();
-                            args.putLong("squarePostId", squarePostId);
-                            Navigation.findNavController(requireView()).navigate(R.id.square_detail, args);
-                            return;
+                            linkSquarePost.setVisibility(View.VISIBLE);
+                            linkSquarePost.setOnClickListener(v -> {
+                                Bundle args = new Bundle();
+                                args.putLong("squarePostId", squarePostId);
+                                Navigation.findNavController(v).navigate(R.id.square_detail, args);
+                            });
+                        } else {
+                            linkSquarePost.setVisibility(View.GONE);
                         }
-                        linkSquarePost.setVisibility(View.GONE);
                     }
 
                     @Override
