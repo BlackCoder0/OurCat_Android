@@ -2412,6 +2412,10 @@ public class MapFragment extends Fragment implements AMapLocationListener {
         return new LatLng(currentLat, currentLng);
     }
 
+    public LatLng getCurrentLocationForQuickAction() {
+        return getCurrentLocationLatLng();
+    }
+
     private void requestLocationForPendingCatNavigation() {
         if (!isAdded()) {
             return;

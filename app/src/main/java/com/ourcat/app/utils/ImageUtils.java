@@ -3,6 +3,8 @@ package com.ourcat.app.utils;
 import android.content.ContentValues;
 import android.content.Context;
 import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.graphics.ImageDecoder;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Environment;
@@ -10,8 +12,6 @@ import android.provider.MediaStore;
 import android.widget.Toast;
 
 import com.bumptech.glide.Glide;
-import com.bumptech.glide.request.target.SimpleTarget;
-import com.bumptech.glide.request.transition.Transition;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -56,6 +56,82 @@ public class ImageUtils {
         outputStream.close();
         inputStream.close();
         return tempFile;
+    }
+
+    public static File compressUriForUpload(Context context, Uri uri, int maxLongSide, int quality) throws IOException {
+        Bitmap bitmap = decodeBitmap(context, uri, maxLongSide);
+        if (bitmap == null) {
+            throw new IOException("decode bitmap failed");
+        }
+
+        int width = bitmap.getWidth();
+        int height = bitmap.getHeight();
+        int longSide = Math.max(width, height);
+        Bitmap uploadBitmap = bitmap;
+
+        if (longSide > maxLongSide && maxLongSide > 0) {
+            float scale = maxLongSide / (float) longSide;
+            int targetWidth = Math.max(1, Math.round(width * scale));
+            int targetHeight = Math.max(1, Math.round(height * scale));
+            uploadBitmap = Bitmap.createScaledBitmap(bitmap, targetWidth, targetHeight, true);
+            if (uploadBitmap != bitmap) {
+                bitmap.recycle();
+            }
+        }
+
+        File tempFile = File.createTempFile("upload_compressed_", ".jpg", context.getCacheDir());
+        try (FileOutputStream outputStream = new FileOutputStream(tempFile)) {
+            uploadBitmap.compress(Bitmap.CompressFormat.JPEG, quality, outputStream);
+            outputStream.flush();
+        } finally {
+            uploadBitmap.recycle();
+        }
+        return tempFile;
+    }
+
+    private static Bitmap decodeBitmap(Context context, Uri uri, int maxLongSide) throws IOException {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            ImageDecoder.Source source = ImageDecoder.createSource(context.getContentResolver(), uri);
+            return ImageDecoder.decodeBitmap(source, (decoder, info, src) -> {
+                decoder.setAllocator(ImageDecoder.ALLOCATOR_SOFTWARE);
+                if (maxLongSide > 0) {
+                    int srcWidth = info.getSize().getWidth();
+                    int srcHeight = info.getSize().getHeight();
+                    int longSide = Math.max(srcWidth, srcHeight);
+                    if (longSide > maxLongSide) {
+                        float scale = maxLongSide / (float) longSide;
+                        decoder.setTargetSize(
+                                Math.max(1, Math.round(srcWidth * scale)),
+                                Math.max(1, Math.round(srcHeight * scale)));
+                    }
+                }
+            });
+        }
+
+        BitmapFactory.Options bounds = new BitmapFactory.Options();
+        bounds.inJustDecodeBounds = true;
+        try (InputStream inputStream = context.getContentResolver().openInputStream(uri)) {
+            BitmapFactory.decodeStream(inputStream, null, bounds);
+        }
+
+        BitmapFactory.Options options = new BitmapFactory.Options();
+        options.inSampleSize = calculateInSampleSize(bounds.outWidth, bounds.outHeight, maxLongSide);
+        options.inPreferredConfig = Bitmap.Config.ARGB_8888;
+        try (InputStream inputStream = context.getContentResolver().openInputStream(uri)) {
+            return BitmapFactory.decodeStream(inputStream, null, options);
+        }
+    }
+
+    private static int calculateInSampleSize(int width, int height, int maxLongSide) {
+        if (maxLongSide <= 0) {
+            return 1;
+        }
+        int inSampleSize = 1;
+        int longSide = Math.max(width, height);
+        while (longSide / inSampleSize > maxLongSide * 2) {
+            inSampleSize *= 2;
+        }
+        return Math.max(1, inSampleSize);
     }
 
     public static void saveImage(Context context, String imageUrl) {

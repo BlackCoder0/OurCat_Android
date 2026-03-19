@@ -1,6 +1,7 @@
 package com.ourcat.app.fragments;
 
 import android.app.Activity;
+import android.app.Dialog;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
@@ -40,6 +41,7 @@ import com.ourcat.app.R;
 import com.ourcat.app.adapters.ImagePickAdapter;
 import com.ourcat.app.utils.CatTagUtils;
 import com.ourcat.app.utils.ImageUtils;
+import com.ourcat.app.utils.LoadingDialogHelper;
 import com.ourcat.app.utils.OssUploader;
 import com.ourcat.app.utils.RetrofitHelper;
 
@@ -47,11 +49,14 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import retrofit2.Call;
 import retrofit2.Callback;
@@ -64,6 +69,10 @@ public class CreateSquarePostFragment extends Fragment {
 
     private static final int MAX_IMAGES = 9;
     private static final Pattern CAT_TAG_PATTERN = Pattern.compile("\\[cat:(\\d+):([^\\]]+)\\]");
+    private static final String ARG_PRESET_TYPE = "presetType";
+    private static final String ARG_PRESET_LAT = "presetLat";
+    private static final String ARG_PRESET_LNG = "presetLng";
+    private static final String ARG_PRESET_IMAGE_URI = "presetImageUri";
 
     private TextInputEditText etContent, etAnnotation;
     private TextInputEditText etLocation; // Use TextInputEditText for location display
@@ -80,6 +89,9 @@ public class CreateSquarePostFragment extends Fragment {
     private AMapLocationClientOption locationOption;
     private double currentLat = 0;
     private double currentLng = 0;
+    private String presetType = null;
+    private Uri presetImageUri = null;
+    private Dialog loadingDialog;
 
     private ActivityResultLauncher<Intent> imagePickerLauncher;
     private ActivityResultLauncher<String[]> locationPermissionLauncher;
@@ -87,6 +99,12 @@ public class CreateSquarePostFragment extends Fragment {
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        if (getArguments() != null) {
+            presetType = getArguments().getString(ARG_PRESET_TYPE);
+            currentLat = getArguments().getDouble(ARG_PRESET_LAT, 0);
+            currentLng = getArguments().getDouble(ARG_PRESET_LNG, 0);
+            presetImageUri = getArguments().getParcelable(ARG_PRESET_IMAGE_URI);
+        }
         imagePickerLauncher = registerForActivityResult(
                 new ActivityResultContracts.StartActivityForResult(), result -> {
                     if (result.getResultCode() == Activity.RESULT_OK && result.getData() != null) {
@@ -136,10 +154,24 @@ public class CreateSquarePostFragment extends Fragment {
 
         setupProblemTypeSpinner();
         typeGroup.setOnCheckedStateChangeListener((group, checkedIds) -> updateProblemTypeVisibility());
+        applyQuickPreset();
         updateProblemTypeVisibility();
 
         btnSubmit.setOnClickListener(v -> submit());
         return view;
+    }
+
+    private void applyQuickPreset() {
+        if ("rescue".equalsIgnoreCase(presetType) && typeGroup != null) {
+            typeGroup.check(R.id.chip_rescue);
+        }
+        if (presetImageUri != null && imageAdapter != null) {
+            imageAdapter.addUri(presetImageUri);
+            presetImageUri = null;
+        }
+        if (currentLat != 0 && currentLng != 0) {
+            fillPresetLocation(currentLat, currentLng);
+        }
     }
 
     private void setupProblemTypeSpinner() {
@@ -238,9 +270,52 @@ public class CreateSquarePostFragment extends Fragment {
         }
     }
 
+    private void fillPresetLocation(double lat, double lng) {
+        if (!isAdded()) {
+            return;
+        }
+        currentLat = lat;
+        currentLng = lng;
+        etLocation.setText("定位中...");
+        try {
+            GeocodeSearch geocodeSearch = new GeocodeSearch(requireContext());
+            geocodeSearch.setOnGeocodeSearchListener(new GeocodeSearch.OnGeocodeSearchListener() {
+                @Override
+                public void onRegeocodeSearched(com.amap.api.services.geocoder.RegeocodeResult result, int rCode) {
+                    if (!isAdded()) {
+                        return;
+                    }
+                    String addressName = "附近";
+                    if (rCode == 1000 && result != null && result.getRegeocodeAddress() != null) {
+                        com.amap.api.services.geocoder.RegeocodeAddress address = result.getRegeocodeAddress();
+                        String formatted = address.getFormatAddress();
+                        if (formatted != null && !formatted.trim().isEmpty()) {
+                            addressName = formatted;
+                        } else if (address.getPois() != null && !address.getPois().isEmpty()
+                                && address.getPois().get(0) != null
+                                && address.getPois().get(0).getTitle() != null
+                                && !address.getPois().get(0).getTitle().trim().isEmpty()) {
+                            addressName = address.getPois().get(0).getTitle();
+                        }
+                    }
+                    etLocation.setText(addressName);
+                }
+
+                @Override
+                public void onGeocodeSearched(com.amap.api.services.geocoder.GeocodeResult result, int rCode) {
+                }
+            });
+            RegeocodeQuery query = new RegeocodeQuery(new LatLonPoint(lat, lng), 200, GeocodeSearch.AMAP);
+            geocodeSearch.getFromLocationAsyn(query);
+        } catch (Exception e) {
+            etLocation.setText("附近");
+        }
+    }
+
     @Override
     public void onDestroy() {
         super.onDestroy();
+        hideLoadingDialog();
         if (locationClient != null) {
             locationClient.onDestroy();
         }
@@ -381,82 +456,111 @@ public class CreateSquarePostFragment extends Fragment {
         btnSubmit.setEnabled(false);
         btnSubmit.setText("发布中...");
 
+        showLoadingDialog();
+        LoadingDialogHelper.updateInfo(loadingDialog, "正在准备上传图片...");
         List<Uri> newUris = imageAdapter.getNewUris();
         long finalReferencedCatId = referencedCatIdInText > 0 ? referencedCatIdInText
                 : (selectedRefCat != null && selectedRefCat.get("id") instanceof Number
                         ? ((Number) selectedRefCat.get("id")).longValue()
                         : 0L);
         if (newUris.isEmpty()) {
+            LoadingDialogHelper.updateInfo(loadingDialog, "正在提交到服务器...");
             doCreatePost(text, new ArrayList<>(), finalLocation, type, finalReferencedCatId, problemType);
         } else {
-            uploadImages(newUris, 0, new ArrayList<>(), text, finalLocation, type, finalReferencedCatId, problemType);
+            uploadImagesParallel(newUris, text, finalLocation, type, finalReferencedCatId, problemType);
         }
     }
 
-    private void uploadImages(List<Uri> uris, int index, List<String> urls,
+    private void uploadImagesParallel(List<Uri> uris,
             String text, String location, String type, long referencedCatId, String problemType) {
-        if (index >= uris.size()) {
-            doCreatePost(text, urls, location, type, referencedCatId, problemType);
-            return;
-        }
-        Uri uri = uris.get(index);
-        String mimeType = requireContext().getContentResolver().getType(uri);
-        if (mimeType == null)
-            mimeType = "image/jpeg";
-        String ext = MimeTypeMap.getSingleton().getExtensionFromMimeType(mimeType);
-        if (ext == null)
-            ext = "jpg";
-        String filename = "square_img_" + System.currentTimeMillis() + "_" + index + "." + ext;
-        String finalMimeType = mimeType;
+        int total = uris.size();
+        String[] uploadedUrls = new String[total];
+        AtomicInteger completed = new AtomicInteger(0);
+        AtomicBoolean failed = new AtomicBoolean(false);
 
-        RetrofitHelper.get().create(com.ourcat.app.repositories.OssApi.class)
-                .getUploadUrl(filename, mimeType)
-                .enqueue(new Callback<Map<String, String>>() {
-                    @Override
-                    public void onResponse(Call<Map<String, String>> call, Response<Map<String, String>> response) {
-                        if (response.isSuccessful() && response.body() != null) {
+        for (int i = 0; i < total; i++) {
+            Uri uri = uris.get(i);
+            String mimeType = requireContext().getContentResolver().getType(uri);
+            if (mimeType == null)
+                mimeType = "image/jpeg";
+            String ext = MimeTypeMap.getSingleton().getExtensionFromMimeType(mimeType);
+            if (ext == null)
+                ext = "jpg";
+            String filename = "square_img_" + System.currentTimeMillis() + "_" + i + "." + ext;
+            String finalMimeType = mimeType;
+            int index = i;
+
+            RetrofitHelper.get().create(com.ourcat.app.repositories.OssApi.class)
+                    .getUploadUrl(filename, mimeType)
+                    .enqueue(new Callback<Map<String, String>>() {
+                        @Override
+                        public void onResponse(Call<Map<String, String>> call, Response<Map<String, String>> response) {
+                            if (failed.get() || !isAdded()) {
+                                return;
+                            }
+                            if (!response.isSuccessful() || response.body() == null) {
+                                failParallelUpload(failed, "获取上传URL失败");
+                                return;
+                            }
                             String uploadUrl = response.body().get("uploadUrl");
                             String publicUrl = response.body().get("publicUrl");
                             String ct = response.body().get("contentType");
                             if (ct == null)
                                 ct = finalMimeType;
-                            doUploadFile(uri, uploadUrl, publicUrl, ct, uris, index, urls, text, location, type,
-                                    referencedCatId, problemType);
-                        } else {
-                            onFail("获取上传URL失败");
+                            uploadSingleFileParallel(uri, uploadUrl, publicUrl, ct, index, uploadedUrls,
+                                    completed, total, failed, text, location, type, referencedCatId, problemType);
                         }
-                    }
 
-                    @Override
-                    public void onFailure(Call<Map<String, String>> call, Throwable t) {
-                        onFail("网络错误");
-                    }
-                });
+                        @Override
+                        public void onFailure(Call<Map<String, String>> call, Throwable t) {
+                            failParallelUpload(failed, "网络错误");
+                        }
+                    });
+        }
     }
 
-    private void doUploadFile(Uri uri, String uploadUrl, String publicUrl, String contentType,
-            List<Uri> uris, int index, List<String> urls,
+    private void uploadSingleFileParallel(Uri uri, String uploadUrl, String publicUrl, String contentType, int index,
+            String[] uploadedUrls, AtomicInteger completed, int total, AtomicBoolean failed,
             String text, String location, String type, long referencedCatId, String problemType) {
         new Thread(() -> {
+            File tempFile = null;
             try {
-                File tempFile = uriToTempFile(uri);
-                OssUploader uploader = new OssUploader();
-                uploader.uploadWithPresign(uploadUrl, publicUrl, tempFile, contentType);
-                urls.add(publicUrl);
-                tempFile.delete();
-                requireActivity().runOnUiThread(
-                        () -> uploadImages(uris, index + 1, urls, text, location, type, referencedCatId, problemType));
+                tempFile = uriToTempFile(uri);
+                new OssUploader().uploadWithPresign(uploadUrl, publicUrl, tempFile, contentType);
+                uploadedUrls[index] = publicUrl;
+                int count = completed.incrementAndGet();
+                requireActivity().runOnUiThread(() -> {
+                    LoadingDialogHelper.updateInfo(loadingDialog, "正在上传图片 (" + count + "/" + total + ")...");
+                });
+                if (count == total && !failed.get() && isAdded()) {
+                    requireActivity().runOnUiThread(() -> {
+                        LoadingDialogHelper.updateInfo(loadingDialog, "正在提交到服务器...");
+                        doCreatePost(text, Arrays.asList(uploadedUrls), location,
+                                type, referencedCatId, problemType);
+                    });
+                }
             } catch (Exception e) {
-                requireActivity().runOnUiThread(() -> onFail("上传失败: " + e.getMessage()));
+                failParallelUpload(failed, "上传失败: " + e.getMessage());
+            } finally {
+                if (tempFile != null && tempFile.exists()) {
+                    tempFile.delete();
+                }
             }
         }).start();
+    }
+
+    private void failParallelUpload(AtomicBoolean failed, String msg) {
+        if (!failed.compareAndSet(false, true) || !isAdded()) {
+            return;
+        }
+        requireActivity().runOnUiThread(() -> onFail(msg));
     }
 
     private File uriToTempFile(Uri uri) throws Exception {
         InputStream is = requireContext().getContentResolver().openInputStream(uri);
         File temp = File.createTempFile("upload_", ".tmp", requireContext().getCacheDir());
         FileOutputStream fos = new FileOutputStream(temp);
-        byte[] buf = new byte[8192];
+        byte[] buf = new byte[65536];
         int len;
         while ((len = is.read(buf)) > 0)
             fos.write(buf, 0, len);
@@ -466,6 +570,7 @@ public class CreateSquarePostFragment extends Fragment {
     }
 
     private void onFail(String msg) {
+        hideLoadingDialog();
         btnSubmit.setEnabled(true);
         btnSubmit.setText("发布");
         Toast.makeText(requireContext(), msg, Toast.LENGTH_SHORT).show();
@@ -625,6 +730,7 @@ public class CreateSquarePostFragment extends Fragment {
                         btnSubmit.setEnabled(true);
                         btnSubmit.setText("发布");
                         if (response.isSuccessful()) {
+                            hideLoadingDialog();
                             Toast.makeText(requireContext(), "发布成功", Toast.LENGTH_SHORT).show();
                             Navigation.findNavController(requireView()).navigateUp();
                         } else {
@@ -655,6 +761,7 @@ public class CreateSquarePostFragment extends Fragment {
 
                     @Override
                     public void onFailure(Call<Map<String, Object>> call, Throwable t) {
+                        hideLoadingDialog();
                         btnSubmit.setEnabled(true);
                         btnSubmit.setText("发布");
                         Toast.makeText(requireContext(), "网络错误", Toast.LENGTH_SHORT).show();
@@ -689,6 +796,7 @@ public class CreateSquarePostFragment extends Fragment {
                             }
                             Map<String, Object> post = (Map<String, Object>) o;
                             if (matchesCreatedPost(originalBody, post)) {
+                                hideLoadingDialog();
                                 btnSubmit.setEnabled(true);
                                 btnSubmit.setText("发布");
                                 Toast.makeText(requireContext(), "发布成功", Toast.LENGTH_SHORT).show();
@@ -721,7 +829,26 @@ public class CreateSquarePostFragment extends Fragment {
         }
         btnSubmit.setEnabled(true);
         btnSubmit.setText("发布");
+        hideLoadingDialog();
         Toast.makeText(requireContext(), "服务器返回异常，请到广场确认是否已发布", Toast.LENGTH_SHORT).show();
+    }
+
+    private void showLoadingDialog() {
+        if (!isAdded()) {
+            return;
+        }
+        if (loadingDialog == null) {
+            loadingDialog = LoadingDialogHelper.create(requireContext(), "少女折寿中");
+        }
+        if (!loadingDialog.isShowing()) {
+            loadingDialog.show();
+        }
+    }
+
+    private void hideLoadingDialog() {
+        if (loadingDialog != null && loadingDialog.isShowing()) {
+            loadingDialog.dismiss();
+        }
     }
 
     private boolean matchesCreatedPost(Map<String, Object> originalBody, Map<String, Object> post) {

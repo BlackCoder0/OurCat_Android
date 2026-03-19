@@ -20,7 +20,7 @@ import okhttp3.Response;
 public class OssUploader {
 
     private static final String TAG = "OssUploader";
-    private final OkHttpClient client = new OkHttpClient.Builder().build();
+    private static final OkHttpClient CLIENT = new OkHttpClient.Builder().build();
 
     /**
      * 1. Call api to get uploadUrl and publicUrl (api must add Authorization
@@ -38,7 +38,7 @@ public class OssUploader {
                 .url(uploadUrl)
                 .put(RequestBody.create(file, type))
                 .build();
-        try (Response response = client.newCall(request).execute()) {
+        try (Response response = CLIENT.newCall(request).execute()) {
             if (!response.isSuccessful()) {
                 throw new IOException("Upload failed: " + response.code());
             }
@@ -95,7 +95,7 @@ public class OssUploader {
                 .url(uploadUrl)
                 .put(RequestBody.create(data, type))
                 .build();
-        try (Response response = client.newCall(request).execute()) {
+        try (Response response = CLIENT.newCall(request).execute()) {
             if (!response.isSuccessful()) {
                 throw new IOException("Upload failed: " + response.code());
             }

@@ -37,12 +37,12 @@ import com.google.android.material.textfield.TextInputLayout;
 import com.ourcat.app.R;
 import com.ourcat.app.repositories.CatApi;
 import com.ourcat.app.repositories.OssApi;
+import com.ourcat.app.utils.ImageUtils;
+import com.ourcat.app.utils.LoadingDialogHelper;
 import com.ourcat.app.utils.OssUploader;
 import com.ourcat.app.utils.RetrofitHelper;
 
 import java.io.File;
-import java.io.FileOutputStream;
-import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -59,6 +59,8 @@ public class ReportCatDialogFragment extends DialogFragment {
     private static final String ARG_LNG = "lng";
     private static final String ARG_AUTO_CAMERA = "auto_camera";
     private static final String ARG_INITIAL_IMAGE_URI = "initial_image_uri";
+    private static final int UPLOAD_MAX_LONG_SIDE = 2560;
+    private static final int UPLOAD_JPEG_QUALITY = 92;
 
     private Runnable onReportSuccess;
     private double currentLat = 0;
@@ -78,6 +80,7 @@ public class ReportCatDialogFragment extends DialogFragment {
     private final List<Uri> selectedImages = new ArrayList<>();
     private ImageAdapter imageAdapter;
     private Uri cameraUri;
+    private Dialog loadingDialog;
 
     public static ReportCatDialogFragment newInstance(double lat, double lng) {
         return newInstance(lat, lng, false);
@@ -241,28 +244,28 @@ public class ReportCatDialogFragment extends DialogFragment {
         });
 
         setupChipGroup(view, R.id.chip_group_color,
-                new String[] { 
-                    "橘色", "黑色", "白色", "灰色",      // 纯色
-                    "狸花", "银虎斑",                    // 虎斑
-                    "奶牛", "三花", "玳瑁",              // 双色/多色
-                    "奶油色", "暹罗色"                   // 特殊色
+                new String[] {
+                        "橘色", "黑色", "白色", "灰色", // 纯色
+                        "狸花", "银虎斑", // 虎斑
+                        "奶牛", "三花", "玳瑁", // 双色/多色
+                        "奶油色", "暹罗色" // 特殊色
                 },
                 R.id.report_color_input_layout, true);
         setupChipGroup(view, R.id.chip_group_feature,
-                new String[] { 
-                    "短毛", "长毛",                      // 毛发长度
-                    "立耳", "折耳",                      // 耳朵
-                    "长尾", "短尾", "断尾",              // 尾巴
-                    "偏瘦", "偏胖",                      // 体型
-                    "有项圈", "有耳标", "剪耳",      // 人工标记
-                    "绝育", "未绝育"
+                new String[] {
+                        "短毛", "长毛", // 毛发长度
+                        "立耳", "折耳", // 耳朵
+                        "长尾", "短尾", "断尾", // 尾巴
+                        "偏瘦", "偏胖", // 体型
+                        "有项圈", "有耳标", "剪耳", // 人工标记
+                        "绝育", "未绝育"
                 },
                 R.id.report_feature_input_layout, false);
         setupChipGroup(view, R.id.chip_group_personality,
-                new String[] { 
-                    "亲人", "独立", "警惕", "怕人",  // 社交性
-                    "活泼", "安静",                            // 活跃度
-                    "好奇", "胆小", "有攻击性"                 // 特殊
+                new String[] {
+                        "亲人", "独立", "警惕", "怕人", // 社交性
+                        "活泼", "安静", // 活跃度
+                        "好奇", "胆小", "有攻击性" // 特殊
                 },
                 R.id.report_personality_input_layout, false);
 
@@ -287,6 +290,8 @@ public class ReportCatDialogFragment extends DialogFragment {
             if (!personality.isEmpty())
                 body.put("personality", personality);
 
+            showLoadingDialog();
+            LoadingDialogHelper.updateInfo(loadingDialog, "正在准备上报...");
             if (!selectedImages.isEmpty()) {
                 uploadImagesThenReport(body);
             } else {
@@ -388,6 +393,7 @@ public class ReportCatDialogFragment extends DialogFragment {
     @Override
     public void onDestroy() {
         super.onDestroy();
+        hideLoadingDialog();
         if (mapView != null)
             mapView.onDestroy();
     }
@@ -473,8 +479,6 @@ public class ReportCatDialogFragment extends DialogFragment {
     }
 
     private void uploadImagesThenReport(Map<String, Object> body) {
-        Toast.makeText(requireContext(), "正在上传图片...", Toast.LENGTH_SHORT).show();
-
         Uri firstUri = selectedImages.get(0);
         String filename = "cat_report/" + UUID.randomUUID() + ".jpg";
 
@@ -487,15 +491,19 @@ public class ReportCatDialogFragment extends DialogFragment {
                         if (!isAdded())
                             return;
                         if (!response.isSuccessful() || response.body() == null) {
+                            hideLoadingDialog();
                             Toast.makeText(requireContext(), "获取上传链接失败", Toast.LENGTH_SHORT).show();
                             return;
                         }
+                        LoadingDialogHelper.updateInfo(loadingDialog, "正在上传图片...");
                         String uploadUrl = response.body().get("uploadUrl");
                         String publicUrl = response.body().get("publicUrl");
 
                         new Thread(() -> {
+                            File temp = null;
                             try {
-                                File temp = uriToTempFile(firstUri);
+                                temp = ImageUtils.compressUriForUpload(
+                                        requireContext(), firstUri, UPLOAD_MAX_LONG_SIDE, UPLOAD_JPEG_QUALITY);
                                 new OssUploader().uploadWithPresign(uploadUrl, publicUrl, temp, "image/jpeg");
                                 if (getActivity() != null) {
                                     getActivity().runOnUiThread(() -> {
@@ -508,9 +516,15 @@ public class ReportCatDialogFragment extends DialogFragment {
                             } catch (Exception e) {
                                 if (getActivity() != null) {
                                     getActivity().runOnUiThread(() -> {
-                                        if (isAdded())
+                                        if (isAdded()) {
+                                            hideLoadingDialog();
                                             Toast.makeText(requireContext(), "上传失败", Toast.LENGTH_SHORT).show();
+                                        }
                                     });
+                                }
+                            } finally {
+                                if (temp != null && temp.exists()) {
+                                    temp.delete();
                                 }
                             }
                         }).start();
@@ -518,26 +532,16 @@ public class ReportCatDialogFragment extends DialogFragment {
 
                     @Override
                     public void onFailure(Call<Map<String, String>> call, Throwable t) {
-                        if (isAdded())
+                        if (isAdded()) {
+                            hideLoadingDialog();
                             Toast.makeText(requireContext(), "网络错误", Toast.LENGTH_SHORT).show();
+                        }
                     }
                 });
     }
 
-    private File uriToTempFile(Uri uri) throws Exception {
-        InputStream is = requireContext().getContentResolver().openInputStream(uri);
-        File temp = File.createTempFile("upload_", ".jpg", requireContext().getCacheDir());
-        FileOutputStream fos = new FileOutputStream(temp);
-        byte[] buf = new byte[4096];
-        int len;
-        while ((len = is.read(buf)) != -1)
-            fos.write(buf, 0, len);
-        fos.close();
-        is.close();
-        return temp;
-    }
-
     private void submitReport(Map<String, Object> body) {
+        LoadingDialogHelper.updateInfo(loadingDialog, "正在提交上报...");
         RetrofitHelper.get().create(CatApi.class).report(body)
                 .enqueue(new Callback<Map<String, Object>>() {
                     @Override
@@ -546,21 +550,43 @@ public class ReportCatDialogFragment extends DialogFragment {
                         if (!isAdded())
                             return;
                         if (response.isSuccessful()) {
+                            hideLoadingDialog();
                             Toast.makeText(requireContext(), "上报成功!", Toast.LENGTH_SHORT).show();
                             dismiss();
                             if (onReportSuccess != null)
                                 onReportSuccess.run();
                         } else {
+                            hideLoadingDialog();
                             Toast.makeText(requireContext(), "上报失败", Toast.LENGTH_SHORT).show();
                         }
                     }
 
                     @Override
                     public void onFailure(Call<Map<String, Object>> call, Throwable t) {
-                        if (isAdded())
+                        if (isAdded()) {
+                            hideLoadingDialog();
                             Toast.makeText(requireContext(), "网络错误", Toast.LENGTH_SHORT).show();
+                        }
                     }
                 });
+    }
+
+    private void showLoadingDialog() {
+        if (!isAdded()) {
+            return;
+        }
+        if (loadingDialog == null) {
+            loadingDialog = LoadingDialogHelper.create(requireContext(), "少女折寿中");
+        }
+        if (!loadingDialog.isShowing()) {
+            loadingDialog.show();
+        }
+    }
+
+    private void hideLoadingDialog() {
+        if (loadingDialog != null && loadingDialog.isShowing()) {
+            loadingDialog.dismiss();
+        }
     }
 
     private class ImageAdapter extends RecyclerView.Adapter<ImageAdapter.VH> {

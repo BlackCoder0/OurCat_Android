@@ -153,21 +153,21 @@
             <!-- 中间拍照按钮（占1格） -->
             <FrameLayout
                 android:layout_width="0dp"
-                android:layout_height="80dp"
+                android:layout_height="92dp"
                 android:layout_weight="1"
                 android:clipChildren="false">
 
                 <com.google.android.material.floatingactionbutton.FloatingActionButton
                     android:id="@+id/fab_quick_camera"
-                    android:layout_width="60dp"
-                    android:layout_height="60dp"
+                    android:layout_width="68dp"
+                    android:layout_height="68dp"
                     android:layout_gravity="center"
                     android:src="@drawable/camera"
                     android:scaleType="centerInside"
                     android:padding="0dp"
                     android:contentDescription="快速拍照上报"
-                    app:maxImageSize="36dp"
-                    app:fabCustomSize="60dp"
+                    app:maxImageSize="40dp"
+                    app:fabCustomSize="68dp"
                     app:backgroundTint="@color/primary"
                     app:tint="@android:color/white"
                     app:elevation="8dp" />
@@ -255,6 +255,102 @@
                         android:text="@string/nav_me"
                         android:textSize="10sp" />
                 </LinearLayout>
+            </LinearLayout>
+        </LinearLayout>
+    </FrameLayout>
+
+    <FrameLayout
+        android:id="@+id/quick_action_overlay"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:visibility="gone"
+        android:clickable="false"
+        android:focusable="false">
+
+        <View
+            android:id="@+id/quick_action_scrim"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="#66000000" />
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal|bottom"
+            android:layout_marginBottom="108dp"
+            android:gravity="center"
+            android:orientation="horizontal">
+
+            <LinearLayout
+                android:id="@+id/action_quick_cat_report"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="36dp"
+                android:gravity="center"
+                android:orientation="vertical"
+                android:clickable="true"
+                android:focusable="true">
+
+                <com.google.android.material.floatingactionbutton.FloatingActionButton
+                    android:id="@+id/fab_quick_cat_report"
+                    android:layout_width="64dp"
+                    android:layout_height="64dp"
+                    android:contentDescription="上报猫咪"
+                    android:src="@drawable/camera"
+                    app:backgroundTint="@color/primary"
+                    app:elevation="6dp"
+                    app:fabCustomSize="64dp"
+                    app:maxImageSize="32dp"
+                    app:tint="@android:color/white" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:background="@drawable/bg_map_info_card"
+                    android:paddingLeft="10dp"
+                    android:paddingTop="4dp"
+                    android:paddingRight="10dp"
+                    android:paddingBottom="4dp"
+                    android:text="上报猫咪"
+                    android:textColor="@color/text_primary"
+                    android:textSize="12sp" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/action_quick_rescue_square"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="36dp"
+                android:gravity="center"
+                android:orientation="vertical"
+                android:clickable="true"
+                android:focusable="true">
+
+                <com.google.android.material.floatingactionbutton.FloatingActionButton
+                    android:id="@+id/fab_quick_rescue_square"
+                    android:layout_width="64dp"
+                    android:layout_height="64dp"
+                    android:contentDescription="快速上报救助事件"
+                    android:src="@drawable/ic_rescue"
+                    app:backgroundTint="@color/primary"
+                    app:elevation="6dp"
+                    app:fabCustomSize="64dp"
+                    app:maxImageSize="32dp"
+                    app:tint="@android:color/white" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:background="@drawable/bg_map_info_card"
+                    android:paddingLeft="10dp"
+                    android:paddingTop="4dp"
+                    android:paddingRight="10dp"
+                    android:paddingBottom="4dp"
+                    android:text="救助事件"
+                    android:textColor="@color/text_primary"
+                    android:textSize="12sp" />
             </LinearLayout>
         </LinearLayout>
     </FrameLayout>

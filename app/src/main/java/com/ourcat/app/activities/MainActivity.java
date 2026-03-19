@@ -31,6 +31,7 @@ import androidx.navigation.ui.NavigationUI;
 
 import com.amap.api.location.AMapLocationClient;
 import com.amap.api.location.AMapLocationClientOption;
+import com.amap.api.maps.model.LatLng;
 import com.google.android.material.appbar.MaterialToolbar;
 import com.google.android.material.badge.BadgeDrawable;
 import com.google.android.material.badge.BadgeUtils;
@@ -69,18 +70,34 @@ public class MainActivity extends AppCompatActivity {
     private boolean badgeMenuReady = false;
     private int lastDestId = 0;
     private FloatingActionButton fabQuickCamera;
+    private FloatingActionButton fabQuickCatReport;
+    private FloatingActionButton fabQuickRescueSquare;
+    private View quickActionOverlay;
+    private View quickActionScrim;
+    private View quickCatReportAction;
+    private View quickRescueSquareAction;
     private AMapLocationClient quickCameraLocationClient;
     private ActivityResultLauncher<String[]> quickCameraPermissionLauncher;
     private ActivityResultLauncher<Uri> quickCameraLauncher;
     private ActivityResultLauncher<String> cameraPermissionLauncher;
     private Uri tempCameraUri;
     private Uri pendingImageUri;
+    private QuickCameraAction pendingQuickCameraAction = QuickCameraAction.CAT_REPORT;
+    private boolean quickFlowInProgress = false;
+    private boolean quickFlowConsumed = false;
+    private double lastQuickLat = 0;
+    private double lastQuickLng = 0;
     private AlertDialog weatherWarningDialog;
     private Long lastWeatherWarningPopupMessageId = null;
     private static final String ARG_FROM_MAP = "fromMap";
 
     private interface WeatherLocationAction {
         void run(double lat, double lng, boolean isFallbackLocation);
+    }
+
+    private enum QuickCameraAction {
+        CAT_REPORT,
+        RESCUE_SQUARE
     }
 
     private WeatherLocationAction pendingWeatherLocationAction;
@@ -128,13 +145,15 @@ public class MainActivity extends AppCompatActivity {
                                     .setItems(items, (dialog, which) -> {
                                         if (which == 0) {
                                             requestWeatherLocation(
-                                                    (lat, lng, isFallbackLocation) -> fetchWeatherWarning(lat, lng, false, null, true,
+                                                    (lat, lng, isFallbackLocation) -> fetchWeatherWarning(lat, lng,
+                                                            false, null, true,
                                                             isFallbackLocation));
                                         } else if (which == 1) {
                                             requestWeatherLocation(MainActivity.this::fetchTodayWeatherDebug);
                                         } else if (which == 2) {
                                             requestWeatherLocation(
-                                                    (lat, lng, isFallbackLocation) -> fetchWeatherWarning(lat, lng, true, "warning",
+                                                    (lat, lng, isFallbackLocation) -> fetchWeatherWarning(lat, lng,
+                                                            true, "warning",
                                                             true, isFallbackLocation));
                                         }
                                     })
@@ -188,6 +207,7 @@ public class MainActivity extends AppCompatActivity {
         LinearLayout navItemMe = findViewById(R.id.nav_item_me);
 
         View.OnClickListener navClickListener = v -> {
+            hideQuickActionMenu();
             hideMap();
             int destId = 0;
             int id = v.getId();
@@ -261,19 +281,32 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void setupQuickCameraFab() {
+        quickActionOverlay = findViewById(R.id.quick_action_overlay);
+        quickActionScrim = findViewById(R.id.quick_action_scrim);
+        quickCatReportAction = findViewById(R.id.action_quick_cat_report);
+        quickRescueSquareAction = findViewById(R.id.action_quick_rescue_square);
+        fabQuickCatReport = findViewById(R.id.fab_quick_cat_report);
+        fabQuickRescueSquare = findViewById(R.id.fab_quick_rescue_square);
+
         quickCameraPermissionLauncher = registerForActivityResult(
                 new ActivityResultContracts.RequestMultiplePermissions(), result -> {
+                    if (!quickFlowInProgress) {
+                        return;
+                    }
                     Boolean fine = result.get(Manifest.permission.ACCESS_FINE_LOCATION);
                     Boolean coarse = result.get(Manifest.permission.ACCESS_COARSE_LOCATION);
                     if (Boolean.TRUE.equals(fine) || Boolean.TRUE.equals(coarse)) {
                         startQuickCameraLocation(pendingImageUri);
                     } else {
-                        openReportDialogWithCamera(31.23, 121.47, pendingImageUri);
+                        openQuickCameraTarget(31.23, 121.47, pendingImageUri);
                     }
                 });
 
         quickCameraLauncher = registerForActivityResult(
                 new ActivityResultContracts.TakePicture(), success -> {
+                    if (!quickFlowInProgress) {
+                        return;
+                    }
                     if (success) {
                         checkLocationAndOpenDialog(tempCameraUri);
                     } else {
@@ -285,27 +318,95 @@ public class MainActivity extends AppCompatActivity {
                         } catch (Exception e) {
                             e.printStackTrace();
                         }
+                        resetQuickCameraState();
                     }
                 });
 
         cameraPermissionLauncher = registerForActivityResult(
                 new ActivityResultContracts.RequestPermission(), granted -> {
+                    if (!quickFlowInProgress) {
+                        return;
+                    }
                     if (granted) {
                         launchQuickCamera();
                     } else {
-                        checkLocationAndOpenDialog(null);
+                        resetQuickCameraState();
                     }
                 });
 
         fabQuickCamera = findViewById(R.id.fab_quick_camera);
-        fabQuickCamera.setOnClickListener(v -> {
-            if (ContextCompat.checkSelfPermission(this,
-                    Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
-                launchQuickCamera();
-            } else {
-                cameraPermissionLauncher.launch(Manifest.permission.CAMERA);
+        fabQuickCamera.setOnClickListener(v -> toggleQuickActionMenu());
+        if (quickActionScrim != null) {
+            quickActionScrim.setOnClickListener(v -> hideQuickActionMenu());
+        }
+        View.OnClickListener catReportClick = v -> {
+            hideQuickActionMenu();
+            startQuickFlow(QuickCameraAction.CAT_REPORT);
+        };
+        View.OnClickListener rescueSquareClick = v -> {
+            hideQuickActionMenu();
+            startQuickFlow(QuickCameraAction.RESCUE_SQUARE);
+        };
+
+        if (quickCatReportAction != null) {
+            quickCatReportAction.setOnClickListener(catReportClick);
+        }
+        if (fabQuickCatReport != null) {
+            fabQuickCatReport.setOnClickListener(catReportClick);
+        }
+        if (quickRescueSquareAction != null) {
+            quickRescueSquareAction.setOnClickListener(rescueSquareClick);
+        }
+        if (fabQuickRescueSquare != null) {
+            fabQuickRescueSquare.setOnClickListener(rescueSquareClick);
+        }
+    }
+
+    private void toggleQuickActionMenu() {
+        if (quickActionOverlay == null) {
+            return;
+        }
+        if (quickActionOverlay.getVisibility() == View.VISIBLE) {
+            hideQuickActionMenu();
+        } else {
+            showQuickActionMenu();
+        }
+    }
+
+    private void showQuickActionMenu() {
+        if (quickActionOverlay == null) {
+            return;
+        }
+        quickActionOverlay.setAlpha(0f);
+        quickActionOverlay.setVisibility(View.VISIBLE);
+        quickActionOverlay.animate().alpha(1f).setDuration(160).start();
+    }
+
+    private void hideQuickActionMenu() {
+        if (quickActionOverlay == null || quickActionOverlay.getVisibility() != View.VISIBLE) {
+            return;
+        }
+        quickActionOverlay.animate().alpha(0f).setDuration(140).withEndAction(() -> {
+            if (quickActionOverlay != null) {
+                quickActionOverlay.setVisibility(View.GONE);
             }
-        });
+        }).start();
+    }
+
+    private void startQuickFlow(QuickCameraAction action) {
+        if (quickFlowInProgress) {
+            return;
+        }
+        resetQuickCameraState();
+        quickFlowInProgress = true;
+        quickFlowConsumed = false;
+        pendingQuickCameraAction = action;
+        if (ContextCompat.checkSelfPermission(this,
+                Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
+            launchQuickCamera();
+        } else {
+            cameraPermissionLauncher.launch(Manifest.permission.CAMERA);
+        }
     }
 
     private void launchQuickCamera() {
@@ -321,11 +422,16 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void checkLocationAndOpenDialog(Uri imageUri) {
+        pendingImageUri = imageUri;
+        double[] cachedLocation = getCachedQuickLocation();
+        if (cachedLocation != null) {
+            openQuickCameraTarget(cachedLocation[0], cachedLocation[1], imageUri);
+            return;
+        }
         if (ContextCompat.checkSelfPermission(this,
                 Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
             startQuickCameraLocation(imageUri);
         } else {
-            this.pendingImageUri = imageUri;
             quickCameraPermissionLauncher.launch(new String[] {
                     Manifest.permission.ACCESS_FINE_LOCATION,
                     Manifest.permission.ACCESS_COARSE_LOCATION
@@ -347,20 +453,69 @@ public class MainActivity extends AppCompatActivity {
             }
             // Update listener to use the current imageUri
             quickCameraLocationClient.setLocationListener(aMapLocation -> {
+                if (!quickFlowInProgress || quickFlowConsumed) {
+                    if (quickCameraLocationClient != null) {
+                        quickCameraLocationClient.stopLocation();
+                    }
+                    return;
+                }
+                Uri targetImageUri = pendingImageUri != null ? pendingImageUri : imageUri;
                 if (aMapLocation != null && aMapLocation.getErrorCode() == 0) {
-                    openReportDialogWithCamera(aMapLocation.getLatitude(), aMapLocation.getLongitude(), imageUri);
+                    lastQuickLat = aMapLocation.getLatitude();
+                    lastQuickLng = aMapLocation.getLongitude();
+                    openQuickCameraTarget(aMapLocation.getLatitude(), aMapLocation.getLongitude(), targetImageUri);
                 } else {
-                    openReportDialogWithCamera(31.23, 121.47, imageUri);
+                    openQuickCameraTarget(31.23, 121.47, targetImageUri);
+                }
+                if (quickCameraLocationClient != null) {
+                    quickCameraLocationClient.stopLocation();
                 }
             });
             quickCameraLocationClient.startLocation();
         } catch (Exception e) {
-            openReportDialogWithCamera(31.23, 121.47, imageUri);
+            openQuickCameraTarget(31.23, 121.47, imageUri);
         }
     }
 
     private void startQuickCameraLocation() {
         startQuickCameraLocation(null);
+    }
+
+    private void openQuickCameraTarget(double lat, double lng, Uri imageUri) {
+        if (!quickFlowInProgress || quickFlowConsumed) {
+            return;
+        }
+        quickFlowConsumed = true;
+        QuickCameraAction action = pendingQuickCameraAction;
+        resetQuickCameraState();
+        if (action == QuickCameraAction.RESCUE_SQUARE) {
+            openQuickRescueSquarePost(lat, lng, imageUri);
+            return;
+        }
+        openReportDialogWithCamera(lat, lng, imageUri);
+    }
+
+    private void resetQuickCameraState() {
+        pendingImageUri = null;
+        tempCameraUri = null;
+        pendingQuickCameraAction = QuickCameraAction.CAT_REPORT;
+        quickFlowInProgress = false;
+        quickFlowConsumed = false;
+    }
+
+    private double[] getCachedQuickLocation() {
+        if (mapFragment != null) {
+            LatLng latLng = mapFragment.getCurrentLocationForQuickAction();
+            if (latLng != null) {
+                lastQuickLat = latLng.latitude;
+                lastQuickLng = latLng.longitude;
+                return new double[] { latLng.latitude, latLng.longitude };
+            }
+        }
+        if (lastQuickLat != 0 || lastQuickLng != 0) {
+            return new double[] { lastQuickLat, lastQuickLng };
+        }
+        return null;
     }
 
     private void openReportDialogWithCamera(double lat, double lng, Uri imageUri) {
@@ -382,6 +537,21 @@ public class MainActivity extends AppCompatActivity {
         openReportDialogWithCamera(lat, lng, null);
     }
 
+    private void openQuickRescueSquarePost(double lat, double lng, Uri imageUri) {
+        hideMap();
+        updateNavSelection(R.id.nav_item_square);
+        Bundle args = new Bundle();
+        args.putString("presetType", "rescue");
+        args.putDouble("presetLat", lat);
+        args.putDouble("presetLng", lng);
+        if (imageUri != null) {
+            args.putParcelable("presetImageUri", imageUri);
+        }
+        if (navController != null) {
+            navController.navigate(R.id.create_square_post, args);
+        }
+    }
+
     @Override
     protected void onSaveInstanceState(Bundle outState) {
         super.onSaveInstanceState(outState);
@@ -389,6 +559,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void showMap() {
+        hideQuickActionMenu();
         isMapVisible = true;
         mapContainer.setVisibility(View.VISIBLE);
         navHostView.setVisibility(View.GONE);
@@ -402,6 +573,7 @@ public class MainActivity extends AppCompatActivity {
 
     /**
      * 显示地图并移动到指定位置
+     * 
      * @param lat 纬度
      * @param lng 经度
      */
@@ -487,6 +659,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void hideMap() {
+        hideQuickActionMenu();
         isMapVisible = false;
         mapContainer.setVisibility(View.GONE);
         navHostView.setVisibility(View.VISIBLE);
@@ -498,6 +671,10 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private boolean handleUnifiedBack() {
+        if (quickActionOverlay != null && quickActionOverlay.getVisibility() == View.VISIBLE) {
+            hideQuickActionMenu();
+            return true;
+        }
         if (isMapVisible) {
             hideMap();
             if (navController != null && navController.getCurrentDestination() != null) {
@@ -559,28 +736,28 @@ public class MainActivity extends AppCompatActivity {
 
     private void updateNavSelection(int selectedId) {
         int[] navItemIds = {
-            R.id.nav_item_community,
-            R.id.nav_item_map,
-            R.id.nav_item_cats,
-            R.id.nav_item_square,
-            R.id.nav_item_org,
-            R.id.nav_item_me
+                R.id.nav_item_community,
+                R.id.nav_item_map,
+                R.id.nav_item_cats,
+                R.id.nav_item_square,
+                R.id.nav_item_org,
+                R.id.nav_item_me
         };
         int[] iconIds = {
-            R.id.nav_icon_community,
-            R.id.nav_icon_map,
-            R.id.nav_icon_cats,
-            R.id.nav_icon_square,
-            R.id.nav_icon_org,
-            R.id.nav_icon_me
+                R.id.nav_icon_community,
+                R.id.nav_icon_map,
+                R.id.nav_icon_cats,
+                R.id.nav_icon_square,
+                R.id.nav_icon_org,
+                R.id.nav_icon_me
         };
         int[] textIds = {
-            R.id.nav_text_community,
-            R.id.nav_text_map,
-            R.id.nav_text_cats,
-            R.id.nav_text_square,
-            R.id.nav_text_org,
-            R.id.nav_text_me
+                R.id.nav_text_community,
+                R.id.nav_text_map,
+                R.id.nav_text_cats,
+                R.id.nav_text_square,
+                R.id.nav_text_org,
+                R.id.nav_text_me
         };
 
         for (int i = 0; i < navItemIds.length; i++) {
@@ -613,6 +790,8 @@ public class MainActivity extends AppCompatActivity {
                     bottomBarContainer.setVisibility(View.GONE);
                 if (fabQuickCamera != null)
                     fabQuickCamera.setVisibility(View.GONE);
+                if (quickActionOverlay != null)
+                    quickActionOverlay.setVisibility(View.GONE);
             } else {
                 if (bottomBarContainer != null)
                     bottomBarContainer.setVisibility(View.VISIBLE);
@@ -749,7 +928,8 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void requestWeatherWarning() {
-        requestWeatherLocation((lat, lng, isFallbackLocation) -> fetchWeatherWarning(lat, lng, false, null, false, isFallbackLocation));
+        requestWeatherLocation((lat, lng, isFallbackLocation) -> fetchWeatherWarning(lat, lng, false, null, false,
+                isFallbackLocation));
     }
 
     private void requestWeatherLocation(WeatherLocationAction action) {
