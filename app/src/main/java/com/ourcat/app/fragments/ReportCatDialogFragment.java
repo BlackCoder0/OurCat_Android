@@ -7,6 +7,7 @@ import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Bundle;
 import android.provider.MediaStore;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -41,6 +42,7 @@ import com.ourcat.app.utils.ImageUtils;
 import com.ourcat.app.utils.LoadingDialogHelper;
 import com.ourcat.app.utils.OssUploader;
 import com.ourcat.app.utils.RetrofitHelper;
+import com.ourcat.app.utils.TokenStore;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -55,6 +57,7 @@ import retrofit2.Response;
 
 public class ReportCatDialogFragment extends DialogFragment {
 
+    private static final String TAG = "ReportCatDialog";
     private static final String ARG_LAT = "lat";
     private static final String ARG_LNG = "lng";
     private static final String ARG_AUTO_CAMERA = "auto_camera";
@@ -534,7 +537,10 @@ public class ReportCatDialogFragment extends DialogFragment {
                     public void onFailure(Call<Map<String, String>> call, Throwable t) {
                         if (isAdded()) {
                             hideLoadingDialog();
-                            Toast.makeText(requireContext(), "网络错误", Toast.LENGTH_SHORT).show();
+                            Log.e(TAG, "getUploadUrl failed baseUrl=" + RetrofitHelper.getBaseUrl(), t);
+                            Toast.makeText(requireContext(),
+                                    "网络错误: " + formatNetworkError(t) + "\n" + safeUrl(RetrofitHelper.getBaseUrl()),
+                                    Toast.LENGTH_LONG).show();
                         }
                     }
                 });
@@ -557,7 +563,18 @@ public class ReportCatDialogFragment extends DialogFragment {
                                 onReportSuccess.run();
                         } else {
                             hideLoadingDialog();
-                            Toast.makeText(requireContext(), "上报失败", Toast.LENGTH_SHORT).show();
+                            int code = response.code();
+                            if (code == 401) {
+                                new TokenStore(requireContext()).clear();
+                                Toast.makeText(requireContext(), "登录已失效，请重新登录", Toast.LENGTH_LONG).show();
+                                dismiss();
+                            } else if (code == 404) {
+                                Toast.makeText(requireContext(), "接口不存在，请更新后端", Toast.LENGTH_LONG).show();
+                            } else if (code == 400) {
+                                Toast.makeText(requireContext(), "请求参数错误: 400", Toast.LENGTH_LONG).show();
+                            } else {
+                                Toast.makeText(requireContext(), "上报失败: " + code, Toast.LENGTH_LONG).show();
+                            }
                         }
                     }
 
@@ -565,10 +582,32 @@ public class ReportCatDialogFragment extends DialogFragment {
                     public void onFailure(Call<Map<String, Object>> call, Throwable t) {
                         if (isAdded()) {
                             hideLoadingDialog();
-                            Toast.makeText(requireContext(), "网络错误", Toast.LENGTH_SHORT).show();
+                            Log.e(TAG, "report failed baseUrl=" + RetrofitHelper.getBaseUrl(), t);
+                            Toast.makeText(requireContext(),
+                                    "网络错误: " + formatNetworkError(t) + "\n" + safeUrl(RetrofitHelper.getBaseUrl()),
+                                    Toast.LENGTH_LONG).show();
                         }
                     }
                 });
+    }
+
+    private static String formatNetworkError(@Nullable Throwable t) {
+        if (t == null) {
+            return "unknown";
+        }
+        String name = t.getClass().getSimpleName();
+        String msg = t.getMessage();
+        if (msg == null || msg.trim().isEmpty()) {
+            return name;
+        }
+        return name + ": " + msg;
+    }
+
+    private static String safeUrl(@Nullable String url) {
+        if (url == null || url.trim().isEmpty()) {
+            return "BASE_URL 未配置";
+        }
+        return "BASE_URL=" + url;
     }
 
     private void showLoadingDialog() {

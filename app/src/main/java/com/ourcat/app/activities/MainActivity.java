@@ -180,7 +180,7 @@ public class MainActivity extends AppCompatActivity {
         }
 
         appBarConfiguration = new AppBarConfiguration.Builder(
-                R.id.nav_community, R.id.nav_square, R.id.nav_me).build();
+                R.id.nav_community, R.id.nav_cats, R.id.nav_me).build();
         NavigationUI.setupWithNavController(toolbar, navController, appBarConfiguration);
         toolbar.setNavigationIconTint(ContextCompat.getColor(this, android.R.color.white));
         toolbar.setNavigationOnClickListener(v -> onToolbarNavigateClick());
@@ -202,8 +202,6 @@ public class MainActivity extends AppCompatActivity {
         LinearLayout navItemCommunity = findViewById(R.id.nav_item_community);
         LinearLayout navItemMap = findViewById(R.id.nav_item_map);
         LinearLayout navItemCats = findViewById(R.id.nav_item_cats);
-        LinearLayout navItemSquare = findViewById(R.id.nav_item_square);
-        LinearLayout navItemOrg = findViewById(R.id.nav_item_org);
         LinearLayout navItemMe = findViewById(R.id.nav_item_me);
 
         View.OnClickListener navClickListener = v -> {
@@ -219,28 +217,17 @@ public class MainActivity extends AppCompatActivity {
                 return;
             } else if (id == R.id.nav_item_cats) {
                 destId = R.id.nav_cats;
-            } else if (id == R.id.nav_item_square) {
-                destId = R.id.nav_square;
-            } else if (id == R.id.nav_item_org) {
-                destId = R.id.nav_org;
             } else if (id == R.id.nav_item_me) {
                 destId = R.id.nav_me;
             }
             if (destId != 0) {
-                NavOptions options = new NavOptions.Builder()
-                        .setLaunchSingleTop(true)
-                        .setPopUpTo(navController.getGraph().getStartDestinationId(), false, true)
-                        .build();
-                navController.navigate(destId, null, options);
-                updateNavSelection(id);
+                navigateToTopLevelDestination(destId, id);
             }
         };
 
         navItemCommunity.setOnClickListener(navClickListener);
         navItemMap.setOnClickListener(navClickListener);
         navItemCats.setOnClickListener(navClickListener);
-        navItemSquare.setOnClickListener(navClickListener);
-        navItemOrg.setOnClickListener(navClickListener);
         navItemMe.setOnClickListener(navClickListener);
 
         navController.addOnDestinationChangedListener((controller, dest, args) -> {
@@ -539,7 +526,7 @@ public class MainActivity extends AppCompatActivity {
 
     private void openQuickRescueSquarePost(double lat, double lng, Uri imageUri) {
         hideMap();
-        updateNavSelection(R.id.nav_item_square);
+        updateNavSelection(R.id.nav_item_community);
         Bundle args = new Bundle();
         args.putString("presetType", "rescue");
         args.putDouble("presetLat", lat);
@@ -705,6 +692,19 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    private void navigateToTopLevelDestination(int destId, int selectedNavItemId) {
+        if (navController == null) {
+            return;
+        }
+        NavOptions options = new NavOptions.Builder()
+                .setLaunchSingleTop(true)
+                .setRestoreState(true)
+                .setPopUpTo(navController.getGraph().getStartDestinationId(), false, true)
+                .build();
+        navController.navigate(destId, null, options);
+        updateNavSelection(selectedNavItemId);
+    }
+
     private void applyToolbarForMap() {
         toolbar.setTitle(R.string.title_map);
         toolbar.setNavigationIcon(null);
@@ -722,14 +722,24 @@ public class MainActivity extends AppCompatActivity {
     private int mapDestinationToNavItem(int destId) {
         if (destId == R.id.nav_community) {
             return R.id.nav_item_community;
-        } else if (destId == R.id.nav_square) {
-            return R.id.nav_item_square;
+        } else if (destId == R.id.forum_list
+                || destId == R.id.nav_square
+                || destId == R.id.rescue_list
+                || destId == R.id.rescue_statistics
+                || destId == R.id.rescue_guide) {
+            return R.id.nav_item_community;
         } else if (destId == R.id.nav_me) {
             return R.id.nav_item_me;
         } else if (destId == R.id.nav_cats) {
             return R.id.nav_item_cats;
-        } else if (destId == R.id.nav_org) {
-            return R.id.nav_item_org;
+        } else if (destId == R.id.nav_org
+                || destId == R.id.my_posts
+                || destId == R.id.my_comments
+                || destId == R.id.my_cat_reports
+                || destId == R.id.my_tasks
+                || destId == R.id.join_requests
+                || destId == R.id.user_management) {
+            return R.id.nav_item_me;
         }
         return 0;
     }
@@ -739,24 +749,18 @@ public class MainActivity extends AppCompatActivity {
                 R.id.nav_item_community,
                 R.id.nav_item_map,
                 R.id.nav_item_cats,
-                R.id.nav_item_square,
-                R.id.nav_item_org,
                 R.id.nav_item_me
         };
         int[] iconIds = {
                 R.id.nav_icon_community,
                 R.id.nav_icon_map,
                 R.id.nav_icon_cats,
-                R.id.nav_icon_square,
-                R.id.nav_icon_org,
                 R.id.nav_icon_me
         };
         int[] textIds = {
                 R.id.nav_text_community,
                 R.id.nav_text_map,
                 R.id.nav_text_cats,
-                R.id.nav_text_square,
-                R.id.nav_text_org,
                 R.id.nav_text_me
         };
 

@@ -1,17 +1,24 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">OurCat</string>
-    <string name="nav_community">社区</string>
+    <string name="nav_community">救助</string>
     <string name="nav_map">地图</string>
-    <string name="nav_square">广场</string>
+    <string name="nav_square">救助广场</string>
     <string name="nav_cats">猫咪</string>
-    <string name="nav_org">组织</string>
+    <string name="nav_org">我的组织</string>
     <string name="nav_me">我的</string>
-    <string name="title_community">社区</string>
-    <string name="title_map">猫咪地图</string>
-    <string name="title_square">广场</string>
+    <string name="title_community">救助</string>
+    <string name="title_map">地图</string>
+    <string name="title_square">救助广场</string>
     <string name="title_cats">猫咪</string>
-    <string name="title_org">组织</string>
+    <string name="title_org">我的组织</string>
     <string name="title_me">我的</string>
+    <string name="title_forum">社区讨论</string>
     <string name="action_message_center">消息中心</string>
+    <string name="rescue_tab_dynamic">救助动态</string>
+    <string name="rescue_tab_guide">救助指南</string>
+    <string name="rescue_tab_stats">数据统计</string>
+    <string name="rescue_dynamic_tab_list">动态</string>
+    <string name="rescue_dynamic_tab_discuss">讨论</string>
+    <string name="rescue_dynamic_tab_square">广场</string>
 </resources>

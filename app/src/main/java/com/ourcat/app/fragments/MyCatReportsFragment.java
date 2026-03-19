@@ -20,6 +20,7 @@ import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
 import com.bumptech.glide.Glide;
 import com.ourcat.app.R;
+import com.ourcat.app.activities.MainActivity;
 import com.ourcat.app.repositories.CatApi;
 import com.ourcat.app.utils.RetrofitHelper;
 
@@ -41,7 +42,7 @@ public class MyCatReportsFragment extends Fragment {
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,
-                             @Nullable Bundle savedInstanceState) {
+            @Nullable Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_my_cat_reports, container, false);
 
         swipeRefresh = view.findViewById(R.id.swipe_refresh);
@@ -57,14 +58,16 @@ public class MyCatReportsFragment extends Fragment {
     }
 
     private void loadData() {
-        if (!isAdded()) return;
+        if (!isAdded())
+            return;
         swipeRefresh.setRefreshing(true);
         RetrofitHelper.get().create(CatApi.class).getMyReports()
                 .enqueue(new Callback<List<Map<String, Object>>>() {
                     @Override
                     public void onResponse(Call<List<Map<String, Object>>> call,
-                                           Response<List<Map<String, Object>> > response) {
-                        if (!isAdded()) return;
+                            Response<List<Map<String, Object>>> response) {
+                        if (!isAdded())
+                            return;
                         swipeRefresh.setRefreshing(false);
                         if (response.isSuccessful() && response.body() != null) {
                             items.clear();
@@ -97,10 +100,12 @@ public class MyCatReportsFragment extends Fragment {
     }
 
     private void deleteItem(int position) {
-        if (position < 0 || position >= items.size()) return;
+        if (position < 0 || position >= items.size())
+            return;
         Map<String, Object> item = items.get(position);
         Object idObj = item.get("id");
-        if (idObj == null) return;
+        if (idObj == null)
+            return;
         long id = ((Number) idObj).longValue();
 
         new AlertDialog.Builder(requireContext())
@@ -111,8 +116,9 @@ public class MyCatReportsFragment extends Fragment {
                             .enqueue(new Callback<Map<String, Object>>() {
                                 @Override
                                 public void onResponse(Call<Map<String, Object>> call,
-                                                       Response<Map<String, Object>> response) {
-                                    if (!isAdded()) return;
+                                        Response<Map<String, Object>> response) {
+                                    if (!isAdded())
+                                        return;
                                     if (response.isSuccessful()) {
                                         items.remove(position);
                                         adapter.notifyItemRemoved(position);
@@ -193,6 +199,32 @@ public class MyCatReportsFragment extends Fragment {
             }
 
             h.delete.setOnClickListener(v -> deleteItem(h.getAdapterPosition()));
+
+            h.itemView.setOnClickListener(v -> {
+                int pos = h.getAdapterPosition();
+                if (pos < 0 || pos >= items.size()) {
+                    return;
+                }
+                Map<String, Object> clicked = items.get(pos);
+                double lat = doubleVal(clicked.get("lat"));
+                double lng = doubleVal(clicked.get("lng"));
+                if (lat == 0 && lng == 0) {
+                    Toast.makeText(requireContext(), "该上报缺少位置信息", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                long catId = longVal(clicked.get("catId"));
+                if (getActivity() instanceof MainActivity) {
+                    MainActivity act = (MainActivity) getActivity();
+                    if (catId > 0) {
+                        act.showMapAtCatLocationNear(catId, lat, lng);
+                    } else {
+                        act.showMapAtLocation(lat, lng);
+                    }
+                } else {
+                    Toast.makeText(requireContext(), String.format("📍 %.5f, %.5f", lat, lng), Toast.LENGTH_SHORT)
+                            .show();
+                }
+            });
         }
 
         @Override
@@ -202,6 +234,28 @@ public class MyCatReportsFragment extends Fragment {
 
         private String str(Object o) {
             return o != null ? o.toString() : "";
+        }
+
+        private long longVal(Object v) {
+            if (v instanceof Number) {
+                return ((Number) v).longValue();
+            }
+            try {
+                return v != null ? Long.parseLong(v.toString()) : 0L;
+            } catch (Exception e) {
+                return 0L;
+            }
+        }
+
+        private double doubleVal(Object v) {
+            if (v instanceof Number) {
+                return ((Number) v).doubleValue();
+            }
+            try {
+                return v != null ? Double.parseDouble(v.toString()) : 0.0;
+            } catch (Exception e) {
+                return 0.0;
+            }
         }
     }
 }

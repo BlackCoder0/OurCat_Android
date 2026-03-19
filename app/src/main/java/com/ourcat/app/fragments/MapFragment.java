@@ -888,7 +888,7 @@ public class MapFragment extends Fragment implements AMapLocationListener {
                                             if (getActivity() instanceof com.ourcat.app.activities.MainActivity) {
                                                 ((com.ourcat.app.activities.MainActivity) getActivity())
                                                         .navigateFromMap(R.id.rescue_detail, args,
-                                                                R.id.nav_item_square);
+                                                                R.id.nav_item_community);
                                             }
                                         }
                                     } else if (response.code() == 409) {
@@ -2453,7 +2453,7 @@ public class MapFragment extends Fragment implements AMapLocationListener {
         args.putLong("squarePostId", squarePostId);
         if (getActivity() instanceof com.ourcat.app.activities.MainActivity) {
             ((com.ourcat.app.activities.MainActivity) getActivity())
-                    .navigateFromMap(R.id.square_detail, args, R.id.nav_item_square);
+                    .navigateFromMap(R.id.square_detail, args, R.id.nav_item_community);
         }
     }
 

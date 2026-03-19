@@ -22,7 +22,30 @@
         <Button android:id="@+id/btn_mark_complete" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:text="标记活动完成" />
         <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="16dp" android:text="任务列表" android:textSize="15sp" />
         <androidx.recyclerview.widget.RecyclerView android:id="@+id/tasks_list" android:layout_width="match_parent" android:layout_height="wrap_content" android:nestedScrollingEnabled="false" android:minHeight="60dp" />
-        <TextView android:id="@+id/link_map" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:text="在地图中查看" android:textColor="@color/primary" android:clickable="true" android:focusable="true" />
-        <TextView android:id="@+id/link_square_post" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:text="在广场中查看" android:textColor="@color/primary" android:clickable="true" android:focusable="true" />
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:orientation="horizontal"
+            android:weightSum="2">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/link_map"
+                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginEnd="6dp"
+                android:text="在地图中查看" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/link_square_post"
+                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginStart="6dp"
+                android:text="在广场中查看" />
+        </LinearLayout>
     </LinearLayout>
 </ScrollView>

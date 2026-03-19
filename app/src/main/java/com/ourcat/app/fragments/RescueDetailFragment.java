@@ -38,7 +38,7 @@ public class RescueDetailFragment extends Fragment {
     private TextView detailTitle;
     private TextView detailUrgencyStatus;
     private TextView detailDescription;
-    private TextView linkSquarePost;
+    private Button linkSquarePost;
     private RecyclerView rescueTimeline;
     private TimelineAdapter timelineAdapter;
     private List<TimelineItem> timelineItems = new ArrayList<>();
@@ -48,7 +48,7 @@ public class RescueDetailFragment extends Fragment {
     private Button btnClaim;
     private Button btnAssign;
     private Button btnMarkComplete;
-    private TextView linkMap;
+    private Button linkMap;
     private Map<String, Object> activityData;
 
     @Override

@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <navigation xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/nav_graph"
@@ -6,13 +6,19 @@
 
     <fragment
         android:id="@+id/nav_community"
-        android:name="com.ourcat.app.fragments.ForumFragment"
+        android:name="com.ourcat.app.fragments.RescueHomeFragment"
         android:label="@string/title_community" />
+
+    <fragment
+        android:id="@+id/forum_list"
+        android:name="com.ourcat.app.fragments.ForumFragment"
+        android:label="@string/title_forum" />
 
     <fragment
         android:id="@+id/nav_square"
         android:name="com.ourcat.app.fragments.SquareFragment"
         android:label="@string/title_square" />
+
     <fragment
         android:id="@+id/square_detail"
         android:name="com.ourcat.app.fragments.SquareDetailFragment"
@@ -27,6 +33,7 @@
             android:id="@+id/action_square_detail_to_rescue_detail"
             app:destination="@id/rescue_detail" />
     </fragment>
+
     <fragment
         android:id="@+id/create_square_post"
         android:name="com.ourcat.app.fragments.CreateSquarePostFragment"
@@ -46,6 +53,7 @@
         android:id="@+id/nav_me"
         android:name="com.ourcat.app.fragments.ProfileFragment"
         android:label="@string/title_me" />
+
     <fragment
         android:id="@+id/post_detail"
         android:name="com.ourcat.app.fragments.PostDetailFragment"
@@ -54,10 +62,12 @@
             android:name="postId"
             app:argType="long" />
     </fragment>
+
     <fragment
         android:id="@+id/message_center"
         android:name="com.ourcat.app.fragments.MessageCenterFragment"
         android:label="消息中心" />
+
     <fragment
         android:id="@+id/create_edit_post"
         android:name="com.ourcat.app.fragments.CreateEditPostFragment"
@@ -67,10 +77,12 @@
             app:argType="integer"
             android:defaultValue="-1" />
     </fragment>
+
     <fragment
         android:id="@+id/user_management"
         android:name="com.ourcat.app.fragments.UserManagementFragment"
         android:label="用户管理" />
+
     <fragment
         android:id="@+id/search_result"
         android:name="com.ourcat.app.fragments.SearchResultFragment"
@@ -80,18 +92,22 @@
             app:argType="string"
             android:defaultValue="" />
     </fragment>
+
     <fragment
         android:id="@+id/my_posts"
         android:name="com.ourcat.app.fragments.MyPostsFragment"
         android:label="我的帖子" />
+
     <fragment
         android:id="@+id/my_comments"
         android:name="com.ourcat.app.fragments.MyCommentsFragment"
         android:label="我的评论" />
+
     <fragment
         android:id="@+id/my_cat_reports"
         android:name="com.ourcat.app.fragments.MyCatReportsFragment"
         android:label="我的上报" />
+
     <fragment
         android:id="@+id/user_profile"
         android:name="com.ourcat.app.fragments.UserProfileFragment"
@@ -100,6 +116,7 @@
             android:name="userId"
             app:argType="long" />
     </fragment>
+
     <fragment
         android:id="@+id/cat_profile"
         android:name="com.ourcat.app.fragments.CatProfileFragment"
@@ -108,14 +125,41 @@
             android:name="catId"
             app:argType="long" />
     </fragment>
-    <fragment android:id="@+id/rescue_list" android:name="com.ourcat.app.fragments.RescueListFragment" android:label="救助动态" />
-    <fragment android:id="@+id/rescue_detail" android:name="com.ourcat.app.fragments.RescueDetailFragment" android:label="救助活动详情">
-        <argument android:name="activityId" app:argType="long" />
+
+    <fragment
+        android:id="@+id/rescue_list"
+        android:name="com.ourcat.app.fragments.RescueListFragment"
+        android:label="救助动态" />
+
+    <fragment
+        android:id="@+id/rescue_detail"
+        android:name="com.ourcat.app.fragments.RescueDetailFragment"
+        android:label="救助活动详情">
+        <argument
+            android:name="activityId"
+            app:argType="long" />
     </fragment>
-    <fragment android:id="@+id/my_tasks" android:name="com.ourcat.app.fragments.MyTasksFragment" android:label="我的任务" />
-    <fragment android:id="@+id/rescue_statistics" android:name="com.ourcat.app.fragments.RescueStatisticsFragment" android:label="救助统计" />
-    <fragment android:id="@+id/rescue_guide" android:name="com.ourcat.app.fragments.RescueGuideFragment" android:label="救助指南" />
-    <fragment android:id="@+id/rescue_knowledge" android:name="com.ourcat.app.fragments.RescueKnowledgeFragment" android:label="救助知识" />
+
+    <fragment
+        android:id="@+id/my_tasks"
+        android:name="com.ourcat.app.fragments.MyTasksFragment"
+        android:label="我的任务" />
+
+    <fragment
+        android:id="@+id/rescue_statistics"
+        android:name="com.ourcat.app.fragments.RescueStatisticsFragment"
+        android:label="救助统计" />
+
+    <fragment
+        android:id="@+id/rescue_guide"
+        android:name="com.ourcat.app.fragments.RescueGuideFragment"
+        android:label="救助指南" />
+
+    <fragment
+        android:id="@+id/rescue_knowledge"
+        android:name="com.ourcat.app.fragments.RescueKnowledgeFragment"
+        android:label="救助知识" />
+
     <fragment
         android:id="@+id/rescue_article_detail"
         android:name="com.ourcat.app.fragments.RescueArticleDetailFragment"
@@ -125,6 +169,14 @@
             app:argType="long"
             android:defaultValue="0L" />
     </fragment>
-    <fragment android:id="@+id/org_fragment" android:name="com.ourcat.app.fragments.OrgFragment" android:label="组织" />
-    <fragment android:id="@+id/join_requests" android:name="com.ourcat.app.fragments.JoinRequestsFragment" android:label="加入申请审核" />
+
+    <fragment
+        android:id="@+id/org_fragment"
+        android:name="com.ourcat.app.fragments.OrgFragment"
+        android:label="组织" />
+
+    <fragment
+        android:id="@+id/join_requests"
+        android:name="com.ourcat.app.fragments.JoinRequestsFragment"
+        android:label="加入申请审核" />
 </navigation>

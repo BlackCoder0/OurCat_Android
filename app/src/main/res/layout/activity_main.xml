@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
+
 <androidx.coordinatorlayout.widget.CoordinatorLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
@@ -15,18 +16,17 @@
             android:id="@+id/toolbar"
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
-            app:titleTextColor="@android:color/white"
             app:navigationIconTint="@android:color/white"
-            app:title="@string/title_community" />
+            app:title="@string/title_community"
+            app:titleTextColor="@android:color/white" />
     </com.google.android.material.appbar.AppBarLayout>
 
-    <!-- 地图容器（独立于 Navigation，使用 show/hide 保持存活） -->
     <FrameLayout
         android:id="@+id/map_container"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:paddingBottom="80dp"
         android:clipToPadding="false"
+        android:paddingBottom="56dp"
         android:visibility="gone"
         app:layout_behavior="@string/appbar_scrolling_view_behavior" />
 
@@ -35,13 +35,12 @@
         android:name="androidx.navigation.fragment.NavHostFragment"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:paddingBottom="80dp"
         android:clipToPadding="false"
+        android:paddingBottom="56dp"
         app:defaultNavHost="true"
-        app:navGraph="@navigation/nav_graph"
-        app:layout_behavior="@string/appbar_scrolling_view_behavior" />
+        app:layout_behavior="@string/appbar_scrolling_view_behavior"
+        app:navGraph="@navigation/nav_graph" />
 
-    <!-- 自定义底部导航栏：左侧3个 + 中间FAB + 右侧3个 -->
     <FrameLayout
         android:id="@+id/bottom_bar_container"
         android:layout_width="match_parent"
@@ -50,40 +49,37 @@
         android:clipChildren="false"
         android:clipToPadding="false">
 
-        <!-- 背景遮罩 -->
         <View
             android:layout_width="match_parent"
             android:layout_height="56dp"
             android:layout_gravity="bottom"
-            android:background="@color/white" />
+            android:background="@drawable/bg_bottom_nav_curved" />
 
-        <!-- 底部导航内容：左3 + FAB + 右3 -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_gravity="bottom"
+            android:gravity="bottom"
             android:orientation="horizontal"
-            android:gravity="center_vertical"
-            android:weightSum="7">
+            android:weightSum="5">
 
-            <!-- 左侧3个导航项 -->
             <LinearLayout
                 android:layout_width="0dp"
-                android:layout_height="56dp"
-                android:layout_weight="3"
+                android:layout_height="72dp"
+                android:layout_weight="2"
+                android:gravity="bottom"
                 android:orientation="horizontal"
-                android:gravity="center">
+                android:paddingTop="12dp">
 
                 <LinearLayout
                     android:id="@+id/nav_item_community"
                     android:layout_width="0dp"
                     android:layout_height="match_parent"
                     android:layout_weight="1"
-                    android:orientation="vertical"
-                    android:gravity="center"
-                    android:background="?attr/selectableItemBackground"
                     android:clickable="true"
-                    android:focusable="true">
+                    android:focusable="true"
+                    android:gravity="center"
+                    android:orientation="vertical">
 
                     <ImageView
                         android:id="@+id/nav_icon_community"
@@ -104,11 +100,10 @@
                     android:layout_width="0dp"
                     android:layout_height="match_parent"
                     android:layout_weight="1"
-                    android:orientation="vertical"
-                    android:gravity="center"
-                    android:background="?attr/selectableItemBackground"
                     android:clickable="true"
-                    android:focusable="true">
+                    android:focusable="true"
+                    android:gravity="center"
+                    android:orientation="vertical">
 
                     <ImageView
                         android:id="@+id/nav_icon_map"
@@ -123,17 +118,48 @@
                         android:text="@string/nav_map"
                         android:textSize="10sp" />
                 </LinearLayout>
+            </LinearLayout>
+
+            <FrameLayout
+                android:layout_width="0dp"
+                android:layout_height="92dp"
+                android:layout_weight="1"
+                android:clipChildren="false">
+
+                <com.google.android.material.floatingactionbutton.FloatingActionButton
+                    android:id="@+id/fab_quick_camera"
+                    android:layout_width="68dp"
+                    android:layout_height="68dp"
+                    android:layout_gravity="center"
+                    android:contentDescription="快速拍照上报"
+                    android:padding="0dp"
+                    android:scaleType="centerInside"
+                    android:src="@drawable/camera"
+                    app:backgroundTint="@color/primary"
+                    app:elevation="0dp"
+                    app:fabCustomSize="68dp"
+                    app:maxImageSize="40dp"
+                    app:pressedTranslationZ="0dp"
+                    app:tint="@android:color/white" />
+            </FrameLayout>
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="72dp"
+                android:layout_weight="2"
+                android:gravity="bottom"
+                android:orientation="horizontal"
+                android:paddingTop="12dp">
 
                 <LinearLayout
                     android:id="@+id/nav_item_cats"
                     android:layout_width="0dp"
                     android:layout_height="match_parent"
                     android:layout_weight="1"
-                    android:orientation="vertical"
-                    android:gravity="center"
-                    android:background="?attr/selectableItemBackground"
                     android:clickable="true"
-                    android:focusable="true">
+                    android:focusable="true"
+                    android:gravity="center"
+                    android:orientation="vertical">
 
                     <ImageView
                         android:id="@+id/nav_icon_cats"
@@ -148,99 +174,16 @@
                         android:text="@string/nav_cats"
                         android:textSize="10sp" />
                 </LinearLayout>
-            </LinearLayout>
-
-            <!-- 中间拍照按钮（占1格） -->
-            <FrameLayout
-                android:layout_width="0dp"
-                android:layout_height="92dp"
-                android:layout_weight="1"
-                android:clipChildren="false">
-
-                <com.google.android.material.floatingactionbutton.FloatingActionButton
-                    android:id="@+id/fab_quick_camera"
-                    android:layout_width="68dp"
-                    android:layout_height="68dp"
-                    android:layout_gravity="center"
-                    android:src="@drawable/camera"
-                    android:scaleType="centerInside"
-                    android:padding="0dp"
-                    android:contentDescription="快速拍照上报"
-                    app:maxImageSize="40dp"
-                    app:fabCustomSize="68dp"
-                    app:backgroundTint="@color/primary"
-                    app:tint="@android:color/white"
-                    app:elevation="8dp" />
-            </FrameLayout>
-
-            <!-- 右侧3个导航项 -->
-            <LinearLayout
-                android:layout_width="0dp"
-                android:layout_height="56dp"
-                android:layout_weight="3"
-                android:orientation="horizontal"
-                android:gravity="center">
-
-                <LinearLayout
-                    android:id="@+id/nav_item_square"
-                    android:layout_width="0dp"
-                    android:layout_height="match_parent"
-                    android:layout_weight="1"
-                    android:orientation="vertical"
-                    android:gravity="center"
-                    android:background="?attr/selectableItemBackground"
-                    android:clickable="true"
-                    android:focusable="true">
-
-                    <ImageView
-                        android:id="@+id/nav_icon_square"
-                        android:layout_width="24dp"
-                        android:layout_height="24dp"
-                        android:src="@android:drawable/ic_menu_share" />
-
-                    <TextView
-                        android:id="@+id/nav_text_square"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="@string/nav_square"
-                        android:textSize="10sp" />
-                </LinearLayout>
-
-                <LinearLayout
-                    android:id="@+id/nav_item_org"
-                    android:layout_width="0dp"
-                    android:layout_height="match_parent"
-                    android:layout_weight="1"
-                    android:orientation="vertical"
-                    android:gravity="center"
-                    android:background="?attr/selectableItemBackground"
-                    android:clickable="true"
-                    android:focusable="true">
-
-                    <ImageView
-                        android:id="@+id/nav_icon_org"
-                        android:layout_width="24dp"
-                        android:layout_height="24dp"
-                        android:src="@android:drawable/ic_menu_agenda" />
-
-                    <TextView
-                        android:id="@+id/nav_text_org"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="@string/nav_org"
-                        android:textSize="10sp" />
-                </LinearLayout>
 
                 <LinearLayout
                     android:id="@+id/nav_item_me"
                     android:layout_width="0dp"
                     android:layout_height="match_parent"
                     android:layout_weight="1"
-                    android:orientation="vertical"
-                    android:gravity="center"
-                    android:background="?attr/selectableItemBackground"
                     android:clickable="true"
-                    android:focusable="true">
+                    android:focusable="true"
+                    android:gravity="center"
+                    android:orientation="vertical">
 
                     <ImageView
                         android:id="@+id/nav_icon_me"
@@ -263,9 +206,9 @@
         android:id="@+id/quick_action_overlay"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:visibility="gone"
         android:clickable="false"
-        android:focusable="false">
+        android:focusable="false"
+        android:visibility="gone">
 
         <View
             android:id="@+id/quick_action_scrim"
@@ -286,10 +229,10 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginEnd="36dp"
-                android:gravity="center"
-                android:orientation="vertical"
                 android:clickable="true"
-                android:focusable="true">
+                android:focusable="true"
+                android:gravity="center"
+                android:orientation="vertical">
 
                 <com.google.android.material.floatingactionbutton.FloatingActionButton
                     android:id="@+id/fab_quick_cat_report"
@@ -308,10 +251,10 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="8dp"
                     android:background="@drawable/bg_map_info_card"
-                    android:paddingLeft="10dp"
-                    android:paddingTop="4dp"
-                    android:paddingRight="10dp"
                     android:paddingBottom="4dp"
+                    android:paddingLeft="10dp"
+                    android:paddingRight="10dp"
+                    android:paddingTop="4dp"
                     android:text="上报猫咪"
                     android:textColor="@color/text_primary"
                     android:textSize="12sp" />
@@ -322,10 +265,10 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="36dp"
-                android:gravity="center"
-                android:orientation="vertical"
                 android:clickable="true"
-                android:focusable="true">
+                android:focusable="true"
+                android:gravity="center"
+                android:orientation="vertical">
 
                 <com.google.android.material.floatingactionbutton.FloatingActionButton
                     android:id="@+id/fab_quick_rescue_square"
@@ -344,10 +287,10 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="8dp"
                     android:background="@drawable/bg_map_info_card"
-                    android:paddingLeft="10dp"
-                    android:paddingTop="4dp"
-                    android:paddingRight="10dp"
                     android:paddingBottom="4dp"
+                    android:paddingLeft="10dp"
+                    android:paddingRight="10dp"
+                    android:paddingTop="4dp"
                     android:text="救助事件"
                     android:textColor="@color/text_primary"
                     android:textSize="12sp" />

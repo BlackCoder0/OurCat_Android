@@ -60,6 +60,8 @@ public class ProfileFragment extends Fragment {
         // 救助动态已移至广场页面
         setupOption(view, R.id.btn_my_tasks, "我参与的救助",
                 v -> NavHostFragment.findNavController(ProfileFragment.this).navigate(R.id.my_tasks));
+        setupOption(view, R.id.btn_my_org, "我的组织",
+                v -> NavHostFragment.findNavController(ProfileFragment.this).navigate(R.id.nav_org));
         setupOption(view, R.id.btn_join_requests, "加入申请审核",
                 v -> NavHostFragment.findNavController(ProfileFragment.this).navigate(R.id.join_requests));
 

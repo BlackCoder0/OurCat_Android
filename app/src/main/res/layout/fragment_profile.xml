@@ -9,42 +9,41 @@
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:gravity="center_horizontal">
+        android:gravity="center_horizontal"
+        android:orientation="vertical">
 
         <ImageView
             android:id="@+id/avatar"
             android:layout_width="80dp"
             android:layout_height="80dp"
             android:layout_marginTop="24dp"
-            android:scaleType="centerCrop"
             android:background="@drawable/bg_circle_white"
-            android:contentDescription="头像" />
+            android:contentDescription="头像"
+            android:scaleType="centerCrop" />
 
         <TextView
             android:id="@+id/tv_nickname"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:textSize="20sp"
+            android:layout_marginTop="12dp"
             android:textColor="@color/text_primary"
-            android:layout_marginTop="12dp" />
+            android:textSize="20sp" />
 
         <TextView
             android:id="@+id/tv_role"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:textSize="14sp"
+            android:layout_marginTop="4dp"
             android:textColor="@color/text_secondary"
-            android:layout_marginTop="4dp" />
+            android:textSize="14sp" />
 
-        <!-- 列表容器 -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical"
             android:layout_marginTop="24dp"
             android:background="@color/background"
-            android:elevation="2dp">
+            android:elevation="2dp"
+            android:orientation="vertical">
 
             <include
                 android:id="@+id/btn_my_posts"
@@ -53,8 +52,8 @@
             <View
                 android:layout_width="match_parent"
                 android:layout_height="1dp"
-                android:background="@color/secondary"
-                android:layout_marginStart="16dp" />
+                android:layout_marginStart="16dp"
+                android:background="@color/secondary" />
 
             <include
                 android:id="@+id/btn_my_comments"
@@ -63,8 +62,8 @@
             <View
                 android:layout_width="match_parent"
                 android:layout_height="1dp"
-                android:background="@color/secondary"
-                android:layout_marginStart="16dp" />
+                android:layout_marginStart="16dp"
+                android:background="@color/secondary" />
 
             <include
                 android:id="@+id/btn_my_cat_reports"
@@ -73,13 +72,39 @@
             <View
                 android:layout_width="match_parent"
                 android:layout_height="1dp"
-                android:background="@color/secondary"
-                android:layout_marginStart="16dp" />
+                android:layout_marginStart="16dp"
+                android:background="@color/secondary" />
 
-            <include android:id="@+id/btn_my_tasks" layout="@layout/item_profile_option" />
-            <View android:layout_width="match_parent" android:layout_height="1dp" android:background="@color/secondary" android:layout_marginStart="16dp" />
-            <include android:id="@+id/btn_join_requests" layout="@layout/item_profile_option" android:visibility="gone" />
-            <View android:layout_width="match_parent" android:layout_height="1dp" android:background="@color/secondary" android:layout_marginStart="16dp" />
+            <include
+                android:id="@+id/btn_my_tasks"
+                layout="@layout/item_profile_option" />
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:layout_marginStart="16dp"
+                android:background="@color/secondary" />
+
+            <include
+                android:id="@+id/btn_my_org"
+                layout="@layout/item_profile_option" />
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:layout_marginStart="16dp"
+                android:background="@color/secondary" />
+
+            <include
+                android:id="@+id/btn_join_requests"
+                layout="@layout/item_profile_option"
+                android:visibility="gone" />
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:layout_marginStart="16dp"
+                android:background="@color/secondary" />
 
             <include
                 android:id="@+id/btn_change_password"
@@ -88,29 +113,28 @@
             <View
                 android:layout_width="match_parent"
                 android:layout_height="1dp"
-                android:background="@color/secondary"
-                android:layout_marginStart="16dp" />
+                android:layout_marginStart="16dp"
+                android:background="@color/secondary" />
 
             <include
                 android:id="@+id/btn_user_manage"
                 layout="@layout/item_profile_option"
                 android:visibility="gone" />
-
         </LinearLayout>
 
         <TextView
             android:id="@+id/btn_logout"
             android:layout_width="match_parent"
             android:layout_height="56dp"
+            android:layout_marginTop="24dp"
+            android:background="@android:color/white"
+            android:clickable="true"
+            android:elevation="2dp"
+            android:focusable="true"
+            android:foreground="?attr/selectableItemBackground"
             android:gravity="center"
             android:text="退出登录"
             android:textColor="@color/error"
-            android:textSize="16sp"
-            android:layout_marginTop="24dp"
-            android:background="@android:color/white"
-            android:elevation="2dp"
-            android:clickable="true"
-            android:focusable="true"
-            android:foreground="?attr/selectableItemBackground" />
+            android:textSize="16sp" />
     </LinearLayout>
 </ScrollView>
