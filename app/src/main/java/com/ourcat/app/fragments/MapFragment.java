@@ -826,13 +826,28 @@ public class MapFragment extends Fragment implements AMapLocationListener {
         titleInput.setHint("救助标题");
         titleInput.setMinEms(12);
         android.widget.EditText descInput = new android.widget.EditText(requireContext());
-        descInput.setHint("描述（选填）");
+        descInput.setHint("描述(选填)");
         descInput.setMinLines(2);
+
+        android.widget.Spinner problemTypeSpinner = new android.widget.Spinner(requireContext());
+        String[] problemTypes = { "受伤", "疾病", "困境", "其他" };
+        android.widget.ArrayAdapter<String> adapter = new android.widget.ArrayAdapter<>(
+                requireContext(), android.R.layout.simple_spinner_item, problemTypes);
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        problemTypeSpinner.setAdapter(adapter);
+
         android.widget.LinearLayout layout = new android.widget.LinearLayout(requireContext());
         layout.setOrientation(android.widget.LinearLayout.VERTICAL);
         layout.setPadding(50, 40, 50, 10);
         layout.addView(titleInput);
         layout.addView(descInput);
+
+        android.widget.TextView problemTypeLabel = new android.widget.TextView(requireContext());
+        problemTypeLabel.setText("问题类型");
+        problemTypeLabel.setPadding(0, 20, 0, 8);
+        layout.addView(problemTypeLabel);
+        layout.addView(problemTypeSpinner);
+
         new androidx.appcompat.app.AlertDialog.Builder(requireContext())
                 .setTitle("发起救助")
                 .setView(layout)
@@ -842,10 +857,12 @@ public class MapFragment extends Fragment implements AMapLocationListener {
                         Toast.makeText(requireContext(), "请填写标题", Toast.LENGTH_SHORT).show();
                         return;
                     }
+                    String problemType = problemTypeSpinner.getSelectedItem().toString();
                     Map<String, Object> body = new HashMap<>();
                     body.put("title", title);
                     body.put("description", descInput.getText().toString().trim());
                     body.put("catId", catId);
+                    body.put("problemType", problemType);
                     RetrofitHelper.get().create(RescueApi.class).createActivity(body)
                             .enqueue(new Callback<Map<String, Object>>() {
                                 @Override

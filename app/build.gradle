@@ -64,6 +64,8 @@ dependencies {
     implementation 'com.google.code.gson:gson:2.10.1'
     implementation 'androidx.viewpager2:viewpager2:1.0.0'
 
+    implementation 'com.github.PhilJay:MPAndroidChart:v3.1.0'
+
     // 高德地图 SDK（已包含定位功能，无需单独引入 location SDK）
     implementation 'com.amap.api:3dmap:9.6.0'
     // 高德搜索服务（逆地理编码）

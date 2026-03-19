@@ -1,6 +1,7 @@
 package com.ourcat.app.fragments;
 
 import android.os.Bundle;
+import android.os.Parcelable;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -26,18 +27,31 @@ import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
 
+import androidx.lifecycle.ViewModelProvider;
+import com.ourcat.app.models.RescueViewModel;
+
 public class RescueListFragment extends Fragment {
 
     private RecyclerView recycler;
     private ProgressBar progress;
     private TextView emptyText;
     private final List<Map<String, Object>> items = new ArrayList<>();
+    private RescueViewModel viewModel;
+    private static final String KEY_LAYOUT_STATE = "rescue_list_layout_state";
+    private Parcelable pendingLayoutState;
 
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,
             @Nullable Bundle savedInstanceState) {
+        viewModel = new ViewModelProvider(requireActivity()).get(RescueViewModel.class);
         View view = inflater.inflate(R.layout.fragment_rescue_list, container, false);
+        if (savedInstanceState != null) {
+            pendingLayoutState = savedInstanceState.getParcelable(KEY_LAYOUT_STATE);
+        }
+        if (pendingLayoutState == null) {
+            pendingLayoutState = viewModel.getLayoutState();
+        }
         recycler = view.findViewById(R.id.rescue_list);
         progress = view.findViewById(R.id.progress);
         emptyText = view.findViewById(R.id.empty_text);
@@ -74,7 +88,28 @@ public class RescueListFragment extends Fragment {
                 return items.size();
             }
         });
-        load();
+
+        if (viewModel.getItems().getValue() != null && !viewModel.getItems().getValue().isEmpty()) {
+            items.clear();
+            items.addAll(viewModel.getItems().getValue());
+            recycler.getAdapter().notifyDataSetChanged();
+            progress.setVisibility(View.GONE);
+            emptyText.setVisibility(items.isEmpty() ? View.VISIBLE : View.GONE);
+            restoreLayoutStateIfNeeded();
+        } else {
+            load();
+        }
+
+        recycler.addOnScrollListener(new RecyclerView.OnScrollListener() {
+            @Override
+            public void onScrolled(@NonNull RecyclerView recyclerView, int dx, int dy) {
+                LinearLayoutManager lm = (LinearLayoutManager) recyclerView.getLayoutManager();
+                if (lm != null) {
+                    viewModel.setScrollPosition(lm.findFirstVisibleItemPosition());
+                }
+            }
+        });
+
         return view;
     }
 
@@ -97,8 +132,10 @@ public class RescueListFragment extends Fragment {
                                         items.add((Map<String, Object>) o);
                                 }
                             }
+                            viewModel.setItems(new ArrayList<>(items));
                             recycler.getAdapter().notifyDataSetChanged();
                             emptyText.setVisibility(items.isEmpty() ? View.VISIBLE : View.GONE);
+                            restoreLayoutStateIfNeeded();
                         }
                     }
 
@@ -110,6 +147,30 @@ public class RescueListFragment extends Fragment {
                         }
                     }
                 });
+    }
+
+    @Override
+    public void onSaveInstanceState(@NonNull Bundle outState) {
+        super.onSaveInstanceState(outState);
+        if (recycler != null && recycler.getLayoutManager() != null) {
+            outState.putParcelable(KEY_LAYOUT_STATE, recycler.getLayoutManager().onSaveInstanceState());
+        }
+    }
+
+    @Override
+    public void onDestroyView() {
+        if (recycler != null && recycler.getLayoutManager() != null) {
+            viewModel.setLayoutState(recycler.getLayoutManager().onSaveInstanceState());
+        }
+        super.onDestroyView();
+    }
+
+    private void restoreLayoutStateIfNeeded() {
+        if (pendingLayoutState == null || recycler == null || recycler.getLayoutManager() == null) {
+            return;
+        }
+        recycler.getLayoutManager().onRestoreInstanceState(pendingLayoutState);
+        pendingLayoutState = null;
     }
 
     private static String str(Map<String, Object> m, String k) {

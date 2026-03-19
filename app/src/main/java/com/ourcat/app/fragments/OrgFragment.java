@@ -36,6 +36,7 @@ public class OrgFragment extends Fragment {
     private TextView statMemberCount, statCompletedRescues, statOngoingRescues;
     private Button btnJoin, btnLeave;
     private RecyclerView membersList, recentActivitiesList;
+    private View btnRescueList, btnRescueStatistics, btnRescueGuide;
     private final List<Map<String, Object>> members = new ArrayList<>();
     private final List<Map<String, Object>> recentActivities = new ArrayList<>();
     private MembersAdapter membersAdapter;
@@ -57,6 +58,9 @@ public class OrgFragment extends Fragment {
         btnLeave = view.findViewById(R.id.btn_leave);
         membersList = view.findViewById(R.id.members_list);
         recentActivitiesList = view.findViewById(R.id.recent_activities_list);
+        btnRescueList = view.findViewById(R.id.btn_org_rescue_list);
+        btnRescueStatistics = view.findViewById(R.id.btn_org_rescue_statistics);
+        btnRescueGuide = view.findViewById(R.id.btn_org_rescue_guide);
         membersList.setLayoutManager(new LinearLayoutManager(requireContext()));
         membersAdapter = new MembersAdapter();
         membersList.setAdapter(membersAdapter);
@@ -64,10 +68,28 @@ public class OrgFragment extends Fragment {
         recentActivitiesAdapter = new RecentActivitiesAdapter();
         recentActivitiesList.setAdapter(recentActivitiesAdapter);
 
+        setupOption(btnRescueList, "救助动态",
+                v -> NavHostFragment.findNavController(OrgFragment.this).navigate(R.id.rescue_list));
+        setupOption(btnRescueStatistics, "救助数据统计",
+                v -> NavHostFragment.findNavController(OrgFragment.this).navigate(R.id.rescue_statistics));
+        setupOption(btnRescueGuide, "救助知识库（指南+文章）",
+                v -> NavHostFragment.findNavController(OrgFragment.this).navigate(R.id.rescue_guide));
+
         btnJoin.setOnClickListener(v -> doJoin());
         btnLeave.setOnClickListener(v -> doLeave());
         loadCurrentUserId();
         return view;
+    }
+
+    private void setupOption(View optionView, String text, View.OnClickListener listener) {
+        if (optionView == null) {
+            return;
+        }
+        TextView tv = optionView.findViewById(R.id.option_text);
+        if (tv != null) {
+            tv.setText(text);
+        }
+        optionView.setOnClickListener(listener);
     }
 
     private void loadCurrentUserId() {

@@ -21,6 +21,7 @@ import androidx.navigation.Navigation;
 import androidx.navigation.fragment.NavHostFragment;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
+import androidx.recyclerview.widget.LinearSnapHelper;
 import androidx.viewpager2.widget.ViewPager2;
 
 import com.bumptech.glide.Glide;
@@ -79,6 +80,10 @@ public class SquareDetailFragment extends Fragment {
     private RecyclerView rescueTasksView;
     private TextView rescueTasksEmpty;
     private RescueTasksAdapter rescueTasksAdapter;
+    private RecyclerView rescueTimelineView;
+    private RescueTimelineAdapter rescueTimelineAdapter;
+    private final List<TimelineItem> rescueTimelineItems = new ArrayList<>();
+    private long timelineLoadedActivityId;
     private View refCatCard;
     private ImageView refCatAvatar;
     private TextView refCatName;
@@ -129,6 +134,7 @@ public class SquareDetailFragment extends Fragment {
         rescueAssignButton = view.findViewById(R.id.square_rescue_assign);
         rescueTasksView = view.findViewById(R.id.square_rescue_tasks);
         rescueTasksEmpty = view.findViewById(R.id.square_rescue_tasks_empty);
+        rescueTimelineView = view.findViewById(R.id.square_rescue_timeline);
         refCatCard = view.findViewById(R.id.square_ref_cat_card);
         refCatAvatar = view.findViewById(R.id.square_ref_cat_avatar);
         refCatName = view.findViewById(R.id.square_ref_cat_name);
@@ -140,6 +146,13 @@ public class SquareDetailFragment extends Fragment {
         rescueTasksAdapter = new RescueTasksAdapter();
         rescueTasksView.setLayoutManager(new LinearLayoutManager(requireContext()));
         rescueTasksView.setAdapter(rescueTasksAdapter);
+
+        rescueTimelineAdapter = new RescueTimelineAdapter();
+        LinearLayoutManager timelineLayoutManager = new LinearLayoutManager(requireContext(),
+                LinearLayoutManager.HORIZONTAL, false);
+        rescueTimelineView.setLayoutManager(timelineLayoutManager);
+        rescueTimelineView.setAdapter(rescueTimelineAdapter);
+        new LinearSnapHelper().attachToRecyclerView(rescueTimelineView);
 
         rescueCardContainer.setVisibility(View.GONE);
         refCatCard.setVisibility(View.GONE);
@@ -687,6 +700,193 @@ public class SquareDetailFragment extends Fragment {
         rescueTasksAdapter.notifyDataSetChanged();
         rescueTasksEmpty.setVisibility(rescueTasks.isEmpty() ? View.VISIBLE : View.GONE);
         rescueTasksView.setVisibility(rescueTasks.isEmpty() ? View.GONE : View.VISIBLE);
+
+        loadRescueTimeline(rescueActivityId);
+    }
+
+    private void loadRescueTimeline(long rescueActivityId) {
+        if (rescueActivityId <= 0 || rescueTimelineView == null) {
+            return;
+        }
+        if (timelineLoadedActivityId == rescueActivityId && !rescueTimelineItems.isEmpty()) {
+            rescueTimelineAdapter.notifyDataSetChanged();
+            return;
+        }
+        timelineLoadedActivityId = rescueActivityId;
+        RetrofitHelper.get().create(RescueApi.class).getActivity(rescueActivityId)
+                .enqueue(new Callback<Map<String, Object>>() {
+                    @Override
+                    public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
+                        if (!isAdded()) {
+                            return;
+                        }
+                        if (!response.isSuccessful() || response.body() == null) {
+                            return;
+                        }
+                        buildRescueTimeline(response.body());
+                    }
+
+                    @Override
+                    public void onFailure(Call<Map<String, Object>> call, Throwable t) {
+                    }
+                });
+    }
+
+    @SuppressWarnings("unchecked")
+    private void buildRescueTimeline(Map<String, Object> activity) {
+        rescueTimelineItems.clear();
+
+        List<Map<String, Object>> tasks = new ArrayList<>();
+        Object tasksObj = activity.get("tasks");
+        if (tasksObj instanceof List) {
+            for (Object o : (List<?>) tasksObj) {
+                if (o instanceof Map) {
+                    tasks.add((Map<String, Object>) o);
+                }
+            }
+        }
+
+        String createdAt = stringValue(activity.get("createdAt"), "");
+        String createdBy = stringValue(activity.get("creatorName"), "");
+        String operatorText = createdBy.isEmpty() ? "" : ("操作人: " + createdBy);
+
+        rescueTimelineItems.add(new TimelineItem("发现问题", createdAt, operatorText));
+        rescueTimelineItems.add(new TimelineItem("创建活动", createdAt, operatorText));
+
+        if (!tasks.isEmpty()) {
+            String firstAssignedAt = "";
+            for (Map<String, Object> t : tasks) {
+                String at = stringValue(t.get("assignedAt"), "");
+                if (!at.isEmpty()) {
+                    firstAssignedAt = at;
+                    break;
+                }
+            }
+            rescueTimelineItems.add(new TimelineItem("分配/申领任务", firstAssignedAt, buildTaskMembersText(tasks)));
+        }
+
+        if (!tasks.isEmpty()) {
+            int doneCount = 0;
+            for (Map<String, Object> t : tasks) {
+                if ("done".equalsIgnoreCase(stringValue(t.get("status"), ""))) {
+                    doneCount++;
+                }
+            }
+            rescueTimelineItems.add(new TimelineItem("执行救助", "", "进度: " + doneCount + "/" + tasks.size() + " 已完成"));
+        }
+
+        String status = stringValue(activity.get("status"), "");
+        if ("completed".equals(status)) {
+            String completedAt = stringValue(activity.get("completedAt"), "");
+            rescueTimelineItems.add(new TimelineItem("完成救助", completedAt, ""));
+        }
+
+        java.util.Collections.reverse(rescueTimelineItems);
+        rescueTimelineAdapter.notifyDataSetChanged();
+        rescueTimelineView.scrollToPosition(0);
+    }
+
+    private String buildTaskMembersText(List<Map<String, Object>> tasks) {
+        List<String> names = new ArrayList<>();
+        for (Map<String, Object> t : tasks) {
+            String name = stringValue(t.get("assigneeName"), "");
+            if (name.isEmpty()) {
+                name = "未分配";
+            }
+            names.add(name);
+        }
+        String joined = joinDistinct(names, 4);
+        return joined.isEmpty() ? "" : ("成员: " + joined);
+    }
+
+    private String joinDistinct(List<String> list, int maxItems) {
+        List<String> result = new ArrayList<>();
+        for (String s : list) {
+            if (s == null || s.trim().isEmpty()) {
+                continue;
+            }
+            boolean exists = false;
+            for (String r : result) {
+                if (r.equals(s)) {
+                    exists = true;
+                    break;
+                }
+            }
+            if (!exists) {
+                result.add(s);
+            }
+            if (result.size() >= maxItems) {
+                break;
+            }
+        }
+        if (result.isEmpty()) {
+            return "";
+        }
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < result.size(); i++) {
+            if (i > 0) {
+                sb.append("、");
+            }
+            sb.append(result.get(i));
+        }
+        if (list.size() > result.size()) {
+            sb.append("…");
+        }
+        return sb.toString();
+    }
+
+    static class TimelineItem {
+        final String title;
+        final String time;
+        final String operator;
+
+        TimelineItem(String title, String time, String operator) {
+            this.title = title;
+            this.time = time;
+            this.operator = operator;
+        }
+    }
+
+    class RescueTimelineAdapter extends RecyclerView.Adapter<RescueTimelineAdapter.VH> {
+        class VH extends RecyclerView.ViewHolder {
+            final TextView title;
+            final TextView time;
+            final TextView operator;
+            final View leftLine;
+            final View rightLine;
+
+            VH(@NonNull View itemView) {
+                super(itemView);
+                title = itemView.findViewById(R.id.timeline_title);
+                time = itemView.findViewById(R.id.timeline_time);
+                operator = itemView.findViewById(R.id.timeline_operator);
+                leftLine = itemView.findViewById(R.id.timeline_left_line);
+                rightLine = itemView.findViewById(R.id.timeline_right_line);
+            }
+        }
+
+        @NonNull
+        @Override
+        public VH onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+            View v = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_rescue_timeline_horizontal, parent,
+                    false);
+            return new VH(v);
+        }
+
+        @Override
+        public void onBindViewHolder(@NonNull VH holder, int position) {
+            TimelineItem item = rescueTimelineItems.get(position);
+            holder.title.setText(item.title);
+            holder.time.setText(item.time.isEmpty() ? "" : TimeUtils.getRelativeTime(item.time));
+            holder.operator.setText(item.operator != null ? item.operator : "");
+            holder.leftLine.setVisibility(position == 0 ? View.INVISIBLE : View.VISIBLE);
+            holder.rightLine.setVisibility(position == rescueTimelineItems.size() - 1 ? View.INVISIBLE : View.VISIBLE);
+        }
+
+        @Override
+        public int getItemCount() {
+            return rescueTimelineItems.size();
+        }
     }
 
     private void jumpRescueActivityToMap() {

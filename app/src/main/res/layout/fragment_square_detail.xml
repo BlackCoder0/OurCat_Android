@@ -299,6 +299,29 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
+                            android:text="救助时间轴"
+                            android:textAppearance="?attr/textAppearanceSubtitle2" />
+
+                        <androidx.recyclerview.widget.RecyclerView
+                            android:id="@+id/square_rescue_timeline"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp"
+                            android:background="@color/surface"
+                            android:clipToPadding="false"
+                            android:paddingHorizontal="8dp"
+                            android:paddingVertical="6dp"
+                            android:nestedScrollingEnabled="false" />
+
+                        <View
+                            android:layout_width="match_parent"
+                            android:layout_height="1dp"
+                            android:layout_marginTop="12dp"
+                            android:background="@color/divider" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
                             android:text="任务列表"
                             android:textAppearance="?attr/textAppearanceSubtitle2" />
 

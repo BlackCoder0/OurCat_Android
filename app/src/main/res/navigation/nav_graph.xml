@@ -113,7 +113,18 @@
         <argument android:name="activityId" app:argType="long" />
     </fragment>
     <fragment android:id="@+id/my_tasks" android:name="com.ourcat.app.fragments.MyTasksFragment" android:label="我的任务" />
+    <fragment android:id="@+id/rescue_statistics" android:name="com.ourcat.app.fragments.RescueStatisticsFragment" android:label="救助统计" />
     <fragment android:id="@+id/rescue_guide" android:name="com.ourcat.app.fragments.RescueGuideFragment" android:label="救助指南" />
+    <fragment android:id="@+id/rescue_knowledge" android:name="com.ourcat.app.fragments.RescueKnowledgeFragment" android:label="救助知识" />
+    <fragment
+        android:id="@+id/rescue_article_detail"
+        android:name="com.ourcat.app.fragments.RescueArticleDetailFragment"
+        android:label="文章详情">
+        <argument
+            android:name="articleId"
+            app:argType="long"
+            android:defaultValue="0L" />
+    </fragment>
     <fragment android:id="@+id/org_fragment" android:name="com.ourcat.app.fragments.OrgFragment" android:label="组织" />
     <fragment android:id="@+id/join_requests" android:name="com.ourcat.app.fragments.JoinRequestsFragment" android:label="加入申请审核" />
 </navigation>

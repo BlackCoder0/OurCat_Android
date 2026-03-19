@@ -158,7 +158,7 @@ public class EditCatDialogFragment extends DialogFragment {
                 android.R.layout.simple_dropdown_item_1line, colors);
         spinnerColor.setAdapter(colorAdapter);
 
-        String[] statuses = new String[] { "活跃", "收养", "失踪", "生病", "已故" };
+        String[] statuses = new String[] { "活跃", "收养", "失踪", "受伤", "疾病", "困境", "其他", "已故" };
         ArrayAdapter<String> statusAdapter = new ArrayAdapter<>(requireContext(),
                 android.R.layout.simple_dropdown_item_1line, statuses);
         spinnerStatus.setAdapter(statusAdapter);

@@ -11,6 +11,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.webkit.MimeTypeMap;
+import android.widget.Spinner;
 import android.widget.Toast;
 
 import androidx.activity.result.ActivityResultLauncher;
@@ -68,6 +69,8 @@ public class CreateSquarePostFragment extends Fragment {
     private TextInputEditText etLocation; // Use TextInputEditText for location display
     private TextInputLayout tilLocation;
     private ChipGroup typeGroup;
+    private Spinner problemTypeSpinner;
+    private View problemTypeLabel;
     private MaterialButton btnSubmit;
     private RecyclerView rvImages;
     private ImagePickAdapter imageAdapter;
@@ -109,6 +112,8 @@ public class CreateSquarePostFragment extends Fragment {
         View view = inflater.inflate(R.layout.fragment_create_square_post, container, false);
         etContent = view.findViewById(R.id.et_content);
         typeGroup = view.findViewById(R.id.square_type_group);
+        problemTypeSpinner = view.findViewById(R.id.sp_square_problem_type);
+        problemTypeLabel = view.findViewById(R.id.tv_square_problem_type);
         rvImages = view.findViewById(R.id.rv_square_images);
 
         tilLocation = view.findViewById(R.id.til_square_location);
@@ -129,8 +134,31 @@ public class CreateSquarePostFragment extends Fragment {
         // Location click listener on TextInputEditText or TextInputLayout end icon
         tilLocation.setEndIconOnClickListener(v -> checkLocationPermission());
 
+        setupProblemTypeSpinner();
+        typeGroup.setOnCheckedStateChangeListener((group, checkedIds) -> updateProblemTypeVisibility());
+        updateProblemTypeVisibility();
+
         btnSubmit.setOnClickListener(v -> submit());
         return view;
+    }
+
+    private void setupProblemTypeSpinner() {
+        String[] problemTypes = new String[] { "受伤", "疾病", "困境", "其他" };
+        android.widget.ArrayAdapter<String> adapter = new android.widget.ArrayAdapter<>(
+                requireContext(), android.R.layout.simple_spinner_item, problemTypes);
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        problemTypeSpinner.setAdapter(adapter);
+    }
+
+    private void updateProblemTypeVisibility() {
+        int checkedId = typeGroup.getCheckedChipId();
+        boolean isRescue = checkedId == R.id.chip_rescue;
+        if (problemTypeSpinner != null) {
+            problemTypeSpinner.setVisibility(isRescue ? View.VISIBLE : View.GONE);
+        }
+        if (problemTypeLabel != null) {
+            problemTypeLabel.setVisibility(isRescue ? View.VISIBLE : View.GONE);
+        }
     }
 
     private void openSelectCatDialog() {
@@ -302,6 +330,10 @@ public class CreateSquarePostFragment extends Fragment {
         String type = "inquiry";
         if (checkedId == R.id.chip_rescue)
             type = "rescue";
+        String problemType = null;
+        if ("rescue".equals(type) && problemTypeSpinner != null && problemTypeSpinner.getSelectedItem() != null) {
+            problemType = String.valueOf(problemTypeSpinner.getSelectedItem()).trim();
+        }
 
         String loc = etLocation.getText() != null ? etLocation.getText().toString().trim() : "";
         String anno = etAnnotation.getText() != null ? etAnnotation.getText().toString().trim() : "";
@@ -355,16 +387,16 @@ public class CreateSquarePostFragment extends Fragment {
                         ? ((Number) selectedRefCat.get("id")).longValue()
                         : 0L);
         if (newUris.isEmpty()) {
-            doCreatePost(text, new ArrayList<>(), finalLocation, type, finalReferencedCatId);
+            doCreatePost(text, new ArrayList<>(), finalLocation, type, finalReferencedCatId, problemType);
         } else {
-            uploadImages(newUris, 0, new ArrayList<>(), text, finalLocation, type, finalReferencedCatId);
+            uploadImages(newUris, 0, new ArrayList<>(), text, finalLocation, type, finalReferencedCatId, problemType);
         }
     }
 
     private void uploadImages(List<Uri> uris, int index, List<String> urls,
-            String text, String location, String type, long referencedCatId) {
+            String text, String location, String type, long referencedCatId, String problemType) {
         if (index >= uris.size()) {
-            doCreatePost(text, urls, location, type, referencedCatId);
+            doCreatePost(text, urls, location, type, referencedCatId, problemType);
             return;
         }
         Uri uri = uris.get(index);
@@ -389,7 +421,7 @@ public class CreateSquarePostFragment extends Fragment {
                             if (ct == null)
                                 ct = finalMimeType;
                             doUploadFile(uri, uploadUrl, publicUrl, ct, uris, index, urls, text, location, type,
-                                    referencedCatId);
+                                    referencedCatId, problemType);
                         } else {
                             onFail("获取上传URL失败");
                         }
@@ -404,7 +436,7 @@ public class CreateSquarePostFragment extends Fragment {
 
     private void doUploadFile(Uri uri, String uploadUrl, String publicUrl, String contentType,
             List<Uri> uris, int index, List<String> urls,
-            String text, String location, String type, long referencedCatId) {
+            String text, String location, String type, long referencedCatId, String problemType) {
         new Thread(() -> {
             try {
                 File tempFile = uriToTempFile(uri);
@@ -413,7 +445,7 @@ public class CreateSquarePostFragment extends Fragment {
                 urls.add(publicUrl);
                 tempFile.delete();
                 requireActivity().runOnUiThread(
-                        () -> uploadImages(uris, index + 1, urls, text, location, type, referencedCatId));
+                        () -> uploadImages(uris, index + 1, urls, text, location, type, referencedCatId, problemType));
             } catch (Exception e) {
                 requireActivity().runOnUiThread(() -> onFail("上传失败: " + e.getMessage()));
             }
@@ -439,7 +471,8 @@ public class CreateSquarePostFragment extends Fragment {
         Toast.makeText(requireContext(), msg, Toast.LENGTH_SHORT).show();
     }
 
-    private void doCreatePost(String text, List<String> imageUrls, String location, String type, long referencedCatId) {
+    private void doCreatePost(String text, List<String> imageUrls, String location, String type, long referencedCatId,
+            String problemType) {
         Map<String, Object> body = new HashMap<>();
         body.put("text", text);
         body.put("images", imageUrls);
@@ -448,13 +481,11 @@ public class CreateSquarePostFragment extends Fragment {
             body.put("location", location);
         if (referencedCatId > 0)
             body.put("referencedCatId", referencedCatId);
-
-        // 如果是救助类型，创建一个救助活动
-        if ("rescue".equals(type) && location != null && !location.isEmpty()) {
-            createRescueActivityAndPost(text, imageUrls, location, type, location, referencedCatId);
-        } else {
-            doCreatePost(body);
+        if ("rescue".equals(type) && problemType != null && !problemType.isEmpty()) {
+            body.put("problemType", problemType);
         }
+
+        doCreatePost(body);
     }
 
     private void createRescueActivityAndPost(String text, List<String> imageUrls, String location,

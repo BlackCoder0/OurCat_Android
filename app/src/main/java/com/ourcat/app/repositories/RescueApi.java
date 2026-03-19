@@ -61,4 +61,13 @@ public interface RescueApi {
 
     @GET("/api/rescue/contacts")
     Call<List<Map<String, Object>>> getContacts();
+
+    @GET("/api/rescue/statistics")
+    Call<Map<String, Object>> getStatistics();
+
+    @GET("/api/rescue/articles")
+    Call<List<Map<String, Object>>> getArticles(@Query("category") String category);
+
+    @GET("/api/rescue/articles/{id}")
+    Call<Map<String, Object>> getArticle(@Path("id") long id);
 }
