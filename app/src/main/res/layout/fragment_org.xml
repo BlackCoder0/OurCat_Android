@@ -159,36 +159,6 @@
             android:layout_marginTop="8dp"
             app:cardElevation="2dp"
             app:cardUseCompatPadding="true">
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical">
-
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:paddingStart="16dp"
-                    android:paddingTop="16dp"
-                    android:paddingEnd="16dp"
-                    android:paddingBottom="8dp"
-                    android:text="组织成员"
-                    android:textAppearance="?attr/textAppearanceSubtitle1" />
-
-                <androidx.recyclerview.widget.RecyclerView
-                    android:id="@+id/members_list"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:nestedScrollingEnabled="false" />
-            </LinearLayout>
-        </com.google.android.material.card.MaterialCardView>
-
-        <com.google.android.material.card.MaterialCardView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            app:cardElevation="2dp"
-            app:cardUseCompatPadding="true">
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -257,21 +227,42 @@
                 android:layout_height="wrap_content"
                 android:orientation="vertical">
 
-                <TextView
+                <com.google.android.material.tabs.TabLayout
+                    android:id="@+id/org_tabs"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:paddingStart="16dp"
-                    android:paddingTop="16dp"
-                    android:paddingEnd="16dp"
-                    android:paddingBottom="8dp"
-                    android:text="近期救助活动"
-                    android:textAppearance="?attr/textAppearanceSubtitle1" />
+                    app:tabIndicatorColor="@color/primary"
+                    app:tabSelectedTextColor="@color/primary"
+                    app:tabTextColor="@color/text_secondary">
 
-                <androidx.recyclerview.widget.RecyclerView
-                    android:id="@+id/recent_activities_list"
+                    <com.google.android.material.tabs.TabItem
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="近期救助活动" />
+
+                    <com.google.android.material.tabs.TabItem
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="组织成员" />
+                </com.google.android.material.tabs.TabLayout>
+
+                <FrameLayout
                     android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:nestedScrollingEnabled="false" />
+                    android:layout_height="wrap_content">
+
+                    <androidx.recyclerview.widget.RecyclerView
+                        android:id="@+id/recent_activities_list"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:nestedScrollingEnabled="false" />
+
+                    <androidx.recyclerview.widget.RecyclerView
+                        android:id="@+id/members_list"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:nestedScrollingEnabled="false"
+                        android:visibility="gone" />
+                </FrameLayout>
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 

@@ -17,6 +17,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.bumptech.glide.Glide;
 import com.google.android.material.chip.Chip;
+import com.google.android.material.tabs.TabLayout;
 import com.ourcat.app.R;
 import com.ourcat.app.repositories.AuthApi;
 import com.ourcat.app.repositories.OrgApi;
@@ -36,6 +37,7 @@ public class OrgFragment extends Fragment {
     private TextView statMemberCount, statCompletedRescues, statOngoingRescues;
     private Button btnJoin, btnLeave;
     private RecyclerView membersList, recentActivitiesList;
+    private TabLayout tabLayout;
     private View btnRescueList, btnRescueStatistics, btnRescueGuide;
     private final List<Map<String, Object>> members = new ArrayList<>();
     private final List<Map<String, Object>> recentActivities = new ArrayList<>();
@@ -58,9 +60,32 @@ public class OrgFragment extends Fragment {
         btnLeave = view.findViewById(R.id.btn_leave);
         membersList = view.findViewById(R.id.members_list);
         recentActivitiesList = view.findViewById(R.id.recent_activities_list);
+        tabLayout = view.findViewById(R.id.org_tabs);
         btnRescueList = view.findViewById(R.id.btn_org_rescue_list);
         btnRescueStatistics = view.findViewById(R.id.btn_org_rescue_statistics);
         btnRescueGuide = view.findViewById(R.id.btn_org_rescue_guide);
+
+        tabLayout.addOnTabSelectedListener(new TabLayout.OnTabSelectedListener() {
+            @Override
+            public void onTabSelected(TabLayout.Tab tab) {
+                if (tab.getPosition() == 0) {
+                    recentActivitiesList.setVisibility(View.VISIBLE);
+                    membersList.setVisibility(View.GONE);
+                } else {
+                    recentActivitiesList.setVisibility(View.GONE);
+                    membersList.setVisibility(View.VISIBLE);
+                }
+            }
+
+            @Override
+            public void onTabUnselected(TabLayout.Tab tab) {
+            }
+
+            @Override
+            public void onTabReselected(TabLayout.Tab tab) {
+            }
+        });
+
         membersList.setLayoutManager(new LinearLayoutManager(requireContext()));
         membersAdapter = new MembersAdapter();
         membersList.setAdapter(membersAdapter);

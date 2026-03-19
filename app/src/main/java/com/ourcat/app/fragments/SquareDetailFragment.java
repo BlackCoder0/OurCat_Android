@@ -70,8 +70,10 @@ public class SquareDetailFragment extends Fragment {
     private TextView locationAnnotationText;
     private TextView locationMismatchHintText;
     private MaterialButton btnMarkSolved;
-    private View rescueCardContainer;
     private View rescueActivityCard;
+    private View mergedCard;
+    private com.google.android.material.tabs.TabLayout mergedTabs;
+    private View mergedTabContent;
     private TextView rescueActivityTitle;
     private TextView rescueActivityStatus;
     private View rescueActionsCard;
@@ -125,8 +127,26 @@ public class SquareDetailFragment extends Fragment {
         locationAnnotationText = view.findViewById(R.id.square_detail_location_annotation);
         locationMismatchHintText = view.findViewById(R.id.square_detail_location_mismatch_hint);
         btnMarkSolved = view.findViewById(R.id.btn_mark_solved);
-        rescueCardContainer = view.findViewById(R.id.square_rescue_card_container);
         rescueActivityCard = view.findViewById(R.id.square_rescue_activity_card);
+        mergedCard = view.findViewById(R.id.square_merged_card);
+        mergedTabs = view.findViewById(R.id.square_merged_tabs);
+        mergedTabContent = view.findViewById(R.id.square_merged_tab_content);
+
+        mergedTabs.addOnTabSelectedListener(new com.google.android.material.tabs.TabLayout.OnTabSelectedListener() {
+            @Override
+            public void onTabSelected(com.google.android.material.tabs.TabLayout.Tab tab) {
+                updateTabContentVisibility(tab.getPosition());
+            }
+
+            @Override
+            public void onTabUnselected(com.google.android.material.tabs.TabLayout.Tab tab) {
+            }
+
+            @Override
+            public void onTabReselected(com.google.android.material.tabs.TabLayout.Tab tab) {
+            }
+        });
+
         rescueActivityTitle = view.findViewById(R.id.square_rescue_activity_title);
         rescueActivityStatus = view.findViewById(R.id.square_rescue_activity_status);
         rescueActionsCard = view.findViewById(R.id.square_rescue_actions_card);
@@ -154,7 +174,7 @@ public class SquareDetailFragment extends Fragment {
         rescueTimelineView.setAdapter(rescueTimelineAdapter);
         new LinearSnapHelper().attachToRecyclerView(rescueTimelineView);
 
-        rescueCardContainer.setVisibility(View.GONE);
+        mergedCard.setVisibility(View.GONE);
         refCatCard.setVisibility(View.GONE);
 
         btnMarkSolved.setOnClickListener(v -> markSolved());
@@ -265,6 +285,7 @@ public class SquareDetailFragment extends Fragment {
         bindReferencedCat(postData.get("referencedCat"), postData.get("referencedCatId"));
         bindCatLocationDistanceHint();
         bindRescueSection(type, status);
+        syncMergedCardVisibility();
 
         boolean canMarkSolved = canCurrentUserMarkSolved(type, status, postUserId);
         btnMarkSolved.setVisibility(canMarkSolved ? View.VISIBLE : View.GONE);
@@ -633,15 +654,65 @@ public class SquareDetailFragment extends Fragment {
         }
     }
 
+    private void updateTabContentVisibility(int position) {
+        if (refCatCard != null) {
+            refCatCard.setVisibility(position == 0 ? View.VISIBLE : View.GONE);
+        }
+        if (rescueActivityCard != null) {
+            rescueActivityCard.setVisibility(position == 1 ? View.VISIBLE : View.GONE);
+        }
+    }
+
+    private void syncMergedCardVisibility() {
+        boolean hasCat = refCatCard != null && refCatCard.getVisibility() == View.VISIBLE;
+        boolean hasActivity = rescueActivityCard != null && rescueActivityCard.getVisibility() == View.VISIBLE;
+        boolean hasActions = rescueActionsCard != null && rescueActionsCard.getVisibility() == View.VISIBLE;
+
+        // Note: The visibility of refCatCard and rescueActivityCard are also controlled
+        // by the TabLayout
+        // but we need to know if they SHOULD exist.
+
+        // Actually, let's use the data to decide
+        boolean catExists = postData != null && longValue(postData.get("referencedCatId")) > 0;
+        long rescueId = postData != null ? longValue(postData.get("rescueActivityId")) : 0;
+        boolean activityExists = "rescue".equals(stringValue(postData != null ? postData.get("type") : null, ""))
+                && rescueId > 0;
+
+        if (mergedCard != null) {
+            mergedCard.setVisibility((catExists || activityExists) ? View.VISIBLE : View.GONE);
+        }
+
+        if (mergedTabs != null) {
+            mergedTabs.removeAllTabs();
+            if (catExists && activityExists) {
+                mergedTabs.setVisibility(View.VISIBLE);
+                mergedTabs.addTab(mergedTabs.newTab().setText("猫咪档案"));
+                mergedTabs.addTab(mergedTabs.newTab().setText("救助活动"));
+                // 默认选中第一个
+                updateTabContentVisibility(0);
+            } else {
+                mergedTabs.setVisibility(View.GONE);
+                if (catExists) {
+                    updateTabContentVisibility(0);
+                } else if (activityExists) {
+                    updateTabContentVisibility(1);
+                }
+            }
+        }
+
+        if (rescueActionsCard != null) {
+            // Bottom part visibility is separate but inside the same card
+            rescueActionsCard.setVisibility(activityExists ? View.VISIBLE : View.GONE);
+        }
+    }
+
     private void bindReferencedCat(Object refCatObj, Object refCatIdObj) {
         long refCatId = longValue(refCatIdObj);
         if (!(refCatObj instanceof Map) || refCatId <= 0) {
-            refCatCard.setVisibility(View.GONE);
             return;
         }
         @SuppressWarnings("unchecked")
         Map<String, Object> refCat = (Map<String, Object>) refCatObj;
-        refCatCard.setVisibility(View.VISIBLE);
         refCatName.setText(stringValue(refCat.get("name"), "未命名"));
         String imageUrl = stringValue(refCat.get("primaryImageUrl"), "");
         if (!imageUrl.isEmpty()) {
@@ -659,11 +730,9 @@ public class SquareDetailFragment extends Fragment {
     private void bindRescueSection(String type, String postStatus) {
         long rescueActivityId = longValue(postData.get("rescueActivityId"));
         if (!"rescue".equals(type) || rescueActivityId <= 0) {
-            rescueCardContainer.setVisibility(View.GONE);
             return;
         }
 
-        rescueCardContainer.setVisibility(View.VISIBLE);
         rescueActivityTitle.setText(stringValue(postData.get("rescueActivityTitle"), "救助活动"));
         String rescueStatus = stringValue(postData.get("rescueActivityStatus"), "created");
         rescueActivityStatus.setText("状态: " + mapRescueStatusText(rescueStatus));
