@@ -17,7 +17,7 @@
 
         <FrameLayout
             android:layout_width="match_parent"
-            android:layout_height="204dp"
+            android:layout_height="180dp"
             android:background="@drawable/bg_rescue_hero"
             android:padding="18dp">
 
@@ -158,7 +158,7 @@
             android:clickable="true"
             android:focusable="true"
             app:cardBackgroundColor="@color/surface"
-            app:cardCornerRadius="26dp"
+
             app:cardElevation="0dp"
             app:strokeColor="@color/divider"
             app:strokeWidth="1dp">
@@ -309,7 +309,7 @@
             android:clickable="true"
             android:focusable="true"
             app:cardBackgroundColor="@color/surface"
-            app:cardCornerRadius="22dp"
+
             app:cardElevation="0dp"
             app:strokeColor="@color/divider"
             app:strokeWidth="1dp">
