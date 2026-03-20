@@ -11,12 +11,16 @@ import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
+import androidx.lifecycle.ViewModelProvider;
 import androidx.navigation.Navigation;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
+import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
 import com.ourcat.app.R;
+import com.ourcat.app.models.RescueViewModel;
 import com.ourcat.app.repositories.RescueApi;
+import com.ourcat.app.utils.PressFeedbackUtils;
 import com.ourcat.app.utils.RetrofitHelper;
 
 import java.util.ArrayList;
@@ -27,14 +31,12 @@ import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
 
-import androidx.lifecycle.ViewModelProvider;
-import com.ourcat.app.models.RescueViewModel;
-
 public class RescueListFragment extends Fragment {
 
     private RecyclerView recycler;
     private ProgressBar progress;
     private TextView emptyText;
+    private SwipeRefreshLayout swipeRefreshLayout;
     private final List<Map<String, Object>> items = new ArrayList<>();
     private RescueViewModel viewModel;
     private static final String KEY_LAYOUT_STATE = "rescue_list_layout_state";
@@ -55,12 +57,17 @@ public class RescueListFragment extends Fragment {
         recycler = view.findViewById(R.id.rescue_list);
         progress = view.findViewById(R.id.progress);
         emptyText = view.findViewById(R.id.empty_text);
+        swipeRefreshLayout = view.findViewById(R.id.rescue_swipe_refresh);
         recycler.setLayoutManager(new LinearLayoutManager(requireContext()));
+        swipeRefreshLayout.setColorSchemeResources(R.color.primary_variant, R.color.primary, R.color.success);
+        swipeRefreshLayout.setProgressBackgroundColorSchemeResource(R.color.surface);
+        swipeRefreshLayout.setOnRefreshListener(this::load);
         recycler.setAdapter(new RecyclerView.Adapter<RecyclerView.ViewHolder>() {
             @NonNull
             @Override
             public RecyclerView.ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-                View v = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_rescue_activity, parent, false);
+                View v = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_rescue_activity, parent,
+                        false);
                 return new RecyclerView.ViewHolder(v) {
                 };
             }
@@ -74,6 +81,7 @@ public class RescueListFragment extends Fragment {
                 ((TextView) v.findViewById(R.id.item_rescue_status)).setText(str(m, "status"));
                 ((TextView) v.findViewById(R.id.item_rescue_time)).setText(str(m, "createdAt"));
                 Object id = m.get("id");
+                PressFeedbackUtils.attach(v);
                 v.setOnClickListener(v2 -> {
                     if (id != null) {
                         Bundle args = new Bundle();
@@ -114,7 +122,8 @@ public class RescueListFragment extends Fragment {
     }
 
     private void load() {
-        progress.setVisibility(View.VISIBLE);
+        boolean isPullRefreshing = swipeRefreshLayout != null && swipeRefreshLayout.isRefreshing();
+        progress.setVisibility(isPullRefreshing ? View.GONE : View.VISIBLE);
         emptyText.setVisibility(View.GONE);
         RetrofitHelper.get().create(RescueApi.class).listActivities(0, 50, null, null)
                 .enqueue(new Callback<Map<String, Object>>() {
@@ -123,6 +132,9 @@ public class RescueListFragment extends Fragment {
                         if (!isAdded())
                             return;
                         progress.setVisibility(View.GONE);
+                        if (swipeRefreshLayout != null) {
+                            swipeRefreshLayout.setRefreshing(false);
+                        }
                         if (response.isSuccessful() && response.body() != null) {
                             Object content = response.body().get("content");
                             items.clear();
@@ -143,6 +155,9 @@ public class RescueListFragment extends Fragment {
                     public void onFailure(Call<Map<String, Object>> call, Throwable t) {
                         if (isAdded()) {
                             progress.setVisibility(View.GONE);
+                            if (swipeRefreshLayout != null) {
+                                swipeRefreshLayout.setRefreshing(false);
+                            }
                             emptyText.setVisibility(View.VISIBLE);
                         }
                     }

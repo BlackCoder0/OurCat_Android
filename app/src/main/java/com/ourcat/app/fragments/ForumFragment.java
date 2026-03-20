@@ -1,12 +1,12 @@
 package com.ourcat.app.fragments;
 
 import android.os.Bundle;
+import android.os.Parcelable;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.inputmethod.EditorInfo;
 import android.widget.Toast;
-import android.os.Parcelable;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -53,6 +53,10 @@ public class ForumFragment extends Fragment {
         recyclerView = view.findViewById(R.id.forum_recycler);
         refreshLayout = view.findViewById(R.id.forum_swipe);
         etSearch = view.findViewById(R.id.et_search);
+
+        refreshLayout.setColorSchemeResources(R.color.primary_variant, R.color.primary, R.color.info);
+        refreshLayout.setProgressBackgroundColorSchemeResource(R.color.surface);
+
         recyclerView.setLayoutManager(new LinearLayoutManager(requireContext()));
         adapter = new PostAdapter();
         adapter.setOnItemClickListener(item -> {
@@ -105,8 +109,9 @@ public class ForumFragment extends Fragment {
         String search = etSearch != null && etSearch.getText() != null
                 ? etSearch.getText().toString().trim()
                 : null;
-        if (search != null && search.isEmpty())
+        if (search != null && search.isEmpty()) {
             search = null;
+        }
 
         RetrofitHelper.get().create(com.ourcat.app.repositories.ForumApi.class)
                 .listPosts(0, PAGE_SIZE, search)
@@ -135,7 +140,7 @@ public class ForumFragment extends Fragment {
                     @Override
                     public void onFailure(Call<Map<String, Object>> call, Throwable t) {
                         refreshLayout.setRefreshing(false);
-                        Toast.makeText(requireContext(), "加载失败", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(requireContext(), "\u52a0\u8f7d\u5931\u8d25", Toast.LENGTH_SHORT).show();
                     }
                 });
     }
@@ -158,35 +163,48 @@ public class ForumFragment extends Fragment {
 
     private static PostItem mapToPostItem(Map<String, Object> m) {
         PostItem item = new PostItem();
-        if (m.get("id") instanceof Number)
+        if (m.get("id") instanceof Number) {
             item.setId(((Number) m.get("id")).longValue());
-        if (m.get("title") != null)
+        }
+        if (m.get("title") != null) {
             item.setTitle(m.get("title").toString());
-        if (m.get("content") != null)
+        }
+        if (m.get("content") != null) {
             item.setContent(m.get("content").toString());
-        if (m.get("images") != null)
+        }
+        if (m.get("images") != null) {
             item.setImages(m.get("images").toString());
-        if (m.get("likes") instanceof Number)
+        }
+        if (m.get("likes") instanceof Number) {
             item.setLikes(((Number) m.get("likes")).intValue());
-        if (m.get("dislikes") instanceof Number)
+        }
+        if (m.get("dislikes") instanceof Number) {
             item.setDislikes(((Number) m.get("dislikes")).intValue());
-        if (m.get("userId") instanceof Number)
+        }
+        if (m.get("userId") instanceof Number) {
             item.setUserId(((Number) m.get("userId")).longValue());
-        if (m.get("pinned") != null)
+        }
+        if (m.get("pinned") != null) {
             item.setPinned(Boolean.TRUE.equals(m.get("pinned")));
-        if (m.get("createdAt") != null)
+        }
+        if (m.get("createdAt") != null) {
             item.setCreatedAt(m.get("createdAt").toString());
-        if (m.get("authorName") != null)
+        }
+        if (m.get("authorName") != null) {
             item.setAuthorName(m.get("authorName").toString());
-        if (m.get("referencedCatId") instanceof Number)
+        }
+        if (m.get("referencedCatId") instanceof Number) {
             item.setReferencedCatId(((Number) m.get("referencedCatId")).longValue());
+        }
         Object refCat = m.get("referencedCat");
         if (refCat instanceof Map) {
             Map<?, ?> rc = (Map<?, ?>) refCat;
-            if (rc.get("name") != null)
+            if (rc.get("name") != null) {
                 item.setReferencedCatName(rc.get("name").toString());
-            if (rc.get("primaryImageUrl") != null)
+            }
+            if (rc.get("primaryImageUrl") != null) {
                 item.setReferencedCatImageUrl(rc.get("primaryImageUrl").toString());
+            }
         }
         return item;
     }

@@ -132,9 +132,6 @@ public class RescueDetailFragment extends Fragment {
                         String problemType = stringValue(activityData.get("problemType"));
                         StringBuilder statusLine = new StringBuilder();
                         statusLine.append("状态: ").append(mapRescueStatusText(status));
-                        if (!urgency.isEmpty()) {
-                            statusLine.append(" · 紧急度: ").append("urgent".equalsIgnoreCase(urgency) ? "紧急" : "普通");
-                        }
                         if (!problemType.isEmpty()) {
                             statusLine.append(" · 类型: ").append(problemType);
                         }

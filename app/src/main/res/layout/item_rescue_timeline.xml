@@ -3,7 +3,8 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="horizontal"
-    android:padding="8dp">
+    android:paddingTop="4dp"
+    android:paddingBottom="10dp">
 
     <LinearLayout
         android:layout_width="24dp"
@@ -38,29 +39,29 @@
         android:layout_marginStart="12dp"
         android:layout_weight="1"
         android:orientation="vertical"
-        android:paddingBottom="12dp">
+        android:paddingBottom="6dp">
 
         <TextView
             android:id="@+id/timeline_title"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:textColor="@color/text_primary"
-            android:textSize="15sp"
+            android:textSize="16sp"
             android:textStyle="bold" />
 
         <TextView
             android:id="@+id/timeline_time"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            android:textColor="@color/text_secondary"
+            android:layout_marginTop="3dp"
+            android:textColor="@color/text_hint"
             android:textSize="12sp" />
 
         <TextView
             android:id="@+id/timeline_operator"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="2dp"
+            android:layout_marginTop="3dp"
             android:textColor="@color/text_secondary"
             android:textSize="12sp" />
     </LinearLayout>

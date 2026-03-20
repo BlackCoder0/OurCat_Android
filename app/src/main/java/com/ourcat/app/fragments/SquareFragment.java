@@ -10,6 +10,7 @@ import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
 import androidx.navigation.Navigation;
 import androidx.recyclerview.widget.LinearLayoutManager;
@@ -89,6 +90,7 @@ public class SquareFragment extends Fragment {
         refreshLayout = view.findViewById(R.id.square_swipe);
         sortGroup = view.findViewById(R.id.square_sort_group);
         recyclerView.setLayoutManager(new LinearLayoutManager(requireContext()));
+        refreshLayout.setColorSchemeResources(R.color.primary_variant, R.color.primary, R.color.info);
 
         adapter = new RecyclerView.Adapter<SquarePostViewHolder>() {
             @NonNull
@@ -110,7 +112,7 @@ public class SquareFragment extends Fragment {
                 holder.type.setBackgroundResource(
                         "rescue".equals(t) ? R.drawable.bg_map_mode_chip : R.drawable.bg_chip_inquiry);
                 holder.status.setText("resolved".equals(s) ? "已解决" : "进行中");
-                holder.status.setTextColor("resolved".equals(s) ? 0xFF4CAF50 : 0xFFFF9800);
+                applySquareStatusStyle(holder.status, s);
                 holder.text.setText(txt);
                 holder.time.setText(TimeUtils.getRelativeTime((String) item.get("createdAt")));
 
@@ -138,7 +140,7 @@ public class SquareFragment extends Fragment {
 
                 if ("resolved".equals(s)) {
                     if (holder.container != null)
-                        holder.container.setAlpha(0.25f);
+                        holder.container.setAlpha(0.58f);
                 } else {
                     if (holder.container != null)
                         holder.container.setAlpha(1.0f);
@@ -187,6 +189,16 @@ public class SquareFragment extends Fragment {
             loadPosts();
         }
         return view;
+    }
+
+    private void applySquareStatusStyle(@NonNull TextView statusView, @Nullable String status) {
+        if ("resolved".equalsIgnoreCase(status)) {
+            statusView.setBackgroundResource(R.drawable.bg_chip_success);
+            statusView.setTextColor(ContextCompat.getColor(requireContext(), R.color.success));
+            return;
+        }
+        statusView.setBackgroundResource(R.drawable.bg_status_chip);
+        statusView.setTextColor(ContextCompat.getColor(requireContext(), R.color.primary_variant));
     }
 
     private void bindLocationForList(@NonNull SquarePostViewHolder holder, @Nullable Object loc) {

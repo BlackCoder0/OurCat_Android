@@ -44,7 +44,7 @@ public class ProfileFragment extends Fragment {
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,
             @Nullable Bundle savedInstanceState) {
-        View view = inflater.inflate(R.layout.fragment_profile, container, false);
+        View view = inflater.inflate(R.layout.fragment_profile_center, container, false);
         avatar = view.findViewById(R.id.avatar);
         tvNickname = view.findViewById(R.id.tv_nickname);
         tvRole = view.findViewById(R.id.tv_role);
@@ -89,8 +89,31 @@ public class ProfileFragment extends Fragment {
     private void setupOption(View root, int id, String text, View.OnClickListener listener) {
         View optionView = root.findViewById(id);
         TextView tv = optionView.findViewById(R.id.option_text);
+        ImageView icon = optionView.findViewById(R.id.option_icon);
         tv.setText(text);
+        if (icon != null) {
+            icon.setImageResource(getOptionIconRes(id));
+        }
         optionView.setOnClickListener(listener);
+    }
+
+    private int getOptionIconRes(int id) {
+        if (id == R.id.btn_my_posts) {
+            return R.drawable.ic_community;
+        } else if (id == R.id.btn_my_comments) {
+            return R.drawable.ic_bell;
+        } else if (id == R.id.btn_my_cat_reports) {
+            return R.drawable.camera;
+        } else if (id == R.id.btn_my_tasks) {
+            return R.drawable.ic_rescue;
+        } else if (id == R.id.btn_my_org || id == R.id.btn_join_requests) {
+            return R.drawable.ic_first_aid;
+        } else if (id == R.id.btn_change_password) {
+            return R.drawable.ic_import;
+        } else if (id == R.id.btn_user_manage) {
+            return R.drawable.ic_bar_chart;
+        }
+        return R.drawable.ic_arrow_right;
     }
 
     @Override

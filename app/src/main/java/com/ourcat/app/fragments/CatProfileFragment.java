@@ -12,6 +12,7 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
+import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
 import androidx.navigation.fragment.NavHostFragment;
 import androidx.recyclerview.widget.LinearLayoutManager;
@@ -78,7 +79,7 @@ public class CatProfileFragment extends Fragment {
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,
             @Nullable Bundle savedInstanceState) {
-        return inflater.inflate(R.layout.fragment_cat_profile, container, false);
+        return inflater.inflate(R.layout.fragment_cat_profile_showcase, container, false);
     }
 
     @Override
@@ -181,16 +182,18 @@ public class CatProfileFragment extends Fragment {
 
         // Update main image (in CollapsingToolbar)
         if (currentAvatarUrl != null && !currentAvatarUrl.isEmpty()) {
-            Glide.with(this).load(currentAvatarUrl).into(mainImage);
+            Glide.with(this).load(currentAvatarUrl).placeholder(R.drawable.ic_default_avatar)
+                    .error(R.drawable.ic_default_avatar).into(mainImage);
+        } else {
+            mainImage.setImageResource(R.drawable.ic_default_avatar);
         }
 
         // Update lists
         List<Map<String, Object>> history = (List<Map<String, Object>>) data.get("reportHistory");
+        reportHistory.clear();
+        photos.clear();
         if (history != null) {
-            reportHistory.clear();
             reportHistory.addAll(history);
-
-            photos.clear();
             for (Map<String, Object> report : history) {
                 String imageUrl = (String) report.get("imageUrl");
                 if (imageUrl != null && !imageUrl.isEmpty()) {
@@ -313,7 +316,7 @@ public class CatProfileFragment extends Fragment {
             case "missing":
                 return "失踪";
             case "adopted":
-                return "收养";
+                return "已安置";
             default:
                 return status;
         }
@@ -351,11 +354,11 @@ public class CatProfileFragment extends Fragment {
         public RecyclerView.ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
             if (viewType == TYPE_HEADER) {
                 View v = LayoutInflater.from(parent.getContext())
-                        .inflate(R.layout.item_cat_profile_header, parent, false);
+                        .inflate(R.layout.item_cat_profile_header_showcase, parent, false);
                 return new HeaderViewHolder(v);
             } else {
                 View v = LayoutInflater.from(parent.getContext())
-                        .inflate(R.layout.item_report_history, parent, false);
+                        .inflate(R.layout.item_report_history_showcase, parent, false);
                 return new HistoryViewHolder(v);
             }
         }
@@ -384,6 +387,7 @@ public class CatProfileFragment extends Fragment {
         // Header ViewHolder
         class HeaderViewHolder extends RecyclerView.ViewHolder {
             TextView catName, catColor, catReportCount, catStatus, catFeature, catPersonality, catRescueHistory;
+            View catStatusTile;
             View btnEditCat, btnStartRescue;
             RecyclerView photoList;
             PhotoAdapter photoAdapter;
@@ -394,6 +398,7 @@ public class CatProfileFragment extends Fragment {
                 catColor = v.findViewById(R.id.cat_color);
                 catReportCount = v.findViewById(R.id.cat_report_count);
                 catStatus = v.findViewById(R.id.cat_status);
+                catStatusTile = v.findViewById(R.id.cat_status_tile);
                 catFeature = v.findViewById(R.id.cat_feature);
                 catPersonality = v.findViewById(R.id.cat_personality);
                 catRescueHistory = v.findViewById(R.id.cat_rescue_history);
@@ -424,6 +429,7 @@ public class CatProfileFragment extends Fragment {
                 catReportCount.setText(reportCount != null ? String.valueOf(reportCount.intValue()) : "0");
 
                 catStatus.setText(getStatusText(currentStatus));
+                applyProfileStatusStyle(catStatus, catStatusTile, currentStatus);
 
                 catFeature
                         .setText("特征：" + (currentFeature != null && !currentFeature.isEmpty() ? currentFeature : "未知"));
@@ -469,7 +475,10 @@ public class CatProfileFragment extends Fragment {
             void bind(Map<String, Object> report) {
                 String imageUrl = (String) report.get("imageUrl");
                 if (imageUrl != null && !imageUrl.isEmpty()) {
-                    Glide.with(image).load(imageUrl).centerCrop().into(image);
+                    Glide.with(image).load(imageUrl).placeholder(R.drawable.ic_default_avatar)
+                            .error(R.drawable.ic_default_avatar).centerCrop().into(image);
+                } else {
+                    image.setImageResource(R.drawable.ic_default_avatar);
                 }
 
                 String reportTime = (String) report.get("reportTime");
@@ -494,6 +503,27 @@ public class CatProfileFragment extends Fragment {
         }
     }
 
+    private void applyProfileStatusStyle(@NonNull TextView statusView, @Nullable View tileView, @Nullable String status) {
+        if ("adopted".equalsIgnoreCase(status) || "收养".equals(status) || "已安置".equals(status)) {
+            if (tileView != null) {
+                tileView.setBackgroundResource(R.drawable.bg_cat_metric_success);
+            }
+            statusView.setTextColor(ContextCompat.getColor(requireContext(), R.color.success));
+            return;
+        }
+        if ("missing".equalsIgnoreCase(status) || "失踪".equals(status)) {
+            if (tileView != null) {
+                tileView.setBackgroundResource(R.drawable.bg_cat_metric_info);
+            }
+            statusView.setTextColor(ContextCompat.getColor(requireContext(), R.color.info));
+            return;
+        }
+        if (tileView != null) {
+            tileView.setBackgroundResource(R.drawable.bg_cat_metric_primary);
+        }
+        statusView.setTextColor(ContextCompat.getColor(requireContext(), R.color.primary_variant));
+    }
+
     private class PhotoAdapter extends RecyclerView.Adapter<PhotoAdapter.VH> {
         class VH extends RecyclerView.ViewHolder {
             ImageView image;
@@ -508,7 +538,7 @@ public class CatProfileFragment extends Fragment {
         @Override
         public VH onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
             return new VH(LayoutInflater.from(parent.getContext())
-                    .inflate(R.layout.item_cat_photo, parent, false));
+                    .inflate(R.layout.item_cat_photo_showcase, parent, false));
         }
 
         @Override

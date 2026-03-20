@@ -4,16 +4,22 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_margin="8dp"
-    app:cardCornerRadius="16dp"
-    app:cardElevation="2dp">
+    android:layout_marginBottom="8dp"
+    android:clickable="true"
+    android:focusable="true"
+    android:foreground="?attr/selectableItemBackground"
+    app:cardBackgroundColor="@color/white"
+    app:cardCornerRadius="20dp"
+    app:cardElevation="0dp"
+    app:strokeColor="#FFF0E2"
+    app:strokeWidth="1dp">
 
     <LinearLayout
         android:id="@+id/item_square_container"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:padding="16dp">
+        android:padding="14dp">
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -21,23 +27,27 @@
             android:orientation="horizontal"
             android:gravity="center_vertical">
 
-
             <TextView
-                android:id="@+id/item_square_type"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:textSize="12sp"
-                android:textColor="@android:color/white"
-                android:paddingHorizontal="8dp"
-                android:paddingVertical="2dp"
-                android:background="@drawable/bg_map_mode_chip" />
+            android:id="@+id/item_square_type"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="11sp"
+            android:textColor="@android:color/white"
+            android:paddingHorizontal="9dp"
+            android:paddingVertical="4dp"
+            android:background="@drawable/bg_map_mode_chip" />
+
             <TextView
                 android:id="@+id/item_square_status"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="8dp"
-                android:textSize="12sp"
-                android:textColor="@color/text_secondary" />
+                android:background="@drawable/bg_status_chip"
+                android:paddingHorizontal="9dp"
+                android:paddingVertical="4dp"
+                android:textSize="11sp"
+                android:textColor="@color/primary_variant"
+                android:textStyle="bold" />
 
             <View
                 android:layout_width="0dp"
@@ -49,7 +59,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:textSize="12sp"
-                android:textColor="@color/text_secondary" />
+                android:textColor="@color/text_hint" />
         </LinearLayout>
 
         <TextView
@@ -57,6 +67,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
+            android:lineSpacingExtra="2dp"
             android:textSize="14sp"
             android:textColor="@color/text_primary"
             android:maxLines="3"
@@ -66,19 +77,20 @@
             android:id="@+id/item_square_ref_cat"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="6dp"
+            android:layout_marginTop="8dp"
+            android:background="@drawable/bg_square_meta"
+            android:paddingHorizontal="9dp"
+            android:paddingVertical="7dp"
             android:orientation="horizontal"
             android:gravity="center_vertical"
-            android:padding="6dp"
-            android:background="?android:attr/selectableItemBackground"
             android:clickable="true"
             android:focusable="true"
             android:visibility="gone">
 
             <ImageView
                 android:id="@+id/item_square_ref_cat_avatar"
-                android:layout_width="28dp"
-                android:layout_height="28dp"
+                android:layout_width="30dp"
+                android:layout_height="30dp"
                 android:scaleType="centerCrop"
                 android:background="@drawable/bg_circle_white"
                 android:contentDescription="引用猫咪" />
@@ -86,20 +98,24 @@
                 android:id="@+id/item_square_ref_cat_name"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="6dp"
+                android:layout_marginStart="7dp"
                 android:textSize="12sp"
-                android:textColor="@color/text_secondary" />
+                android:textColor="@color/text_secondary"
+                android:textStyle="bold" />
         </LinearLayout>
 
         <TextView
             android:id="@+id/item_square_location"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
+            android:layout_marginTop="8dp"
+            android:background="@drawable/bg_square_meta"
+            android:paddingHorizontal="9dp"
+            android:paddingVertical="7dp"
             android:textSize="12sp"
             android:textColor="@color/text_secondary"
             android:drawableStart="@android:drawable/ic_menu_mylocation"
-            android:drawablePadding="4dp"
+            android:drawablePadding="6dp"
             android:gravity="center_vertical"
             android:maxLines="1"
             android:ellipsize="end"

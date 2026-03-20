@@ -46,6 +46,7 @@ import com.ourcat.app.fragments.ReportCatDialogFragment;
 import com.ourcat.app.repositories.AuthApi;
 import com.ourcat.app.repositories.MessageApi;
 import com.ourcat.app.repositories.WeatherApi;
+import com.ourcat.app.utils.PressFeedbackUtils;
 import com.ourcat.app.utils.RetrofitHelper;
 
 import java.util.List;
@@ -232,6 +233,10 @@ public class MainActivity extends AppCompatActivity {
         navItemMap.setOnClickListener(navClickListener);
         navItemCats.setOnClickListener(navClickListener);
         navItemMe.setOnClickListener(navClickListener);
+        PressFeedbackUtils.attach(navItemCommunity, 0.96f);
+        PressFeedbackUtils.attach(navItemMap, 0.96f);
+        PressFeedbackUtils.attach(navItemCats, 0.96f);
+        PressFeedbackUtils.attach(navItemMe, 0.96f);
 
         navController.addOnDestinationChangedListener((controller, dest, args) -> {
             int destId = dest.getId();
@@ -339,12 +344,14 @@ public class MainActivity extends AppCompatActivity {
         };
 
         if (quickCatReportAction != null) {
+            PressFeedbackUtils.attach(quickCatReportAction);
             quickCatReportAction.setOnClickListener(catReportClick);
         }
         if (fabQuickCatReport != null) {
             fabQuickCatReport.setOnClickListener(catReportClick);
         }
         if (quickRescueSquareAction != null) {
+            PressFeedbackUtils.attach(quickRescueSquareAction);
             quickRescueSquareAction.setOnClickListener(rescueSquareClick);
         }
         if (fabQuickRescueSquare != null) {
@@ -797,12 +804,21 @@ public class MainActivity extends AppCompatActivity {
             boolean isSelected = navItemIds[i] == selectedId;
             if (item != null) {
                 item.setSelected(isSelected);
+                item.setBackgroundResource(R.drawable.bg_bottom_nav_item);
+                item.animate()
+                        .scaleX(isSelected ? 1.0f : 0.98f)
+                        .scaleY(isSelected ? 1.0f : 0.98f)
+                        .translationY(isSelected ? -2f : 0f)
+                        .setDuration(180)
+                        .start();
             }
             if (icon != null) {
                 icon.setColorFilter(isSelected ? getColor(R.color.nav_selected) : getColor(R.color.nav_unselected));
+                icon.setAlpha(isSelected ? 1f : 0.82f);
             }
             if (text != null) {
                 text.setTextColor(isSelected ? getColor(R.color.nav_selected) : getColor(R.color.nav_unselected));
+                text.setAlpha(isSelected ? 1f : 0.92f);
             }
         }
     }

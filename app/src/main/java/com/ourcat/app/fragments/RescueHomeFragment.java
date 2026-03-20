@@ -15,6 +15,7 @@ import androidx.navigation.Navigation;
 
 import com.ourcat.app.R;
 import com.ourcat.app.repositories.RescueApi;
+import com.ourcat.app.utils.PressFeedbackUtils;
 import com.ourcat.app.utils.RetrofitHelper;
 
 import java.util.ArrayList;
@@ -36,21 +37,18 @@ public class RescueHomeFragment extends Fragment {
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,
             @Nullable Bundle savedInstanceState) {
-        View view = inflater.inflate(R.layout.fragment_rescue_home, container, false);
+        View view = inflater.inflate(R.layout.fragment_rescue_home_center, container, false);
 
         statInProgress = view.findViewById(R.id.stat_in_progress);
         statCompleted = view.findViewById(R.id.stat_completed);
         statTotal = view.findViewById(R.id.stat_total);
         recentContainer = view.findViewById(R.id.recent_rescue_container);
-
         setupEntry(view, R.id.entry_square, v -> Navigation.findNavController(v).navigate(R.id.nav_square));
         setupEntry(view, R.id.entry_forum, v -> Navigation.findNavController(v).navigate(R.id.forum_list));
         setupEntry(view, R.id.entry_guide, v -> Navigation.findNavController(v).navigate(R.id.rescue_guide));
         setupEntry(view, R.id.entry_statistics, v -> Navigation.findNavController(v).navigate(R.id.rescue_statistics));
 
         setupEntry(view, R.id.btn_open_dynamic, v -> Navigation.findNavController(v).navigate(R.id.rescue_list));
-        setupEntry(view, R.id.btn_open_statistics,
-                v -> Navigation.findNavController(v).navigate(R.id.rescue_statistics));
 
         loadStats();
         loadRecent();
@@ -61,6 +59,7 @@ public class RescueHomeFragment extends Fragment {
     private void setupEntry(@NonNull View root, int id, @NonNull View.OnClickListener listener) {
         View v = root.findViewById(id);
         if (v != null) {
+            PressFeedbackUtils.attach(v);
             v.setOnClickListener(listener);
         }
     }
@@ -130,6 +129,7 @@ public class RescueHomeFragment extends Fragment {
         ((TextView) v.findViewById(R.id.item_rescue_status)).setText(str(m, "status"));
         ((TextView) v.findViewById(R.id.item_rescue_time)).setText(str(m, "createdAt"));
         Object id = m.get("id");
+        PressFeedbackUtils.attach(v);
         v.setOnClickListener(v2 -> {
             if (id instanceof Number) {
                 Bundle args = new Bundle();

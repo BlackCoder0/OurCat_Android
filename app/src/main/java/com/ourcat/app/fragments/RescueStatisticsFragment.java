@@ -1,37 +1,30 @@
 package com.ourcat.app.fragments;
 
+import android.graphics.Color;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ImageView;
+import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
+import androidx.lifecycle.ViewModelProvider;
 import androidx.navigation.Navigation;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
+import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
 import com.bumptech.glide.Glide;
-import com.ourcat.app.R;
-import com.ourcat.app.repositories.RescueApi;
-import com.ourcat.app.utils.RetrofitHelper;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-
-import retrofit2.Call;
-import retrofit2.Callback;
-import retrofit2.Response;
-
-import android.widget.ScrollView;
-import androidx.lifecycle.ViewModelProvider;
-import com.ourcat.app.models.RescueStatsViewModel;
 import com.github.mikephil.charting.charts.BarChart;
 import com.github.mikephil.charting.charts.PieChart;
+import com.github.mikephil.charting.components.Legend;
+import com.github.mikephil.charting.components.XAxis;
+import com.github.mikephil.charting.components.YAxis;
 import com.github.mikephil.charting.data.BarData;
 import com.github.mikephil.charting.data.BarDataSet;
 import com.github.mikephil.charting.data.BarEntry;
@@ -40,9 +33,19 @@ import com.github.mikephil.charting.data.PieDataSet;
 import com.github.mikephil.charting.data.PieEntry;
 import com.github.mikephil.charting.formatter.IndexAxisValueFormatter;
 import com.github.mikephil.charting.formatter.ValueFormatter;
-import com.github.mikephil.charting.utils.ColorTemplate;
+import com.ourcat.app.R;
+import com.ourcat.app.models.RescueStatsViewModel;
+import com.ourcat.app.repositories.RescueApi;
+import com.ourcat.app.utils.RetrofitHelper;
 
-import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
 
 public class RescueStatisticsFragment extends Fragment {
 
@@ -51,7 +54,7 @@ public class RescueStatisticsFragment extends Fragment {
     private TextView statInProgressActivities;
     private RecyclerView contributorsList;
     private ContributorsAdapter contributorsAdapter;
-    private List<Map<String, Object>> contributors = new ArrayList<>();
+    private final List<Map<String, Object>> contributors = new ArrayList<>();
     private PieChart problemTypeChart;
     private BarChart monthlyTrendChart;
     private ScrollView scrollView;
@@ -83,7 +86,11 @@ public class RescueStatisticsFragment extends Fragment {
         contributorsAdapter = new ContributorsAdapter();
         contributorsList.setAdapter(contributorsAdapter);
 
+        swipeRefreshLayout.setColorSchemeResources(R.color.primary_variant, R.color.primary, R.color.success);
+        swipeRefreshLayout.setProgressBackgroundColorSchemeResource(R.color.surface);
         swipeRefreshLayout.setOnRefreshListener(this::loadStatistics);
+
+        configureCharts();
 
         if (viewModel.getStats().getValue() != null && !viewModel.getStats().getValue().isEmpty()) {
             displayStatistics(viewModel.getStats().getValue());
@@ -109,17 +116,57 @@ public class RescueStatisticsFragment extends Fragment {
         return view;
     }
 
+    private void configureCharts() {
+        problemTypeChart.getDescription().setEnabled(false);
+        problemTypeChart.setNoDataText("\u6682\u65e0\u7c7b\u578b\u6570\u636e");
+        problemTypeChart.setExtraOffsets(0f, 8f, 0f, 8f);
+        Legend pieLegend = problemTypeChart.getLegend();
+        pieLegend.setTextColor(Color.parseColor("#8A7058"));
+        pieLegend.setTextSize(11f);
+        pieLegend.setWordWrapEnabled(true);
+        pieLegend.setVerticalAlignment(Legend.LegendVerticalAlignment.BOTTOM);
+        pieLegend.setHorizontalAlignment(Legend.LegendHorizontalAlignment.CENTER);
+
+        monthlyTrendChart.getDescription().setEnabled(false);
+        monthlyTrendChart.setNoDataText("\u6682\u65e0\u8d8b\u52bf\u6570\u636e");
+        monthlyTrendChart.setDrawGridBackground(false);
+        monthlyTrendChart.setDrawBarShadow(false);
+        monthlyTrendChart.setPinchZoom(false);
+        monthlyTrendChart.setScaleEnabled(false);
+        monthlyTrendChart.setExtraOffsets(0f, 8f, 0f, 8f);
+
+        XAxis xAxis = monthlyTrendChart.getXAxis();
+        xAxis.setPosition(XAxis.XAxisPosition.BOTTOM);
+        xAxis.setDrawGridLines(false);
+        xAxis.setTextColor(Color.parseColor("#8A7058"));
+        xAxis.setAxisLineColor(Color.parseColor("#F8E8D8"));
+        xAxis.setGranularity(1f);
+
+        YAxis leftAxis = monthlyTrendChart.getAxisLeft();
+        leftAxis.setTextColor(Color.parseColor("#8A7058"));
+        leftAxis.setAxisLineColor(Color.parseColor("#F8E8D8"));
+        leftAxis.setGridColor(Color.parseColor("#F8E8D8"));
+        leftAxis.setAxisMinimum(0f);
+        leftAxis.setGranularity(1f);
+
+        monthlyTrendChart.getAxisRight().setEnabled(false);
+        Legend barLegend = monthlyTrendChart.getLegend();
+        barLegend.setTextColor(Color.parseColor("#8A7058"));
+        barLegend.setTextSize(11f);
+    }
+
     private void loadStatistics() {
         swipeRefreshLayout.setRefreshing(true);
         RetrofitHelper.get().create(RescueApi.class).getStatistics()
                 .enqueue(new Callback<Map<String, Object>>() {
                     @Override
                     public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
-                        if (!isAdded())
+                        if (!isAdded()) {
                             return;
+                        }
                         swipeRefreshLayout.setRefreshing(false);
                         if (!response.isSuccessful() || response.body() == null) {
-                            Toast.makeText(requireContext(), "加载失败", Toast.LENGTH_SHORT).show();
+                            Toast.makeText(requireContext(), "\u52a0\u8f7d\u5931\u8d25", Toast.LENGTH_SHORT).show();
                             return;
                         }
                         Map<String, Object> stats = response.body();
@@ -131,7 +178,7 @@ public class RescueStatisticsFragment extends Fragment {
                     public void onFailure(Call<Map<String, Object>> call, Throwable t) {
                         if (isAdded()) {
                             swipeRefreshLayout.setRefreshing(false);
-                            Toast.makeText(requireContext(), "网络错误", Toast.LENGTH_SHORT).show();
+                            Toast.makeText(requireContext(), "\u7f51\u7edc\u9519\u8bef", Toast.LENGTH_SHORT).show();
                         }
                     }
                 });
@@ -143,15 +190,17 @@ public class RescueStatisticsFragment extends Fragment {
         statInProgressActivities.setText(String.valueOf(longValue(stats.get("inProgressActivities"))));
 
         Object topContributorsObj = stats.get("topContributors");
+        contributors.clear();
         if (topContributorsObj instanceof List) {
-            contributors.clear();
             contributors.addAll((List<Map<String, Object>>) topContributorsObj);
-            contributorsAdapter.notifyDataSetChanged();
         }
+        contributorsAdapter.notifyDataSetChanged();
 
         Object problemTypeObj = stats.get("problemTypeDistribution");
         if (problemTypeObj instanceof List) {
             setupProblemTypeChart((List<Map<String, Object>>) problemTypeObj);
+        } else {
+            problemTypeChart.clear();
         }
 
         Object monthlyTrendObj = stats.get("monthlyTrend");
@@ -163,49 +212,73 @@ public class RescueStatisticsFragment extends Fragment {
         List<Map<String, Object>> completedList = monthlyTrendCompletedObj instanceof List
                 ? (List<Map<String, Object>>) monthlyTrendCompletedObj
                 : new ArrayList<>();
-        if (!allList.isEmpty() || !completedList.isEmpty()) {
-            setupMonthlyTrendChart(allList, completedList);
-        }
+        setupMonthlyTrendChart(allList, completedList);
     }
 
     private void setupProblemTypeChart(List<Map<String, Object>> data) {
+        if (data == null || data.isEmpty()) {
+            problemTypeChart.clear();
+            return;
+        }
+
         List<PieEntry> entries = new ArrayList<>();
-        for (Map<String, Object> m : data) {
-            entries.add(new PieEntry(longValue(m.get("count")), stringValue(m.get("type"))));
+        for (Map<String, Object> item : data) {
+            entries.add(new PieEntry(longValue(item.get("count")), stringValue(item.get("type"))));
         }
 
         PieDataSet dataSet = new PieDataSet(entries, "");
-        dataSet.setColors(ColorTemplate.MATERIAL_COLORS);
+        dataSet.setColors(new int[] {
+                Color.parseColor("#FF8A24"),
+                Color.parseColor("#FFB04A"),
+                Color.parseColor("#46BA74"),
+                Color.parseColor("#5B98EC"),
+                Color.parseColor("#FF6F61")
+        });
+        dataSet.setSliceSpace(3f);
         dataSet.setValueTextSize(12f);
-        dataSet.setValueTextColor(android.graphics.Color.WHITE);
+        dataSet.setValueTextColor(Color.WHITE);
 
         PieData pieData = new PieData(dataSet);
         problemTypeChart.setData(pieData);
-        problemTypeChart.getDescription().setEnabled(false);
-        problemTypeChart.setCenterText("救助类型");
-        problemTypeChart.animateY(1000);
+        problemTypeChart.setDrawHoleEnabled(true);
+        problemTypeChart.setHoleColor(Color.WHITE);
+        problemTypeChart.setHoleRadius(58f);
+        problemTypeChart.setTransparentCircleRadius(0f);
+        problemTypeChart.setEntryLabelColor(Color.parseColor("#8A7058"));
+        problemTypeChart.setEntryLabelTextSize(11f);
+        problemTypeChart.setCenterText("\u6551\u52a9\u7c7b\u578b");
+        problemTypeChart.setCenterTextColor(Color.parseColor("#30251B"));
+        problemTypeChart.setCenterTextSize(15f);
+        problemTypeChart.animateY(900);
         problemTypeChart.invalidate();
     }
 
     private void setupMonthlyTrendChart(List<Map<String, Object>> allList,
             List<Map<String, Object>> completedList) {
         List<String> labels = new ArrayList<>();
-        java.util.Map<String, Long> allMap = new java.util.HashMap<>();
-        java.util.Map<String, Long> completedMap = new java.util.HashMap<>();
-        for (Map<String, Object> m : allList) {
-            allMap.put(stringValue(m.get("month")), longValue(m.get("count")));
+        Map<String, Long> allMap = new HashMap<>();
+        Map<String, Long> completedMap = new HashMap<>();
+
+        for (Map<String, Object> item : allList) {
+            allMap.put(stringValue(item.get("month")), longValue(item.get("count")));
         }
-        for (Map<String, Object> m : completedList) {
-            completedMap.put(stringValue(m.get("month")), longValue(m.get("count")));
+        for (Map<String, Object> item : completedList) {
+            completedMap.put(stringValue(item.get("month")), longValue(item.get("count")));
         }
+
         if (!allList.isEmpty()) {
-            for (Map<String, Object> m : allList) {
-                labels.add(stringValue(m.get("month")));
+            for (Map<String, Object> item : allList) {
+                labels.add(stringValue(item.get("month")));
             }
         } else {
-            for (Map<String, Object> m : completedList) {
-                labels.add(stringValue(m.get("month")));
+            for (Map<String, Object> item : completedList) {
+                labels.add(stringValue(item.get("month")));
             }
+        }
+
+        if (labels.isEmpty()) {
+            monthlyTrendChart.clear();
+            return;
         }
 
         List<BarEntry> allEntries = new ArrayList<>();
@@ -216,9 +289,11 @@ public class RescueStatisticsFragment extends Fragment {
             completedEntries.add(new BarEntry(i, completedMap.getOrDefault(month, 0L)));
         }
 
-        BarDataSet allDataSet = new BarDataSet(allEntries, "全部");
-        allDataSet.setColor(ColorTemplate.MATERIAL_COLORS[0]);
+        BarDataSet allDataSet = new BarDataSet(allEntries, "\u5168\u90e8\u6d3b\u52a8");
+        allDataSet.setColor(Color.parseColor("#FF9E45"));
+        allDataSet.setValueTextColor(Color.parseColor("#8A7058"));
         allDataSet.setValueTextSize(10f);
+        allDataSet.setHighLightAlpha(0);
         allDataSet.setValueFormatter(new ValueFormatter() {
             @Override
             public String getBarLabel(BarEntry barEntry) {
@@ -226,9 +301,11 @@ public class RescueStatisticsFragment extends Fragment {
             }
         });
 
-        BarDataSet completedDataSet = new BarDataSet(completedEntries, "已完成");
-        completedDataSet.setColor(ColorTemplate.MATERIAL_COLORS[2]);
+        BarDataSet completedDataSet = new BarDataSet(completedEntries, "\u5df2\u5b8c\u6210");
+        completedDataSet.setColor(Color.parseColor("#46BA74"));
+        completedDataSet.setValueTextColor(Color.parseColor("#8A7058"));
         completedDataSet.setValueTextSize(10f);
+        completedDataSet.setHighLightAlpha(0);
         completedDataSet.setValueFormatter(new ValueFormatter() {
             @Override
             public String getBarLabel(BarEntry barEntry) {
@@ -237,29 +314,28 @@ public class RescueStatisticsFragment extends Fragment {
         });
 
         BarData barData = new BarData(allDataSet, completedDataSet);
-        float groupSpace = 0.2f;
-        float barSpace = 0.02f;
-        float barWidth = 0.38f;
+        float groupSpace = 0.22f;
+        float barSpace = 0.04f;
+        float barWidth = 0.35f;
         barData.setBarWidth(barWidth);
         monthlyTrendChart.setData(barData);
-        monthlyTrendChart.getDescription().setEnabled(false);
-        monthlyTrendChart.getXAxis().setValueFormatter(new IndexAxisValueFormatter(labels));
-        monthlyTrendChart.getXAxis().setGranularity(1f);
-        monthlyTrendChart.getXAxis().setCenterAxisLabels(true);
-        monthlyTrendChart.getXAxis().setPosition(com.github.mikephil.charting.components.XAxis.XAxisPosition.BOTTOM);
-        monthlyTrendChart.getXAxis().setAxisMinimum(0f);
-        monthlyTrendChart.getXAxis()
-                .setAxisMaximum(0f + barData.getGroupWidth(groupSpace, barSpace) * labels.size());
-        monthlyTrendChart.groupBars(0f, groupSpace, barSpace);
-        monthlyTrendChart.getAxisLeft().setGranularity(1f);
-        monthlyTrendChart.getAxisLeft().setValueFormatter(new ValueFormatter() {
+
+        XAxis xAxis = monthlyTrendChart.getXAxis();
+        xAxis.setValueFormatter(new IndexAxisValueFormatter(labels));
+        xAxis.setCenterAxisLabels(true);
+        xAxis.setAxisMinimum(0f);
+        xAxis.setAxisMaximum(barData.getGroupWidth(groupSpace, barSpace) * labels.size());
+
+        YAxis leftAxis = monthlyTrendChart.getAxisLeft();
+        leftAxis.setValueFormatter(new ValueFormatter() {
             @Override
             public String getFormattedValue(float value) {
                 return String.valueOf((long) value);
             }
         });
-        monthlyTrendChart.getAxisRight().setEnabled(false);
-        monthlyTrendChart.animateY(1000);
+
+        monthlyTrendChart.groupBars(0f, groupSpace, barSpace);
+        monthlyTrendChart.animateY(900);
         monthlyTrendChart.invalidate();
     }
 
@@ -283,12 +359,13 @@ public class RescueStatisticsFragment extends Fragment {
             String nickname = stringValue(contributor.get("nickname"));
             String username = stringValue(contributor.get("username"));
             String name = !nickname.isEmpty() ? nickname : username;
-            long c = longValue(contributor.get("taskCount"));
-            if (c <= 0) {
-                c = longValue(contributor.get("count"));
+            long count = longValue(contributor.get("taskCount"));
+            if (count <= 0) {
+                count = longValue(contributor.get("count"));
             }
+
             holder.name.setText((position + 1) + ". " + name);
-            holder.stats.setText(c + " 次");
+            holder.stats.setText(count + " \u6b21\u884c\u52a8");
 
             String avatarUrl = stringValue(contributor.get("avatarUrl"));
             if (!avatarUrl.isEmpty()) {
@@ -303,7 +380,7 @@ public class RescueStatisticsFragment extends Fragment {
             }
 
             holder.itemView.setOnClickListener(v -> {
-                android.os.Bundle args = new android.os.Bundle();
+                Bundle args = new Bundle();
                 args.putLong("userId", userId);
                 Navigation.findNavController(v).navigate(R.id.user_profile, args);
             });
@@ -315,8 +392,9 @@ public class RescueStatisticsFragment extends Fragment {
         }
 
         class ViewHolder extends RecyclerView.ViewHolder {
-            android.widget.ImageView avatar;
-            TextView name, stats;
+            ImageView avatar;
+            TextView name;
+            TextView stats;
 
             ViewHolder(View itemView) {
                 super(itemView);

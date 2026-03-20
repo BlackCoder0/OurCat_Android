@@ -97,7 +97,7 @@ public class OrgFragment extends Fragment {
                 v -> NavHostFragment.findNavController(OrgFragment.this).navigate(R.id.rescue_list));
         setupOption(btnRescueStatistics, "救助数据统计",
                 v -> NavHostFragment.findNavController(OrgFragment.this).navigate(R.id.rescue_statistics));
-        setupOption(btnRescueGuide, "救助知识库（指南+文章）",
+        setupOption(btnRescueGuide, "救助指南",
                 v -> NavHostFragment.findNavController(OrgFragment.this).navigate(R.id.rescue_guide));
 
         btnJoin.setOnClickListener(v -> doJoin());
