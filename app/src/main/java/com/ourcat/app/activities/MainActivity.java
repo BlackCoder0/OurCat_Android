@@ -719,10 +719,13 @@ public class MainActivity extends AppCompatActivity {
         if (navController == null) {
             return;
         }
+        if (navController.popBackStack(destId, false)) {
+            updateNavSelection(selectedNavItemId);
+            return;
+        }
         NavOptions options = new NavOptions.Builder()
                 .setLaunchSingleTop(true)
-                .setRestoreState(true)
-                .setPopUpTo(navController.getGraph().getStartDestinationId(), false, true)
+                .setPopUpTo(navController.getGraph().getStartDestinationId(), false)
                 .build();
         navController.navigate(destId, null, options);
         updateNavSelection(selectedNavItemId);
