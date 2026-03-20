@@ -366,7 +366,7 @@ public class RescueDetailFragment extends Fragment {
         Object latObj = activityData.get("lat");
         Object lngObj = activityData.get("lng");
         if (latObj instanceof Number && lngObj instanceof Number) {
-            mainActivity.showMapAtRescueLocation(((Number) latObj).doubleValue(), ((Number) lngObj).doubleValue());
+            mainActivity.showMapAtLocation(((Number) latObj).doubleValue(), ((Number) lngObj).doubleValue());
         } else {
             Toast.makeText(requireContext(), "暂无可用定位", Toast.LENGTH_SHORT).show();
         }

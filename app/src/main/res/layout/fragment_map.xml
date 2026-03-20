@@ -32,8 +32,8 @@
                 android:contentDescription="定位"
                 android:src="@android:drawable/ic_menu_mylocation"
                 app:fabSize="mini"
-                app:backgroundTint="@android:color/white"
-                app:tint="@color/primary" />
+                app:backgroundTint="@color/fab_bg_tint_action"
+                app:tint="@color/fab_icon_tint_action" />
 
             <!-- 刷新按钮 -->
             <com.google.android.material.floatingactionbutton.FloatingActionButton
@@ -44,8 +44,8 @@
                 android:contentDescription="刷新"
                 android:src="@android:drawable/ic_popup_sync"
                 app:fabSize="mini"
-                app:backgroundTint="@android:color/white"
-                app:tint="@color/primary" />
+                app:backgroundTint="@color/fab_bg_tint_action"
+                app:tint="@color/fab_icon_tint_action" />
 
             <!-- 热力图切换按钮 -->
             <com.google.android.material.floatingactionbutton.FloatingActionButton
@@ -56,8 +56,8 @@
                 android:contentDescription="热力图"
                 android:src="@drawable/fire_alert"
                 app:fabSize="mini"
-                app:backgroundTint="@android:color/white"
-                app:tint="@color/primary" />
+                app:backgroundTint="@color/fab_bg_tint_toggle"
+                app:tint="@color/fab_icon_tint_toggle" />
 
             <!-- 推荐按钮 -->
             <com.google.android.material.floatingactionbutton.FloatingActionButton
@@ -68,8 +68,8 @@
                 android:contentDescription="推荐区域"
                 android:src="@android:drawable/ic_menu_compass"
                 app:fabSize="mini"
-                app:backgroundTint="@android:color/white"
-                app:tint="@color/primary" />
+                app:backgroundTint="@color/fab_bg_tint_toggle"
+                app:tint="@color/fab_icon_tint_toggle" />
 
             <!-- 宠物医院按钮 -->
             <com.google.android.material.floatingactionbutton.FloatingActionButton
@@ -80,8 +80,8 @@
                 android:contentDescription="宠物医院"
                 android:src="@drawable/hospital_building"
                 app:fabSize="mini"
-                app:backgroundTint="@android:color/white"
-                app:tint="@color/primary" />
+                app:backgroundTint="@color/fab_bg_tint_toggle"
+                app:tint="@color/fab_icon_tint_toggle" />
         </LinearLayout>
 
         <!-- 左上角信息面板 -->

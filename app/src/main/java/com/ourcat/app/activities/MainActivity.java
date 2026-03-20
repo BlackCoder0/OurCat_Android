@@ -17,6 +17,9 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import android.animation.Animator;
+import android.animation.AnimatorListenerAdapter;
+
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.activity.OnBackPressedCallback;
@@ -364,20 +367,40 @@ public class MainActivity extends AppCompatActivity {
         if (quickActionOverlay == null) {
             return;
         }
+        quickActionOverlay.animate().cancel();
         quickActionOverlay.setAlpha(0f);
         quickActionOverlay.setVisibility(View.VISIBLE);
-        quickActionOverlay.animate().alpha(1f).setDuration(160).start();
+        quickActionOverlay.animate().alpha(1f).setDuration(160).setListener(null).start();
     }
 
     private void hideQuickActionMenu() {
-        if (quickActionOverlay == null || quickActionOverlay.getVisibility() != View.VISIBLE) {
+        if (quickActionOverlay == null) {
             return;
         }
-        quickActionOverlay.animate().alpha(0f).setDuration(140).withEndAction(() -> {
-            if (quickActionOverlay != null) {
-                quickActionOverlay.setVisibility(View.GONE);
+        if (quickActionOverlay.getVisibility() != View.VISIBLE) {
+            return;
+        }
+        quickActionOverlay.animate().cancel();
+        quickActionOverlay.animate().alpha(0f).setDuration(140).setListener(new AnimatorListenerAdapter() {
+            @Override
+            public void onAnimationEnd(Animator animation) {
+                forceHideQuickActionMenu();
+            }
+
+            @Override
+            public void onAnimationCancel(Animator animation) {
+                forceHideQuickActionMenu();
             }
         }).start();
+    }
+
+    private void forceHideQuickActionMenu() {
+        if (quickActionOverlay == null) {
+            return;
+        }
+        quickActionOverlay.animate().cancel();
+        quickActionOverlay.setAlpha(0f);
+        quickActionOverlay.setVisibility(View.GONE);
     }
 
     private void startQuickFlow(QuickCameraAction action) {
@@ -794,8 +817,7 @@ public class MainActivity extends AppCompatActivity {
                     bottomBarContainer.setVisibility(View.GONE);
                 if (fabQuickCamera != null)
                     fabQuickCamera.setVisibility(View.GONE);
-                if (quickActionOverlay != null)
-                    quickActionOverlay.setVisibility(View.GONE);
+                forceHideQuickActionMenu();
             } else {
                 if (bottomBarContainer != null)
                     bottomBarContainer.setVisibility(View.VISIBLE);
@@ -803,6 +825,12 @@ public class MainActivity extends AppCompatActivity {
                     fabQuickCamera.setVisibility(View.VISIBLE);
             }
         });
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        forceHideQuickActionMenu();
     }
 
     @Override

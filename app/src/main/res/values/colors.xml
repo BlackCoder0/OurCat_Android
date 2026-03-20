@@ -2,6 +2,7 @@
 <resources>
     <!-- UI.md 2.1 - Theme OurCat -->
     <color name="primary">#FF9800</color>
+    <color name="primary_alpha_60">#99FF9800</color>
     <color name="primary_variant">#F57C00</color>
     <color name="secondary">#FFECB3</color>
     <color name="background">#FFFAF2</color>

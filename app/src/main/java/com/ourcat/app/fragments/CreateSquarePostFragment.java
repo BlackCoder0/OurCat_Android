@@ -150,15 +150,49 @@ public class CreateSquarePostFragment extends Fragment {
         view.findViewById(R.id.btn_add_square_image).setOnClickListener(v -> pickImages());
 
         // Location click listener on TextInputEditText or TextInputLayout end icon
-        tilLocation.setEndIconOnClickListener(v -> checkLocationPermission());
+        tilLocation.setEndIconOnClickListener(v -> {
+            if (hasLocationValue()) {
+                clearLocationValue();
+            } else {
+                checkLocationPermission();
+            }
+        });
 
         setupProblemTypeSpinner();
         typeGroup.setOnCheckedStateChangeListener((group, checkedIds) -> updateProblemTypeVisibility());
         applyQuickPreset();
+        updateLocationEndIcon();
         updateProblemTypeVisibility();
 
         btnSubmit.setOnClickListener(v -> submit());
         return view;
+    }
+
+    private boolean hasLocationValue() {
+        String loc = etLocation != null && etLocation.getText() != null ? etLocation.getText().toString().trim() : "";
+        return (currentLat != 0 && currentLng != 0) || !loc.isEmpty();
+    }
+
+    private void clearLocationValue() {
+        currentLat = 0;
+        currentLng = 0;
+        if (etLocation != null) {
+            etLocation.setText("");
+        }
+        updateLocationEndIcon();
+    }
+
+    private void updateLocationEndIcon() {
+        if (tilLocation == null) {
+            return;
+        }
+        if (hasLocationValue()) {
+            tilLocation.setEndIconDrawable(android.R.drawable.ic_menu_close_clear_cancel);
+            tilLocation.setEndIconContentDescription("清除定位");
+        } else {
+            tilLocation.setEndIconDrawable(android.R.drawable.ic_menu_mylocation);
+            tilLocation.setEndIconContentDescription("获取当前位置");
+        }
     }
 
     private void applyQuickPreset() {
@@ -245,9 +279,11 @@ public class CreateSquarePostFragment extends Fragment {
                             if (address != null && !address.trim().isEmpty()) {
                                 etLocation.setText(address);
                                 etLocation.setSelection(address.length());
+                                updateLocationEndIcon();
                                 Toast.makeText(requireContext(), "定位成功", Toast.LENGTH_SHORT).show();
                             } else {
                                 etLocation.setText("附近");
+                                updateLocationEndIcon();
                                 Toast.makeText(requireContext(), "定位成功，但无法获取详细地址", Toast.LENGTH_SHORT).show();
                             }
                         } else {
@@ -277,6 +313,7 @@ public class CreateSquarePostFragment extends Fragment {
         currentLat = lat;
         currentLng = lng;
         etLocation.setText("定位中...");
+        updateLocationEndIcon();
         try {
             GeocodeSearch geocodeSearch = new GeocodeSearch(requireContext());
             geocodeSearch.setOnGeocodeSearchListener(new GeocodeSearch.OnGeocodeSearchListener() {
@@ -299,6 +336,7 @@ public class CreateSquarePostFragment extends Fragment {
                         }
                     }
                     etLocation.setText(addressName);
+                    updateLocationEndIcon();
                 }
 
                 @Override
@@ -309,6 +347,7 @@ public class CreateSquarePostFragment extends Fragment {
             geocodeSearch.getFromLocationAsyn(query);
         } catch (Exception e) {
             etLocation.setText("附近");
+            updateLocationEndIcon();
         }
     }
 

@@ -107,6 +107,10 @@ public class MapFragment extends Fragment implements AMapLocationListener {
     private final List<Map<String, Object>> heatmapData = new ArrayList<>();
     private final List<Map<String, Object>> recommendData = new ArrayList<>();
 
+    private FloatingActionButton fabHeatmap;
+    private FloatingActionButton fabRecommend;
+    private FloatingActionButton fabHospital;
+
     private BottomSheetBehavior<View> bottomSheetBehavior;
     private RecyclerView recommendList;
     private TextView recommendEmpty;
@@ -186,13 +190,13 @@ public class MapFragment extends Fragment implements AMapLocationListener {
             }
         });
 
-        FloatingActionButton fabHeatmap = view.findViewById(R.id.fab_heatmap);
+        fabHeatmap = view.findViewById(R.id.fab_heatmap);
         fabHeatmap.setOnClickListener(v -> toggleHeatmapMode());
 
-        FloatingActionButton fabRecommend = view.findViewById(R.id.fab_recommend);
+        fabRecommend = view.findViewById(R.id.fab_recommend);
         fabRecommend.setOnClickListener(v -> toggleRecommendSheet());
 
-        FloatingActionButton fabHospital = view.findViewById(R.id.fab_hospital);
+        fabHospital = view.findViewById(R.id.fab_hospital);
         fabHospital.setOnClickListener(v -> togglePetHospitals());
 
         FloatingActionButton fabReport = view.findViewById(R.id.map_fab_report);
@@ -201,6 +205,30 @@ public class MapFragment extends Fragment implements AMapLocationListener {
             dialog.setOnReportSuccess(this::loadLocations);
             dialog.show(getChildFragmentManager(), "report");
         });
+
+        if (bottomSheetBehavior != null) {
+            bottomSheetBehavior.addBottomSheetCallback(new BottomSheetBehavior.BottomSheetCallback() {
+                @Override
+                public void onStateChanged(@NonNull View bottomSheet, int newState) {
+                    if (fabRecommend != null) {
+                        fabRecommend.setActivated(newState == BottomSheetBehavior.STATE_EXPANDED);
+                    }
+                }
+
+                @Override
+                public void onSlide(@NonNull View bottomSheet, float slideOffset) {
+                }
+            });
+        }
+        if (fabHeatmap != null) {
+            fabHeatmap.setActivated(isHeatmapMode);
+        }
+        if (fabHospital != null) {
+            fabHospital.setActivated(showHospitals);
+        }
+        if (fabRecommend != null && bottomSheetBehavior != null) {
+            fabRecommend.setActivated(bottomSheetBehavior.getState() == BottomSheetBehavior.STATE_EXPANDED);
+        }
 
         loadLocations();
         loadNeedRescue();
@@ -239,6 +267,9 @@ public class MapFragment extends Fragment implements AMapLocationListener {
 
     private void toggleHeatmapMode() {
         isHeatmapMode = !isHeatmapMode;
+        if (fabHeatmap != null) {
+            fabHeatmap.setActivated(isHeatmapMode);
+        }
         if (isHeatmapMode) {
             modeIndicator.setVisibility(View.VISIBLE);
             modeIndicator.setText(" 热力图模式");
@@ -276,10 +307,16 @@ public class MapFragment extends Fragment implements AMapLocationListener {
             loadRecommendData();
             bottomSheetBehavior.setState(BottomSheetBehavior.STATE_EXPANDED);
         }
+        if (fabRecommend != null) {
+            fabRecommend.setActivated(bottomSheetBehavior.getState() == BottomSheetBehavior.STATE_EXPANDED);
+        }
     }
 
     private void togglePetHospitals() {
         showHospitals = !showHospitals;
+        if (fabHospital != null) {
+            fabHospital.setActivated(showHospitals);
+        }
         if (showHospitals) {
             searchPetHospitals();
             if (isAdded()) {
@@ -949,9 +986,16 @@ public class MapFragment extends Fragment implements AMapLocationListener {
             @SuppressWarnings("unchecked")
             Map<String, Object> catData = (Map<String, Object>) data;
             if (NEED_RESCUE_MARKER_TYPE.equals(catData.get("type"))) {
-                image.setImageResource(R.drawable.cat_blink);
-                image.setColorFilter(ContextCompat.getColor(requireContext(), R.color.error));
-                image.setVisibility(View.VISIBLE);
+                String imageUrl = str(catData.get("imageUrl"));
+                if (!imageUrl.isEmpty()) {
+                    image.setVisibility(View.VISIBLE);
+                    image.setColorFilter(null);
+                    Glide.with(requireContext()).load(imageUrl).centerCrop().into(image);
+                } else {
+                    image.setImageResource(R.drawable.cat_blink);
+                    image.setColorFilter(ContextCompat.getColor(requireContext(), R.color.error));
+                    image.setVisibility(View.VISIBLE);
+                }
                 actionHint.setText("🆘 点击进入救助广场帖");
                 actionHint.setTextColor(ContextCompat.getColor(requireContext(), R.color.error));
                 actionHint.setVisibility(View.VISIBLE);
@@ -1277,15 +1321,12 @@ public class MapFragment extends Fragment implements AMapLocationListener {
             return;
         removeNeedRescueMarkers();
         int rescueColor = 0xFFE53935;
-        Bitmap placeholderPhoto = getRescuePlaceholderPhoto(rescueColor);
-        BitmapDescriptor redIcon = createImagePinMarker(placeholderPhoto, rescueColor);
         for (Map<String, Object> item : needRescueList) {
-            addNeedRescueMarker(item, redIcon, placeholderPhoto, rescueColor);
+            addNeedRescueMarker(item, rescueColor);
         }
     }
 
-    private void addNeedRescueMarker(Map<String, Object> item, BitmapDescriptor icon, Bitmap placeholderPhoto,
-            int rescueColor) {
+    private void addNeedRescueMarker(Map<String, Object> item, int rescueColor) {
         if (aMap == null) {
             return;
         }
@@ -1304,6 +1345,39 @@ public class MapFragment extends Fragment implements AMapLocationListener {
         String title = buildNeedRescueTitle(item);
         Map<String, Object> data = new HashMap<>(item);
         data.put("type", NEED_RESCUE_MARKER_TYPE);
+        String imageUrl = str(item.get("imageUrl"));
+        if (!imageUrl.isEmpty()) {
+            Glide.with(this)
+                    .asBitmap()
+                    .load(imageUrl)
+                    .circleCrop()
+                    .override((int) (44 * density), (int) (44 * density))
+                    .into(new SimpleTarget<Bitmap>() {
+                        @Override
+                        public void onResourceReady(@NonNull Bitmap resource,
+                                @Nullable Transition<? super Bitmap> transition) {
+                            if (!isAdded() || aMap == null) {
+                                return;
+                            }
+                            Marker marker = aMap.addMarker(new MarkerOptions()
+                                    .position(new LatLng(lat, lng))
+                                    .title(title)
+                                    .snippet("点击进入救助广场帖")
+                                    .icon(createImagePinMarker(resource, rescueColor))
+                                    .anchor(0.5f, 1.0f)
+                                    .zIndex(25));
+                            if (marker == null) {
+                                return;
+                            }
+                            markerDataMap.put(marker.getId(), data);
+                            needRescueMarkers.add(marker);
+                            registerRescueIconPulseMarker(marker, resource, rescueColor);
+                        }
+                    });
+            return;
+        }
+        Bitmap placeholderPhoto = getRescuePlaceholderPhoto(rescueColor);
+        BitmapDescriptor icon = createImagePinMarker(placeholderPhoto, rescueColor);
         Marker marker = aMap.addMarker(new MarkerOptions()
                 .position(new LatLng(lat, lng))
                 .title(title)
@@ -1986,9 +2060,7 @@ public class MapFragment extends Fragment implements AMapLocationListener {
         }
         if (NEED_RESCUE_MARKER_TYPE.equals(type)) {
             int rescueColor = 0xFFE53935;
-            Bitmap placeholderPhoto = getRescuePlaceholderPhoto(rescueColor);
-            BitmapDescriptor redIcon = createImagePinMarker(placeholderPhoto, rescueColor);
-            addNeedRescueMarker(loc, redIcon, placeholderPhoto, rescueColor);
+            addNeedRescueMarker(loc, rescueColor);
         }
     }
 
