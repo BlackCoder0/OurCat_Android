@@ -74,12 +74,14 @@ import com.amap.api.services.core.PoiItem;
 import com.amap.api.services.poisearch.PoiResult;
 import com.amap.api.services.poisearch.PoiSearch;
 import com.google.android.material.bottomsheet.BottomSheetBehavior;
+import com.google.android.material.button.MaterialButton;
 import com.google.android.material.chip.Chip;
 
 public class MapFragment extends Fragment implements AMapLocationListener {
 
     private static final String TAG = "MapFragment";
     private static final double CLUSTER_DISTANCE_DP = 22;
+    private static final double RESCUE_CLUSTER_DISTANCE_RATIO = 0.5;
     private static final float MAX_ZOOM = 20f;
 
     private TextureMapView mapView;
@@ -505,7 +507,14 @@ public class MapFragment extends Fragment implements AMapLocationListener {
         });
 
         aMap.setOnMarkerClickListener(marker -> {
+            if (currentMarker != null && currentMarker != marker && currentMarker.isInfoWindowShown()) {
+                currentMarker.hideInfoWindow();
+                currentMarker = null;
+            }
             Object data = markerDataMap.get(marker.getId());
+            if (data == null) {
+                return false;
+            }
             if (data instanceof Map) {
                 Object type = ((Map<?, ?>) data).get("type");
                 if (HOSPITAL_MARKER_TYPE.equals(type)
@@ -519,20 +528,20 @@ public class MapFragment extends Fragment implements AMapLocationListener {
                     return true;
                 }
             }
-            if (data instanceof Map && HOSPITAL_MARKER_TYPE.equals(((Map<?, ?>) data).get("type"))) {
+            if (data instanceof List) {
                 if (currentMarker != null && currentMarker.isInfoWindowShown()) {
                     currentMarker.hideInfoWindow();
+                    currentMarker = null;
                 }
-                currentMarker = marker;
-                marker.showInfoWindow();
-                return true;
-            }
-            if (data instanceof List) {
                 @SuppressWarnings("unchecked")
                 List<Map<String, Object>> cluster = (List<Map<String, Object>>) data;
                 float zoom = aMap.getCameraPosition().zoom;
                 if (zoom >= MAX_ZOOM - 0.5f) {
-                    showClusterListDialog(cluster);
+                    if (isRescueCluster(cluster)) {
+                        showRescueClusterListDialog(cluster);
+                    } else {
+                        showClusterListDialog(cluster);
+                    }
                 } else {
                     zoomToCluster(cluster);
                 }
@@ -606,7 +615,7 @@ public class MapFragment extends Fragment implements AMapLocationListener {
             public void onCameraChangeFinish(CameraPosition pos) {
                 if (isHeatmapMode) {
                     scheduleHeatmapUpdate(pos.zoom);
-                } else if (!allLocations.isEmpty()) {
+                } else if (!allLocations.isEmpty() || !needRescueList.isEmpty()) {
                     clusterAndDisplay();
                     buildRecommendFromLocal();
                 }
@@ -707,6 +716,178 @@ public class MapFragment extends Fragment implements AMapLocationListener {
         });
 
         dialog.show();
+    }
+
+    private void showRescueClusterListDialog(List<Map<String, Object>> cluster) {
+        if (!isAdded() || cluster.isEmpty())
+            return;
+
+        View dialogView = LayoutInflater.from(requireContext())
+                .inflate(R.layout.dialog_cluster_list, null);
+        RecyclerView rv = dialogView.findViewById(R.id.cluster_list);
+        rv.setLayoutManager(new LinearLayoutManager(requireContext()));
+
+        AlertDialog dialog = new AlertDialog.Builder(requireContext())
+                .setTitle("附近救助信息 " + cluster.size() + " 条")
+                .setView(dialogView)
+                .setNegativeButton("关闭", null)
+                .create();
+
+        rv.setAdapter(new RecyclerView.Adapter<ClusterVH>() {
+            @NonNull
+            @Override
+            public ClusterVH onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+                return new ClusterVH(LayoutInflater.from(parent.getContext())
+                        .inflate(R.layout.item_cat_report, parent, false));
+            }
+
+            @Override
+            public void onBindViewHolder(@NonNull ClusterVH h, int position) {
+                Map<String, Object> item = cluster.get(position);
+                boolean isNeedRescue = NEED_RESCUE_MARKER_TYPE.equals(str(item.get("type")));
+                h.color.setText(isNeedRescue ? buildNeedRescueTitle(item) : buildRescueCatTitle(item));
+                h.feature.setText(isNeedRescue ? buildNeedRescueSubtitle(item) : buildRescueCatSubtitle(item));
+
+                Object latObj = item.get("lat");
+                Object lngObj = item.get("lng");
+                if (latObj != null && lngObj != null) {
+                    h.location.setText(String.format("📍 %.4f, %.4f",
+                            ((Number) latObj).doubleValue(), ((Number) lngObj).doubleValue()));
+                }
+
+                String timeStr = str(item.get("reportTime"));
+                if (timeStr.isEmpty()) {
+                    timeStr = str(item.get("time"));
+                }
+                h.time.setText(timeStr.isEmpty() ? "" : "🕐 " + timeStr);
+
+                if (isNeedRescue) {
+                    h.image.setImageResource(R.drawable.cat_blink);
+                    h.image.setColorFilter(ContextCompat.getColor(requireContext(), R.color.error));
+                } else {
+                    String imageUrl = str(item.get("imageUrl"));
+                    if (!imageUrl.isEmpty()) {
+                        Glide.with(h.image).load(imageUrl).centerCrop().into(h.image);
+                    } else {
+                        h.image.setImageResource(android.R.color.darker_gray);
+                    }
+                    h.image.clearColorFilter();
+                }
+
+                h.delete.setVisibility(View.GONE);
+
+                MaterialButton btn = h.btnViewProfile instanceof MaterialButton ? (MaterialButton) h.btnViewProfile
+                        : null;
+                Object catIdObj = item.get("catId");
+                if (btn != null) {
+                    if (isNeedRescue) {
+                        btn.setVisibility(View.VISIBLE);
+                        btn.setText("🆘 查看救助");
+                        btn.setOnClickListener(v -> {
+                            dialog.dismiss();
+                            openRescueClusterItem(item);
+                        });
+                    } else if (catIdObj instanceof Number && ((Number) catIdObj).longValue() > 0) {
+                        btn.setVisibility(View.VISIBLE);
+                        btn.setText("📋 查看猫咪档案");
+                        btn.setOnClickListener(v -> {
+                            dialog.dismiss();
+                            openCatProfile(((Number) catIdObj).longValue());
+                        });
+                    } else {
+                        btn.setVisibility(View.GONE);
+                    }
+                }
+
+                h.itemView.setOnClickListener(v -> {
+                    dialog.dismiss();
+                    openRescueClusterItem(item);
+                });
+            }
+
+            @Override
+            public int getItemCount() {
+                return cluster.size();
+            }
+        });
+
+        dialog.show();
+    }
+
+    private boolean isRescueCluster(List<Map<String, Object>> cluster) {
+        for (Map<String, Object> item : cluster) {
+            Object type = item.get("type");
+            if (NEED_RESCUE_MARKER_TYPE.equals(type) || RESCUE_CAT_MARKER_TYPE.equals(type)) {
+                return true;
+            }
+            if (isTrue(item.get("hasActiveRescue"))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private void openRescueClusterItem(Map<String, Object> item) {
+        boolean isNeedRescue = NEED_RESCUE_MARKER_TYPE.equals(str(item.get("type")));
+        if (isNeedRescue) {
+            Object squarePostIdObj = item.get("squarePostId");
+            if (squarePostIdObj instanceof Number && ((Number) squarePostIdObj).longValue() > 0) {
+                navigateToSquarePost(((Number) squarePostIdObj).longValue());
+                return;
+            }
+            Object activityIdObj = item.get("activityId");
+            if (activityIdObj instanceof Number) {
+                Bundle args = new Bundle();
+                args.putLong("activityId", ((Number) activityIdObj).longValue());
+                if (getActivity() instanceof com.ourcat.app.activities.MainActivity) {
+                    ((com.ourcat.app.activities.MainActivity) getActivity())
+                            .navigateFromMap(R.id.rescue_detail, args, R.id.nav_item_community);
+                }
+                return;
+            }
+        } else {
+            Object squarePostIdObj = item.get("rescueSquarePostId");
+            if (squarePostIdObj instanceof Number && ((Number) squarePostIdObj).longValue() > 0) {
+                navigateToSquarePost(((Number) squarePostIdObj).longValue());
+                return;
+            }
+            Object catIdObj = item.get("catId");
+            if (catIdObj instanceof Number && ((Number) catIdObj).longValue() > 0) {
+                openCatProfile(((Number) catIdObj).longValue());
+                return;
+            }
+        }
+        Object latObj = item.get("lat");
+        Object lngObj = item.get("lng");
+        if (latObj instanceof Number && lngObj instanceof Number && aMap != null) {
+            aMap.animateCamera(CameraUpdateFactory.newLatLngZoom(
+                    new LatLng(((Number) latObj).doubleValue(), ((Number) lngObj).doubleValue()),
+                    MAX_ZOOM));
+        }
+    }
+
+    private String buildNeedRescueTitle(Map<String, Object> item) {
+        String title = str(item.get("title"));
+        String catName = str(item.get("catName"));
+        if (title.isEmpty()) {
+            title = "需救助";
+        }
+        return catName.isEmpty() ? title : catName + " · " + title;
+    }
+
+    private String buildNeedRescueSubtitle(Map<String, Object> item) {
+        String description = str(item.get("description"));
+        return description.isEmpty() ? "点击查看救助帖" : description;
+    }
+
+    private String buildRescueCatTitle(Map<String, Object> item) {
+        String colorStr = str(item.get("color"));
+        return colorStr.isEmpty() ? "救助中的猫咪" : colorStr + "猫（救助中）";
+    }
+
+    private String buildRescueCatSubtitle(Map<String, Object> item) {
+        String personalityStr = str(item.get("personality"));
+        return personalityStr.isEmpty() ? "点击查看详情" : personalityStr;
     }
 
     static class ClusterVH extends RecyclerView.ViewHolder {
@@ -1073,7 +1254,7 @@ public class MapFragment extends Fragment implements AMapLocationListener {
                             needRescueList.addAll(response.body());
                         }
                         if (!isHeatmapMode && aMap != null) {
-                            addNeedRescueMarkers();
+                            clusterAndDisplay();
                         }
                     }
 
@@ -1082,7 +1263,11 @@ public class MapFragment extends Fragment implements AMapLocationListener {
                         if (!isAdded())
                             return;
                         needRescueList.clear();
-                        removeNeedRescueMarkers();
+                        if (!isHeatmapMode && aMap != null) {
+                            clusterAndDisplay();
+                        } else {
+                            removeNeedRescueMarkers();
+                        }
                     }
                 });
     }
@@ -1095,41 +1280,52 @@ public class MapFragment extends Fragment implements AMapLocationListener {
         Bitmap placeholderPhoto = getRescuePlaceholderPhoto(rescueColor);
         BitmapDescriptor redIcon = createImagePinMarker(placeholderPhoto, rescueColor);
         for (Map<String, Object> item : needRescueList) {
-            Object latObj = item.get("lat");
-            Object lngObj = item.get("lng");
-            Object activityIdObj = item.get("activityId");
-            if (latObj == null || lngObj == null || activityIdObj == null)
-                continue;
-            Object catIdObj = item.get("catId");
-            if (catIdObj instanceof Number && ((Number) catIdObj).longValue() > 0)
-                continue;
-            double lat = ((Number) latObj).doubleValue();
-            double lng = ((Number) lngObj).doubleValue();
-            String title = str(item.get("title"));
-            String catName = str(item.get("catName"));
-            if (title.isEmpty())
-                title = "需救助";
-            if (!catName.isEmpty())
-                title = catName + " · " + title;
-            Map<String, Object> data = new HashMap<>(item);
-            data.put("type", NEED_RESCUE_MARKER_TYPE);
-            Marker marker = aMap.addMarker(new MarkerOptions()
-                    .position(new LatLng(lat, lng))
-                    .title(title)
-                    .snippet("点击进入救助广场帖")
-                    .icon(redIcon)
-                    .anchor(0.5f, 1.0f)
-                    .zIndex(25));
-            markerDataMap.put(marker.getId(), data);
-            needRescueMarkers.add(marker);
-            registerRescueIconPulseMarker(marker, placeholderPhoto, rescueColor);
+            addNeedRescueMarker(item, redIcon, placeholderPhoto, rescueColor);
         }
+    }
+
+    private void addNeedRescueMarker(Map<String, Object> item, BitmapDescriptor icon, Bitmap placeholderPhoto,
+            int rescueColor) {
+        if (aMap == null) {
+            return;
+        }
+        Object latObj = item.get("lat");
+        Object lngObj = item.get("lng");
+        Object activityIdObj = item.get("activityId");
+        if (latObj == null || lngObj == null || activityIdObj == null) {
+            return;
+        }
+        Object catIdObj = item.get("catId");
+        if (catIdObj instanceof Number && ((Number) catIdObj).longValue() > 0) {
+            return;
+        }
+        double lat = ((Number) latObj).doubleValue();
+        double lng = ((Number) lngObj).doubleValue();
+        String title = buildNeedRescueTitle(item);
+        Map<String, Object> data = new HashMap<>(item);
+        data.put("type", NEED_RESCUE_MARKER_TYPE);
+        Marker marker = aMap.addMarker(new MarkerOptions()
+                .position(new LatLng(lat, lng))
+                .title(title)
+                .snippet("点击进入救助广场帖")
+                .icon(icon)
+                .anchor(0.5f, 1.0f)
+                .zIndex(25));
+        if (marker == null) {
+            return;
+        }
+        markerDataMap.put(marker.getId(), data);
+        needRescueMarkers.add(marker);
+        registerRescueIconPulseMarker(marker, placeholderPhoto, rescueColor);
     }
 
     private void removeNeedRescueMarkers() {
         for (Marker marker : needRescueMarkers) {
             if (marker != null) {
                 markerDataMap.remove(marker.getId());
+                rescuePulseMarkers.remove(marker.getId());
+                rescuePulsePhotos.remove(marker.getId());
+                rescuePulseColors.remove(marker.getId());
                 marker.remove();
             }
         }
@@ -1198,6 +1394,8 @@ public class MapFragment extends Fragment implements AMapLocationListener {
         aMap.clear();
         markerDataMap.clear();
         hospitalMarkers.clear();
+        needRescueMarkers.clear();
+        rescueFocusMarker = null;
 
         float zoom = aMap.getCameraPosition().zoom;
 
@@ -1663,52 +1861,50 @@ public class MapFragment extends Fragment implements AMapLocationListener {
     }
 
     private void clusterAndDisplay() {
-        if (aMap == null || allLocations.isEmpty())
+        if (aMap == null)
+            return;
+        if (allLocations.isEmpty() && needRescueList.isEmpty())
             return;
 
         new Thread(() -> {
             List<Map<String, Object>> locationsSnapshot = new ArrayList<>();
-            List<Map<String, Object>> rescueCatLocations = new ArrayList<>();
+            List<Map<String, Object>> rescueLocationsSnapshot = new ArrayList<>();
             for (Map<String, Object> item : allLocations) {
                 if (isTrue(item.get("hasActiveRescue"))) {
-                    rescueCatLocations.add(item);
+                    Map<String, Object> rescueItem = new HashMap<>(item);
+                    rescueItem.put("type", RESCUE_CAT_MARKER_TYPE);
+                    rescueLocationsSnapshot.add(rescueItem);
                 } else {
                     locationsSnapshot.add(item);
                 }
             }
 
-            // 在子线程计算
+            for (Map<String, Object> item : needRescueList) {
+                Object latObj = item.get("lat");
+                Object lngObj = item.get("lng");
+                Object activityIdObj = item.get("activityId");
+                if (latObj == null || lngObj == null || activityIdObj == null) {
+                    continue;
+                }
+                Object catIdObj = item.get("catId");
+                if (catIdObj instanceof Number && ((Number) catIdObj).longValue() > 0) {
+                    continue;
+                }
+                Map<String, Object> rescueItem = new HashMap<>(item);
+                rescueItem.put("type", NEED_RESCUE_MARKER_TYPE);
+                rescueLocationsSnapshot.add(rescueItem);
+            }
+
             float zoom = aMap.getCameraPosition().zoom;
             double clusterDistPx = CLUSTER_DISTANCE_DP * density;
             double metersPerPx = 156543.03392 * Math.cos(Math.toRadians(
                     aMap.getCameraPosition().target.latitude)) / Math.pow(2, zoom);
             double clusterMeters = clusterDistPx * metersPerPx;
+            double rescueClusterMeters = clusterMeters * RESCUE_CLUSTER_DISTANCE_RATIO;
 
-            List<List<Map<String, Object>>> clusters = new ArrayList<>();
-            boolean[] used = new boolean[locationsSnapshot.size()];
-
-            for (int i = 0; i < locationsSnapshot.size(); i++) {
-                if (used[i])
-                    continue;
-                List<Map<String, Object>> cluster = new ArrayList<>();
-                cluster.add(locationsSnapshot.get(i));
-                used[i] = true;
-
-                double lat1 = ((Number) locationsSnapshot.get(i).get("lat")).doubleValue();
-                double lng1 = ((Number) locationsSnapshot.get(i).get("lng")).doubleValue();
-
-                for (int j = i + 1; j < locationsSnapshot.size(); j++) {
-                    if (used[j])
-                        continue;
-                    double lat2 = ((Number) locationsSnapshot.get(j).get("lat")).doubleValue();
-                    double lng2 = ((Number) locationsSnapshot.get(j).get("lng")).doubleValue();
-                    if (haversineMeters(lat1, lng1, lat2, lng2) < clusterMeters) {
-                        cluster.add(locationsSnapshot.get(j));
-                        used[j] = true;
-                    }
-                }
-                clusters.add(cluster);
-            }
+            List<List<Map<String, Object>>> clusters = clusterLocations(locationsSnapshot, clusterMeters);
+            List<List<Map<String, Object>>> rescueClusters = clusterLocations(rescueLocationsSnapshot,
+                    rescueClusterMeters);
 
             // 切回主线程更新 UI
             if (getActivity() != null) {
@@ -1720,6 +1916,7 @@ public class MapFragment extends Fragment implements AMapLocationListener {
                     markerDataMap.clear();
                     hospitalMarkers.clear();
                     needRescueMarkers.clear();
+                    rescueFocusMarker = null;
 
                     for (List<Map<String, Object>> cluster : clusters) {
                         if (cluster.size() == 1) {
@@ -1728,17 +1925,96 @@ public class MapFragment extends Fragment implements AMapLocationListener {
                             addClusterMarker(cluster);
                         }
                     }
-                    for (Map<String, Object> rescueCatLocation : rescueCatLocations) {
-                        addRescueCatMarker(rescueCatLocation);
+                    for (List<Map<String, Object>> cluster : rescueClusters) {
+                        if (cluster.size() == 1) {
+                            addRescueMarker(cluster.get(0));
+                        } else {
+                            addRescueClusterMarker(cluster);
+                        }
                     }
                     if (showHospitals && !hospitalPoiList.isEmpty()) {
                         addHospitalMarkers();
                     }
-                    addNeedRescueMarkers();
                     applyPendingRescueFocusMarker();
                 });
             }
         }).start();
+    }
+
+    private List<List<Map<String, Object>>> clusterLocations(List<Map<String, Object>> items, double clusterMeters) {
+        List<List<Map<String, Object>>> clusters = new ArrayList<>();
+        if (items == null || items.isEmpty()) {
+            return clusters;
+        }
+        boolean[] used = new boolean[items.size()];
+
+        for (int i = 0; i < items.size(); i++) {
+            if (used[i]) {
+                continue;
+            }
+            List<Map<String, Object>> cluster = new ArrayList<>();
+            cluster.add(items.get(i));
+            used[i] = true;
+
+            double lat1 = ((Number) items.get(i).get("lat")).doubleValue();
+            double lng1 = ((Number) items.get(i).get("lng")).doubleValue();
+
+            for (int j = i + 1; j < items.size(); j++) {
+                if (used[j]) {
+                    continue;
+                }
+                double lat2 = ((Number) items.get(j).get("lat")).doubleValue();
+                double lng2 = ((Number) items.get(j).get("lng")).doubleValue();
+                if (haversineMeters(lat1, lng1, lat2, lng2) < clusterMeters) {
+                    cluster.add(items.get(j));
+                    used[j] = true;
+                }
+            }
+            clusters.add(cluster);
+        }
+        return clusters;
+    }
+
+    private void addRescueMarker(Map<String, Object> loc) {
+        if (loc == null || aMap == null) {
+            return;
+        }
+        Object type = loc.get("type");
+        if (RESCUE_CAT_MARKER_TYPE.equals(type) || isTrue(loc.get("hasActiveRescue"))) {
+            addRescueCatMarker(loc);
+            return;
+        }
+        if (NEED_RESCUE_MARKER_TYPE.equals(type)) {
+            int rescueColor = 0xFFE53935;
+            Bitmap placeholderPhoto = getRescuePlaceholderPhoto(rescueColor);
+            BitmapDescriptor redIcon = createImagePinMarker(placeholderPhoto, rescueColor);
+            addNeedRescueMarker(loc, redIcon, placeholderPhoto, rescueColor);
+        }
+    }
+
+    private void addRescueClusterMarker(List<Map<String, Object>> cluster) {
+        if (aMap == null || cluster == null || cluster.isEmpty()) {
+            return;
+        }
+        double sumLat = 0;
+        double sumLng = 0;
+        for (Map<String, Object> loc : cluster) {
+            sumLat += ((Number) loc.get("lat")).doubleValue();
+            sumLng += ((Number) loc.get("lng")).doubleValue();
+        }
+        double avgLat = sumLat / cluster.size();
+        double avgLng = sumLng / cluster.size();
+
+        BitmapDescriptor icon = createRescueClusterBadge(cluster.size());
+        Marker marker = aMap.addMarker(new MarkerOptions()
+                .position(new LatLng(avgLat, avgLng))
+                .title(cluster.size() + " 条救助")
+                .icon(icon)
+                .anchor(0.5f, 0.5f)
+                .zIndex(25));
+        if (marker != null) {
+            markerDataMap.put(marker.getId(), (Object) cluster);
+        }
     }
 
     private void addSingleMarker(Map<String, Object> loc) {
@@ -2236,6 +2512,44 @@ public class MapFragment extends Fragment implements AMapLocationListener {
 
         Paint innerP = new Paint(Paint.ANTI_ALIAS_FLAG);
         innerP.setColor(0xFFFF6D00);
+        c.drawCircle(r, r, r * 0.58f, innerP);
+
+        Paint borderP = new Paint(Paint.ANTI_ALIAS_FLAG);
+        borderP.setColor(Color.WHITE);
+        borderP.setStyle(Paint.Style.STROKE);
+        borderP.setStrokeWidth(2 * density);
+        c.drawCircle(r, r, r * 0.58f, borderP);
+
+        Paint textP = new Paint(Paint.ANTI_ALIAS_FLAG);
+        textP.setColor(Color.WHITE);
+        textP.setTextSize(14 * density);
+        textP.setTextAlign(Paint.Align.CENTER);
+        textP.setTypeface(Typeface.DEFAULT_BOLD);
+        Paint.FontMetrics fm = textP.getFontMetrics();
+        float baseline = r - (fm.top + fm.bottom) / 2f;
+        c.drawText(String.valueOf(count), r, baseline, textP);
+
+        return BitmapDescriptorFactory.fromBitmap(bmp);
+    }
+
+    private BitmapDescriptor createRescueClusterBadge(int count) {
+        int baseSize = count <= 5 ? 40 : count <= 15 ? 46 : 52;
+        int size = (int) (baseSize * density);
+
+        Bitmap bmp = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888);
+        Canvas c = new Canvas(bmp);
+        float r = size / 2f;
+
+        Paint outerP = new Paint(Paint.ANTI_ALIAS_FLAG);
+        outerP.setColor(0x30E53935);
+        c.drawCircle(r, r, r, outerP);
+
+        Paint midP = new Paint(Paint.ANTI_ALIAS_FLAG);
+        midP.setColor(0x60E53935);
+        c.drawCircle(r, r, r * 0.78f, midP);
+
+        Paint innerP = new Paint(Paint.ANTI_ALIAS_FLAG);
+        innerP.setColor(0xFFE53935);
         c.drawCircle(r, r, r * 0.58f, innerP);
 
         Paint borderP = new Paint(Paint.ANTI_ALIAS_FLAG);
