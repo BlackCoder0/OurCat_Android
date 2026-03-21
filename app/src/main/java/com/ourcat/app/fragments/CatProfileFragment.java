@@ -228,7 +228,7 @@ public class CatProfileFragment extends Fragment {
         descInput.setMinLines(2);
 
         android.widget.Spinner problemTypeSpinner = new android.widget.Spinner(requireContext());
-        String[] problemTypes = {"受伤", "疾病", "困境", "其他"};
+        String[] problemTypes = { "受伤", "疾病", "困境", "其他" };
         android.widget.ArrayAdapter<String> adapter = new android.widget.ArrayAdapter<>(
                 requireContext(), android.R.layout.simple_spinner_item, problemTypes);
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
@@ -308,15 +308,28 @@ public class CatProfileFragment extends Fragment {
     }
 
     private String getStatusText(String status) {
-        if (status == null)
+        if (status == null || status.isEmpty()) {
             return "活跃";
+        }
         switch (status) {
             case "active":
                 return "活跃";
             case "missing":
                 return "失踪";
             case "adopted":
-                return "已安置";
+                return "收养";
+            case "已安置":
+                return "收养";
+            case "injured":
+                return "受伤";
+            case "disease":
+                return "疾病";
+            case "plight":
+                return "困境";
+            case "other":
+                return "其他";
+            case "deceased":
+                return "已故";
             default:
                 return status;
         }
@@ -422,7 +435,13 @@ public class CatProfileFragment extends Fragment {
                 if (catData == null)
                     return;
 
-                catName.setText(currentName != null && !currentName.isEmpty() ? currentName : "未命名猫咪");
+                if (currentName == null || currentName.trim().isEmpty()) {
+                    catName.setText("未命名");
+                    catName.setAlpha(0.25f);
+                } else {
+                    catName.setText(currentName);
+                    catName.setAlpha(1f);
+                }
                 catColor.setText(currentColor != null && !currentColor.isEmpty() ? currentColor : "未知");
 
                 Number reportCount = (Number) catData.get("reportCount");
@@ -503,7 +522,8 @@ public class CatProfileFragment extends Fragment {
         }
     }
 
-    private void applyProfileStatusStyle(@NonNull TextView statusView, @Nullable View tileView, @Nullable String status) {
+    private void applyProfileStatusStyle(@NonNull TextView statusView, @Nullable View tileView,
+            @Nullable String status) {
         if ("adopted".equalsIgnoreCase(status) || "收养".equals(status) || "已安置".equals(status)) {
             if (tileView != null) {
                 tileView.setBackgroundResource(R.drawable.bg_cat_metric_success);

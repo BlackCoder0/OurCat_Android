@@ -85,10 +85,14 @@ public class RescueStatisticsFragment extends Fragment {
         contributorsList.setLayoutManager(new LinearLayoutManager(requireContext()));
         contributorsAdapter = new ContributorsAdapter();
         contributorsList.setAdapter(contributorsAdapter);
+        contributorsList.setNestedScrollingEnabled(false);
+        contributorsList.setFocusable(false);
+        contributorsList.setFocusableInTouchMode(false);
 
         swipeRefreshLayout.setColorSchemeResources(R.color.primary_variant, R.color.primary, R.color.success);
         swipeRefreshLayout.setProgressBackgroundColorSchemeResource(R.color.surface);
         swipeRefreshLayout.setOnRefreshListener(this::loadStatistics);
+        swipeRefreshLayout.setOnChildScrollUpCallback((parent, child) -> scrollView != null && scrollView.canScrollVertically(-1));
 
         configureCharts();
 
@@ -120,6 +124,7 @@ public class RescueStatisticsFragment extends Fragment {
         problemTypeChart.getDescription().setEnabled(false);
         problemTypeChart.setNoDataText("\u6682\u65e0\u7c7b\u578b\u6570\u636e");
         problemTypeChart.setExtraOffsets(0f, 8f, 0f, 8f);
+        problemTypeChart.setTouchEnabled(false);
         Legend pieLegend = problemTypeChart.getLegend();
         pieLegend.setTextColor(Color.parseColor("#8A7058"));
         pieLegend.setTextSize(11f);
@@ -134,6 +139,7 @@ public class RescueStatisticsFragment extends Fragment {
         monthlyTrendChart.setPinchZoom(false);
         monthlyTrendChart.setScaleEnabled(false);
         monthlyTrendChart.setExtraOffsets(0f, 8f, 0f, 8f);
+        monthlyTrendChart.setTouchEnabled(false);
 
         XAxis xAxis = monthlyTrendChart.getXAxis();
         xAxis.setPosition(XAxis.XAxisPosition.BOTTOM);

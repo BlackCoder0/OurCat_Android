@@ -102,12 +102,18 @@ public class CatsListFragment extends Fragment {
                 ViewHolder h = (ViewHolder) holder;
                 Map<String, Object> cat = items.get(position);
 
-                String catName = cat.get("name") != null ? cat.get("name").toString() : "未命名猫咪";
+                String catName = cat.get("name") != null ? cat.get("name").toString().trim() : "";
                 String catColor = cat.get("color") != null ? cat.get("color").toString() : "";
                 String catStatus = cat.get("status") != null ? cat.get("status").toString() : "";
                 String avatarUrl = cat.get("primaryImageUrl") != null ? cat.get("primaryImageUrl").toString() : null;
 
-                h.name.setText(catName);
+                if (catName.isEmpty()) {
+                    h.name.setText("未命名");
+                    h.name.setAlpha(0.25f);
+                } else {
+                    h.name.setText(catName);
+                    h.name.setAlpha(1f);
+                }
                 h.color.setText(catColor.isEmpty() ? "花色未知" : catColor);
                 h.status.setText(getStatusText(catStatus));
                 h.summary.setText(buildSummary(cat));
@@ -239,8 +245,15 @@ public class CatsListFragment extends Fragment {
         if (currentFilterId == R.id.chip_cats_adopted) {
             return "adopted".equals(status);
         }
-        if (currentFilterId == R.id.chip_cats_missing) {
-            return "missing".equals(status);
+        if (currentFilterId == R.id.chip_cats_abnormal) {
+            return "missing".equals(status)
+                    || "injured".equals(status)
+                    || "disease".equals(status)
+                    || "plight".equals(status)
+                    || "other".equals(status);
+        }
+        if (currentFilterId == R.id.chip_cats_deceased) {
+            return "deceased".equals(status);
         }
         return true;
     }
@@ -256,6 +269,33 @@ public class CatsListFragment extends Fragment {
         }
         if ("收养".equals(status) || "已安置".equals(status)) {
             return "adopted";
+        }
+        if ("受伤".equals(status)) {
+            return "injured";
+        }
+        if ("疾病".equals(status) || "生病".equals(status)) {
+            return "disease";
+        }
+        if ("困境".equals(status)) {
+            return "plight";
+        }
+        if ("其他".equals(status)) {
+            return "other";
+        }
+        if ("已故".equals(status)) {
+            return "deceased";
+        }
+        if ("injured".equalsIgnoreCase(status)) {
+            return "injured";
+        }
+        if ("disease".equalsIgnoreCase(status) || "sick".equalsIgnoreCase(status)) {
+            return "disease";
+        }
+        if ("plight".equalsIgnoreCase(status) || "distress".equalsIgnoreCase(status)) {
+            return "plight";
+        }
+        if ("deceased".equalsIgnoreCase(status) || "dead".equalsIgnoreCase(status)) {
+            return "deceased";
         }
         return status.toLowerCase();
     }
@@ -311,10 +351,13 @@ public class CatsListFragment extends Fragment {
             return "当前没有活跃中的猫咪档案";
         }
         if (currentFilterId == R.id.chip_cats_adopted) {
-            return "当前没有已安置的猫咪档案";
+            return "当前没有收养状态的猫咪档案";
         }
-        if (currentFilterId == R.id.chip_cats_missing) {
-            return "当前没有失踪状态的猫咪档案";
+        if (currentFilterId == R.id.chip_cats_abnormal) {
+            return "当前没有异常状态的猫咪档案";
+        }
+        if (currentFilterId == R.id.chip_cats_deceased) {
+            return "当前没有已故状态的猫咪档案";
         }
         return "还没有猫咪档案，稍后再来看看吧";
     }
@@ -329,7 +372,17 @@ public class CatsListFragment extends Fragment {
             case "missing":
                 return "失踪";
             case "adopted":
-                return "已安置";
+                return "收养";
+            case "injured":
+                return "受伤";
+            case "disease":
+                return "疾病";
+            case "plight":
+                return "困境";
+            case "other":
+                return "其他";
+            case "deceased":
+                return "已故";
             default:
                 return status;
         }

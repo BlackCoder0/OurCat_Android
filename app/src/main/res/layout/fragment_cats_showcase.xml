@@ -154,7 +154,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginStart="4dp"
-                        android:text="已安置"
+                        android:text="收养"
                         android:textColor="@color/text_secondary"
                         android:textSize="11sp" />
                 </LinearLayout>
@@ -196,14 +196,21 @@
                     style="@style/Widget.MaterialComponents.Chip.Choice"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="已安置" />
+                    android:text="收养" />
 
                 <com.google.android.material.chip.Chip
-                    android:id="@+id/chip_cats_missing"
+                    android:id="@+id/chip_cats_abnormal"
                     style="@style/Widget.MaterialComponents.Chip.Choice"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="失踪" />
+                    android:text="异常" />
+
+                <com.google.android.material.chip.Chip
+                    android:id="@+id/chip_cats_deceased"
+                    style="@style/Widget.MaterialComponents.Chip.Choice"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="已故" />
             </com.google.android.material.chip.ChipGroup>
         </HorizontalScrollView>
 

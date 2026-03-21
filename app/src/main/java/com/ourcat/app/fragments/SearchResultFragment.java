@@ -82,11 +82,14 @@ public class SearchResultFragment extends Fragment {
         });
 
         commentAdapter = new MyCommentAdapter();
-        commentAdapter.setOnItemClickListener(postId -> {
-            Bundle args = new Bundle();
-            args.putLong("postId", postId);
-            NavController nav = Navigation.findNavController(requireView());
-            nav.navigate(R.id.post_detail, args);
+        commentAdapter.setOnItemClickListener(item -> {
+            long postId = item.get("postId") instanceof Number ? ((Number) item.get("postId")).longValue() : 0;
+            if (postId > 0) {
+                Bundle args = new Bundle();
+                args.putLong("postId", postId);
+                NavController nav = Navigation.findNavController(requireView());
+                nav.navigate(R.id.post_detail, args);
+            }
         });
 
         if (savedInstanceState != null) {

@@ -732,7 +732,8 @@ public class MainActivity extends AppCompatActivity {
         }
         NavOptions options = new NavOptions.Builder()
                 .setLaunchSingleTop(true)
-                .setPopUpTo(navController.getGraph().getStartDestinationId(), false)
+                .setRestoreState(true)
+                .setPopUpTo(navController.getGraph().getStartDestinationId(), false, true)
                 .build();
         navController.navigate(destId, null, options);
         updateNavSelection(selectedNavItemId);

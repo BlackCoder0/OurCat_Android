@@ -36,6 +36,11 @@ public interface SquareApi {
         @POST("/api/square/posts/{id}/comments")
         Call<Map<String, Object>> addComment(@Path("id") long id, @Body Map<String, String> body);
 
+        @GET("/api/square/my/comments")
+        Call<Map<String, Object>> myComments(
+                        @Query("page") int page,
+                        @Query("size") int size);
+
         @retrofit2.http.DELETE("/api/square/posts/{id}")
         Call<Void> deletePost(@Path("id") long id);
 }
