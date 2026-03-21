@@ -51,7 +51,7 @@ public class CatsListFragment extends Fragment {
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,
             @Nullable Bundle savedInstanceState) {
-        View view = inflater.inflate(R.layout.fragment_cats_showcase, container, false);
+        View view = inflater.inflate(R.layout.fragment_cats_list, container, false);
 
         recyclerView = view.findViewById(R.id.cats_recycler);
         refreshLayout = view.findViewById(R.id.cats_swipe);
@@ -93,7 +93,7 @@ public class CatsListFragment extends Fragment {
             @NonNull
             @Override
             public RecyclerView.ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-                View view = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_cat_showcase, parent, false);
+                View view = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_cat_list, parent, false);
                 return new ViewHolder(view);
             }
 

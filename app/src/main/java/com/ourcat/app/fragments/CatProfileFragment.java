@@ -22,6 +22,7 @@ import com.bumptech.glide.Glide;
 import com.ourcat.app.R;
 import com.ourcat.app.repositories.CatApi;
 import com.ourcat.app.repositories.RescueApi;
+import com.ourcat.app.utils.RecentCatStore;
 import com.ourcat.app.utils.RetrofitHelper;
 
 import java.util.ArrayList;
@@ -79,7 +80,7 @@ public class CatProfileFragment extends Fragment {
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,
             @Nullable Bundle savedInstanceState) {
-        return inflater.inflate(R.layout.fragment_cat_profile_showcase, container, false);
+        return inflater.inflate(R.layout.fragment_cat_profile, container, false);
     }
 
     @Override
@@ -207,7 +208,31 @@ public class CatProfileFragment extends Fragment {
             rescueHistory.addAll(rescues);
         }
 
+        persistRecentCat();
         adapter.notifyDataSetChanged();
+    }
+
+    private void persistRecentCat() {
+        if (!isAdded()) {
+            return;
+        }
+        RecentCatStore.Entry entry = new RecentCatStore.Entry();
+        entry.catId = catId;
+        entry.name = currentName != null ? currentName.trim() : "";
+        entry.status = currentStatus != null ? currentStatus.trim() : "";
+        entry.feature = currentFeature != null ? currentFeature.trim() : "";
+        entry.personality = currentPersonality != null ? currentPersonality.trim() : "";
+        entry.imageUrl = currentAvatarUrl != null && !currentAvatarUrl.trim().isEmpty()
+                ? currentAvatarUrl.trim()
+                : (!photos.isEmpty() ? photos.get(0) : "");
+        Number reportCount = catData != null && catData.get("reportCount") instanceof Number
+                ? (Number) catData.get("reportCount")
+                : null;
+        entry.reportCount = reportCount != null ? reportCount.intValue() : 0;
+        entry.hasActiveRescue = hasActiveRescue;
+        entry.rescueSquarePostId = rescueSquarePostId;
+        entry.viewedAt = System.currentTimeMillis();
+        RecentCatStore.save(requireContext(), entry);
     }
 
     private void showStartRescueDialog() {
@@ -367,11 +392,11 @@ public class CatProfileFragment extends Fragment {
         public RecyclerView.ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
             if (viewType == TYPE_HEADER) {
                 View v = LayoutInflater.from(parent.getContext())
-                        .inflate(R.layout.item_cat_profile_header_showcase, parent, false);
+                        .inflate(R.layout.item_cat_profile_header, parent, false);
                 return new HeaderViewHolder(v);
             } else {
                 View v = LayoutInflater.from(parent.getContext())
-                        .inflate(R.layout.item_report_history_showcase, parent, false);
+                        .inflate(R.layout.item_report_history, parent, false);
                 return new HistoryViewHolder(v);
             }
         }
@@ -558,7 +583,7 @@ public class CatProfileFragment extends Fragment {
         @Override
         public VH onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
             return new VH(LayoutInflater.from(parent.getContext())
-                    .inflate(R.layout.item_cat_photo_showcase, parent, false));
+                    .inflate(R.layout.item_cat_photo, parent, false));
         }
 
         @Override
