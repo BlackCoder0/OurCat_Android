@@ -1,24 +1,249 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/background_subtle"
-    android:orientation="vertical">
+    android:background="@color/background">
 
-    <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
-        android:id="@+id/cats_swipe"
+    <View
         android:layout_width="match_parent"
-        android:layout_height="match_parent">
+        android:layout_height="104dp"
+        android:background="@drawable/bg_cats_hero" />
 
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/cats_recycler"
+    <ImageView
+        android:layout_width="36dp"
+        android:layout_height="36dp"
+        android:layout_marginStart="18dp"
+        android:layout_marginTop="30dp"
+        android:alpha="0.08"
+        android:src="@drawable/ic_paw"
+        app:tint="@android:color/white" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_marginTop="52dp"
+        android:layout_marginHorizontal="14dp"
+        android:background="@drawable/bg_section_panel"
+        android:orientation="vertical"
+        android:paddingTop="16dp">
+
+        <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:paddingHorizontal="16dp"
-            android:paddingTop="12dp"
-            android:paddingBottom="24dp"
-            android:clipToPadding="false" />
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:paddingHorizontal="14dp">
 
-    </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical">
 
-</LinearLayout>
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="猫咪档案馆"
+                    android:textColor="@color/text_primary"
+                    android:textSize="18sp"
+                    android:textStyle="bold" />
+
+            </LinearLayout>
+
+            <FrameLayout
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:background="@drawable/bg_cats_icon_tile"
+                android:padding="8dp">
+
+                <ImageView
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:src="@drawable/ic_paw"
+                    app:tint="@color/primary_variant" />
+            </FrameLayout>
+        </LinearLayout>
+
+        <HorizontalScrollView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:scrollbars="none">
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:paddingHorizontal="14dp">
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/bg_chip_info"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:paddingHorizontal="10dp"
+                    android:paddingVertical="6dp">
+
+                    <TextView
+                        android:id="@+id/cats_stat_total"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="0"
+                        android:textColor="@color/info"
+                        android:textSize="13sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="4dp"
+                        android:text="总档案"
+                        android:textColor="@color/text_secondary"
+                        android:textSize="11sp" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:background="@drawable/bg_status_chip"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:paddingHorizontal="10dp"
+                    android:paddingVertical="6dp">
+
+                    <TextView
+                        android:id="@+id/cats_stat_active"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="0"
+                        android:textColor="@color/primary_variant"
+                        android:textSize="13sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="4dp"
+                        android:text="活跃"
+                        android:textColor="@color/text_secondary"
+                        android:textSize="11sp" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:background="@drawable/bg_chip_success"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:paddingHorizontal="10dp"
+                    android:paddingVertical="6dp">
+
+                    <TextView
+                        android:id="@+id/cats_stat_adopted"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="0"
+                        android:textColor="@color/success"
+                        android:textSize="13sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="4dp"
+                        android:text="收养"
+                        android:textColor="@color/text_secondary"
+                        android:textSize="11sp" />
+                </LinearLayout>
+            </LinearLayout>
+        </HorizontalScrollView>
+
+        <HorizontalScrollView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:scrollbars="none">
+
+            <com.google.android.material.chip.ChipGroup
+                android:id="@+id/cats_filter_group"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:paddingHorizontal="14dp"
+                app:chipSpacingHorizontal="6dp"
+                app:singleSelection="true"
+                app:selectionRequired="true">
+
+                <com.google.android.material.chip.Chip
+                    android:id="@+id/chip_cats_all"
+                    style="@style/Widget.MaterialComponents.Chip.Choice"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:checked="true"
+                    android:text="全部" />
+
+                <com.google.android.material.chip.Chip
+                    android:id="@+id/chip_cats_active"
+                    style="@style/Widget.MaterialComponents.Chip.Choice"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="活跃" />
+
+                <com.google.android.material.chip.Chip
+                    android:id="@+id/chip_cats_adopted"
+                    style="@style/Widget.MaterialComponents.Chip.Choice"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="收养" />
+
+                <com.google.android.material.chip.Chip
+                    android:id="@+id/chip_cats_abnormal"
+                    style="@style/Widget.MaterialComponents.Chip.Choice"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="异常" />
+
+                <com.google.android.material.chip.Chip
+                    android:id="@+id/chip_cats_deceased"
+                    style="@style/Widget.MaterialComponents.Chip.Choice"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="已故" />
+            </com.google.android.material.chip.ChipGroup>
+        </HorizontalScrollView>
+
+        <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+            android:id="@+id/cats_swipe"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:layout_marginTop="8dp">
+
+            <FrameLayout
+                android:layout_width="match_parent"
+                android:layout_height="match_parent">
+
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/cats_recycler"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:clipToPadding="false"
+                    android:paddingHorizontal="8dp"
+                    android:paddingTop="4dp"
+                    android:paddingBottom="14dp" />
+
+                <TextView
+                    android:id="@+id/cats_empty"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center"
+                    android:text="还没有猫咪档案，稍后再来看看吧"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="14sp"
+                    android:visibility="gone" />
+            </FrameLayout>
+        </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
+    </LinearLayout>
+</FrameLayout>

@@ -44,7 +44,7 @@ public class ProfileFragment extends Fragment {
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,
             @Nullable Bundle savedInstanceState) {
-        View view = inflater.inflate(R.layout.fragment_profile_center, container, false);
+        View view = inflater.inflate(R.layout.fragment_profile, container, false);
         avatar = view.findViewById(R.id.avatar);
         tvNickname = view.findViewById(R.id.tv_nickname);
         tvRole = view.findViewById(R.id.tv_role);
