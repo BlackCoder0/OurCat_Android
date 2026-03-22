@@ -1,29 +1,44 @@
 <?xml version="1.0" encoding="utf-8"?>
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- 外层边缘，模拟木板侧边厚度 -->
     <item>
+        <shape android:shape="rectangle">
+            <solid android:color="#E6C08B58" />
+            <corners android:radius="22dp" />
+        </shape>
+    </item>
+
+    <!-- 木板正面 -->
+    <item android:bottom="4dp" android:right="2dp" android:left="2dp" android:top="1dp">
         <shape android:shape="rectangle">
             <gradient
                 android:angle="315"
                 android:endColor="#FFF4E5D2"
                 android:startColor="#FFFDF7EE" />
-            <corners android:radius="22dp" />
+            <corners android:radius="20dp" />
             <stroke
                 android:width="1dp"
-                android:color="@color/divider" />
+                android:color="#408B7259" />
         </shape>
     </item>
 
+    <!-- 木纹纹理 -->
     <item
-        android:bottom="1dp"
+        android:bottom="5dp"
         android:drawable="@drawable/ill_home_wood_grain"
-        android:left="1dp"
-        android:right="1dp"
-        android:top="1dp" />
+        android:left="3dp"
+        android:right="3dp"
+        android:top="2dp" />
 
-    <item>
+    <!-- 表面微光/高光 -->
+    <item android:bottom="5dp" android:right="3dp" android:left="3dp" android:top="2dp">
         <shape android:shape="rectangle">
-            <solid android:color="#10FFF9F0" />
-            <corners android:radius="22dp" />
+            <gradient
+                android:angle="135"
+                android:centerColor="#00FFFFFF"
+                android:endColor="#15000000"
+                android:startColor="#20FFFFFF" />
+            <corners android:radius="19dp" />
         </shape>
     </item>
 </layer-list>

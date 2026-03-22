@@ -46,7 +46,8 @@ import retrofit2.Response;
 public class RescueHomeFragment extends Fragment {
 
     private static final String KEY_SCROLL_Y = "home_scroll_y";
-    private static final int MAX_FEED_ITEMS = 10;
+    private static final int FEED_PAGE_SIZE = 10;
+    private static final int FEED_LOAD_MORE_THRESHOLD_DP = 240;
     private static final Type STRING_LIST_TYPE = new TypeToken<List<String>>() {
     }.getType();
     private static final int[] PHOTO_PLACEHOLDERS = {
@@ -58,6 +59,12 @@ public class RescueHomeFragment extends Fragment {
     private final Gson gson = new Gson();
     private final List<Map<String, Object>> squareItems = new ArrayList<>();
     private final List<Map<String, Object>> forumItems = new ArrayList<>();
+    private int squarePage = 0;
+    private int forumPage = 0;
+    private boolean squareHasMore = true;
+    private boolean forumHasMore = true;
+    private boolean squareLoading;
+    private boolean forumLoading;
 
     private ScrollView homeScrollView;
     private TextView spotlightBadgeView;
@@ -127,9 +134,10 @@ public class RescueHomeFragment extends Fragment {
         bindInteractions(view);
         bindSpotlightFallback();
         bindFeedFallback();
+        setupFeedScrollListener();
+        resetFeedState();
         refreshSpotlightCard();
-        loadSquareStories();
-        loadForumStories();
+        loadMoreStories();
         maybeRestoreScroll();
         return view;
     }
@@ -157,6 +165,9 @@ public class RescueHomeFragment extends Fragment {
     @Override
     public void onDestroyView() {
         captureScrollState();
+        if (homeScrollView != null) {
+            homeScrollView.setOnScrollChangeListener(null);
+        }
         homeScrollView = null;
         spotlightBadgeView = null;
         spotlightTitleView = null;
@@ -500,42 +511,110 @@ public class RescueHomeFragment extends Fragment {
                 0L));
     }
 
+    private void setupFeedScrollListener() {
+        if (homeScrollView == null) {
+            return;
+        }
+        homeScrollView.setOnScrollChangeListener((v, scrollX, scrollY, oldScrollX, oldScrollY) -> {
+            if (scrollY > oldScrollY && isNearFeedBottom()) {
+                loadMoreStories();
+            }
+        });
+    }
+
+    private void resetFeedState() {
+        squareItems.clear();
+        forumItems.clear();
+        squarePage = 0;
+        forumPage = 0;
+        squareHasMore = true;
+        forumHasMore = true;
+        squareLoading = false;
+        forumLoading = false;
+    }
+
+    private boolean isNearFeedBottom() {
+        if (homeScrollView == null || homeScrollView.getChildCount() == 0) {
+            return false;
+        }
+        View content = homeScrollView.getChildAt(0);
+        int threshold = dp(FEED_LOAD_MORE_THRESHOLD_DP);
+        int remaining = content.getBottom() - (homeScrollView.getHeight() + homeScrollView.getScrollY());
+        return remaining <= threshold;
+    }
+
+    private void loadMoreStories() {
+        if (!isAdded()) {
+            return;
+        }
+        if (squareLoading || forumLoading) {
+            return;
+        }
+        if (!squareHasMore && !forumHasMore) {
+            return;
+        }
+        if (squareHasMore) {
+            loadSquareStories();
+        }
+        if (forumHasMore) {
+            loadForumStories();
+        }
+    }
+
     private void loadSquareStories() {
-        RetrofitHelper.get().create(SquareApi.class).listPosts(0, MAX_FEED_ITEMS, "createdAt,desc")
+        final int requestPage = squarePage;
+        squareLoading = true;
+        RetrofitHelper.get().create(SquareApi.class).listPosts(requestPage, FEED_PAGE_SIZE, "createdAt,desc")
                 .enqueue(new Callback<Map<String, Object>>() {
                     @Override
                     public void onResponse(@NonNull Call<Map<String, Object>> call,
                             @NonNull Response<Map<String, Object>> response) {
+                        squareLoading = false;
                         if (!isAdded() || !response.isSuccessful() || response.body() == null) {
                             return;
                         }
-                        squareItems.clear();
-                        squareItems.addAll(extractMapList(response.body().get("content")));
+                        List<Map<String, Object>> incoming = extractMapList(response.body().get("content"));
+                        squareItems.addAll(incoming);
+                        squarePage = requestPage + 1;
+                        squareHasMore = hasMoreData(response.body(), incoming.size(), squareItems.size(), requestPage);
                         renderUnifiedContent();
+                        if (isNearFeedBottom()) {
+                            loadMoreStories();
+                        }
                     }
 
                     @Override
                     public void onFailure(@NonNull Call<Map<String, Object>> call, @NonNull Throwable throwable) {
+                        squareLoading = false;
                     }
                 });
     }
 
     private void loadForumStories() {
-        RetrofitHelper.get().create(ForumApi.class).listPosts(0, MAX_FEED_ITEMS, null)
+        final int requestPage = forumPage;
+        forumLoading = true;
+        RetrofitHelper.get().create(ForumApi.class).listPosts(requestPage, FEED_PAGE_SIZE, null)
                 .enqueue(new Callback<Map<String, Object>>() {
                     @Override
                     public void onResponse(@NonNull Call<Map<String, Object>> call,
                             @NonNull Response<Map<String, Object>> response) {
+                        forumLoading = false;
                         if (!isAdded() || !response.isSuccessful() || response.body() == null) {
                             return;
                         }
-                        forumItems.clear();
-                        forumItems.addAll(extractMapList(response.body().get("content")));
+                        List<Map<String, Object>> incoming = extractMapList(response.body().get("content"));
+                        forumItems.addAll(incoming);
+                        forumPage = requestPage + 1;
+                        forumHasMore = hasMoreData(response.body(), incoming.size(), forumItems.size(), requestPage);
                         renderUnifiedContent();
+                        if (isNearFeedBottom()) {
+                            loadMoreStories();
+                        }
                     }
 
                     @Override
                     public void onFailure(@NonNull Call<Map<String, Object>> call, @NonNull Throwable throwable) {
+                        forumLoading = false;
                     }
                 });
     }
@@ -573,10 +652,19 @@ public class RescueHomeFragment extends Fragment {
             }
         }
         cards.sort(Comparator.comparingLong((FeedCardModel item) -> item.timestamp).reversed());
-        if (cards.size() > MAX_FEED_ITEMS) {
-            return new ArrayList<>(cards.subList(0, MAX_FEED_ITEMS));
-        }
         return cards;
+    }
+
+    private boolean hasMoreData(@NonNull Map<String, Object> body, int incomingCount, int loadedCount, int currentPage) {
+        int totalPages = intValue(body.get("totalPages"));
+        if (totalPages > 0) {
+            return currentPage + 1 < totalPages;
+        }
+        long totalElements = longValue(body.get("totalElements"));
+        if (totalElements > 0L) {
+            return loadedCount < totalElements;
+        }
+        return incomingCount >= FEED_PAGE_SIZE;
     }
 
     @Nullable
