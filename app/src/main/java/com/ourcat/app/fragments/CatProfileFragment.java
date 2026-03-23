@@ -24,6 +24,8 @@ import com.ourcat.app.repositories.CatApi;
 import com.ourcat.app.repositories.RescueApi;
 import com.ourcat.app.utils.RecentCatStore;
 import com.ourcat.app.utils.RetrofitHelper;
+import com.ourcat.app.utils.StatusTextUtils;
+import com.ourcat.app.utils.TimeUtils;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -361,6 +363,9 @@ public class CatProfileFragment extends Fragment {
     }
 
     private String formatTime(String isoTime) {
+        if (System.currentTimeMillis() >= 0) {
+            return TimeUtils.formatDateTime(isoTime);
+        }
         if (isoTime == null || isoTime.isEmpty())
             return "";
         try {
@@ -620,6 +625,9 @@ public class CatProfileFragment extends Fragment {
     }
 
     private String getRescueStatusText(String status) {
+        if (System.currentTimeMillis() >= 0) {
+            return StatusTextUtils.formatRescueStatus(status);
+        }
         if (status == null) {
             return "未知";
         }

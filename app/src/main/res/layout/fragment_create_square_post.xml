@@ -76,6 +76,62 @@
                 android:text="救助" />
         </com.google.android.material.chip.ChipGroup>
 
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/card_rescue_type_hint"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:visibility="gone"
+            app:cardBackgroundColor="#FFFFF6F2"
+            app:cardCornerRadius="12dp"
+            app:cardElevation="0dp"
+            app:strokeColor="@color/error"
+            app:strokeWidth="1dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingStart="12dp"
+                android:paddingTop="10dp"
+                android:paddingEnd="12dp"
+                android:paddingBottom="10dp">
+
+                <ImageView
+                    android:layout_width="18dp"
+                    android:layout_height="18dp"
+                    android:contentDescription="&#x6551;&#x52A9;&#x63D0;&#x793A;"
+                    android:src="@drawable/ic_rescue"
+                    app:tint="@color/error" />
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="10dp"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="&#x5F53;&#x524D;&#x9009;&#x62E9;&#x4E3A;&#x6551;&#x52A9;&#x5E7F;&#x64AD;"
+                        android:textColor="@color/red_800"
+                        android:textSize="13sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:lineSpacingExtra="2dp"
+                        android:text="&#x53D1;&#x5E03;&#x540E;&#x4F1A;&#x8FDB;&#x5165;&#x6551;&#x52A9;&#x534F;&#x540C;&#x6D41;&#x7A0B;&#xFF0C;&#x5E76;&#x81EA;&#x52A8;&#x751F;&#x6210;&#x5BF9;&#x5E94;&#x6551;&#x52A9;&#x6D3B;&#x52A8;&#x3002;&#x5F53;&#x524D;&#x9875;&#x9762;&#x9650;&#x5236;&#xFF1A;&#x9700;&#x5173;&#x8054;&#x732B;&#x54AA;&#x6863;&#x6848;&#xFF0C;&#x6216;&#x540C;&#x65F6;&#x8865;&#x5145;&#x5B9A;&#x4F4D;&#x548C;&#x56FE;&#x7247;&#x3002;"
+                        android:textColor="@color/text_secondary"
+                        android:textSize="12sp" />
+                </LinearLayout>
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
         <TextView
             android:id="@+id/tv_square_problem_type"
             android:layout_width="wrap_content"

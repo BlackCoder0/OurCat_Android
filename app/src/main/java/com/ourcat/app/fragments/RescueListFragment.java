@@ -20,8 +20,10 @@ import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 import com.ourcat.app.R;
 import com.ourcat.app.models.RescueViewModel;
 import com.ourcat.app.repositories.RescueApi;
+import com.ourcat.app.utils.StatusTextUtils;
 import com.ourcat.app.utils.PressFeedbackUtils;
 import com.ourcat.app.utils.RetrofitHelper;
+import com.ourcat.app.utils.TimeUtils;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -78,8 +80,8 @@ public class RescueListFragment extends Fragment {
                 View v = holder.itemView;
                 ((TextView) v.findViewById(R.id.item_rescue_title)).setText(str(m, "title"));
                 ((TextView) v.findViewById(R.id.item_rescue_desc)).setText(str(m, "description"));
-                ((TextView) v.findViewById(R.id.item_rescue_status)).setText(str(m, "status"));
-                ((TextView) v.findViewById(R.id.item_rescue_time)).setText(str(m, "createdAt"));
+                ((TextView) v.findViewById(R.id.item_rescue_status)).setText(StatusTextUtils.formatRescueStatus(str(m, "status")));
+                ((TextView) v.findViewById(R.id.item_rescue_time)).setText(TimeUtils.formatDateTime(str(m, "createdAt")));
                 Object id = m.get("id");
                 PressFeedbackUtils.attach(v);
                 v.setOnClickListener(v2 -> {

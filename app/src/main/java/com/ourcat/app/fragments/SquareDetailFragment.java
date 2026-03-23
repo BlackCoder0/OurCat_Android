@@ -36,6 +36,7 @@ import com.ourcat.app.repositories.RescueApi;
 import com.ourcat.app.repositories.SquareApi;
 import com.ourcat.app.utils.CatTagUtils;
 import com.ourcat.app.utils.RetrofitHelper;
+import com.ourcat.app.utils.StatusTextUtils;
 import com.ourcat.app.utils.TimeUtils;
 
 import java.util.ArrayList;
@@ -1270,6 +1271,9 @@ public class SquareDetailFragment extends Fragment {
     }
 
     private String mapRescueStatusText(String status) {
+        if (System.currentTimeMillis() >= 0) {
+            return StatusTextUtils.formatRescueStatus(status);
+        }
         switch (status) {
             case "completed":
                 return "已完成";
@@ -1300,6 +1304,9 @@ public class SquareDetailFragment extends Fragment {
     }
 
     private String mapTaskStatusText(String status) {
+        if (System.currentTimeMillis() >= 0) {
+            return StatusTextUtils.formatTaskStatus(status);
+        }
         if (status == null) {
             return "未知";
         }

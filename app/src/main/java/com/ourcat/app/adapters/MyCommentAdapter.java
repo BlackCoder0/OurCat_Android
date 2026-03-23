@@ -9,6 +9,7 @@ import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.ourcat.app.R;
+import com.ourcat.app.utils.TimeUtils;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -54,7 +55,7 @@ public class MyCommentAdapter extends RecyclerView.Adapter<MyCommentAdapter.View
             holder.tvPostTitle.setText(postTitle.isEmpty() ? "帖子" : "回复: " + postTitle);
         }
         holder.tvContent.setText(content);
-        holder.tvTime.setText(time);
+        holder.tvTime.setText(TimeUtils.formatDateTime(time));
 
         holder.itemView.setOnClickListener(v -> {
             if (listener != null) listener.onClick(m);

@@ -20,14 +20,11 @@ import com.ourcat.app.adapters.MyCommentAdapter;
 import com.ourcat.app.repositories.ForumApi;
 import com.ourcat.app.repositories.SquareApi;
 import com.ourcat.app.utils.RetrofitHelper;
+import com.ourcat.app.utils.TimeUtils;
 
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
-import java.util.TimeZone;
 
 import retrofit2.Call;
 import retrofit2.Callback;
@@ -37,7 +34,6 @@ public class MyCommentsFragment extends Fragment {
 
     private MyCommentAdapter adapter;
     private TextView tvEmpty;
-    private final SimpleDateFormat isoFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault());
 
     @Nullable
     @Override
@@ -45,8 +41,6 @@ public class MyCommentsFragment extends Fragment {
             @Nullable Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_my_posts, container, false);
         // ((TextView) view.findViewById(R.id.tv_page_title)).setText("我的评论");
-
-        isoFormat.setTimeZone(TimeZone.getTimeZone("UTC"));
 
         RecyclerView rv = view.findViewById(R.id.rv_list);
         tvEmpty = view.findViewById(R.id.tv_empty);
@@ -155,15 +149,6 @@ public class MyCommentsFragment extends Fragment {
         if (createdAt == null) {
             return 0L;
         }
-        String s = createdAt.toString();
-        if (s.length() >= 19) {
-            s = s.substring(0, 19);
-        }
-        try {
-            java.util.Date d = isoFormat.parse(s);
-            return d != null ? d.getTime() : 0L;
-        } catch (ParseException e) {
-            return 0L;
-        }
+        return TimeUtils.parseToMillis(createdAt.toString());
     }
 }

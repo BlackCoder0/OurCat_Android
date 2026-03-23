@@ -80,6 +80,7 @@ public class CreateSquarePostFragment extends Fragment {
     private ChipGroup typeGroup;
     private Spinner problemTypeSpinner;
     private View problemTypeLabel;
+    private View rescueTypeHintCard;
     private MaterialButton btnSubmit;
     private RecyclerView rvImages;
     private ImagePickAdapter imageAdapter;
@@ -132,6 +133,7 @@ public class CreateSquarePostFragment extends Fragment {
         typeGroup = view.findViewById(R.id.square_type_group);
         problemTypeSpinner = view.findViewById(R.id.sp_square_problem_type);
         problemTypeLabel = view.findViewById(R.id.tv_square_problem_type);
+        rescueTypeHintCard = view.findViewById(R.id.card_rescue_type_hint);
         rvImages = view.findViewById(R.id.rv_square_images);
 
         tilLocation = view.findViewById(R.id.til_square_location);
@@ -224,6 +226,9 @@ public class CreateSquarePostFragment extends Fragment {
         }
         if (problemTypeLabel != null) {
             problemTypeLabel.setVisibility(isRescue ? View.VISIBLE : View.GONE);
+        }
+        if (rescueTypeHintCard != null) {
+            rescueTypeHintCard.setVisibility(isRescue ? View.VISIBLE : View.GONE);
         }
     }
 

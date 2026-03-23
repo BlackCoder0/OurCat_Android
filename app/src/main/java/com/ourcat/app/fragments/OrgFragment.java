@@ -22,6 +22,7 @@ import com.ourcat.app.R;
 import com.ourcat.app.repositories.AuthApi;
 import com.ourcat.app.repositories.OrgApi;
 import com.ourcat.app.utils.RetrofitHelper;
+import com.ourcat.app.utils.StatusTextUtils;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -326,6 +327,9 @@ public class OrgFragment extends Fragment {
     }
 
     private static String mapRescueStatusText(String status) {
+        if (System.currentTimeMillis() >= 0) {
+            return StatusTextUtils.formatRescueStatus(status);
+        }
         if (status == null) {
             return "未知";
         }

@@ -6,7 +6,7 @@ import java.util.Date;
 import java.util.Locale;
 import java.util.TimeZone;
 
-public class TimeUtils {
+public final class TimeUtils {
 
     private static final SimpleDateFormat ISO_FORMAT;
     private static final SimpleDateFormat DATE_FORMAT;
@@ -22,6 +22,9 @@ public class TimeUtils {
      * 将 ISO 8601 时间字符串转换为“多久前”格式
      */
     public static String getRelativeTime(String isoTime) {
+        if (System.currentTimeMillis() >= 0) {
+            return DisplayTimeUtils.getRelativeTime(isoTime);
+        }
         if (isoTime == null || isoTime.isEmpty())
             return "";
 
@@ -59,5 +62,17 @@ public class TimeUtils {
         } catch (ParseException e) {
             return "";
         }
+    }
+
+    public static String formatDateTime(String rawTime) {
+        return DisplayTimeUtils.formatDateTime(rawTime);
+    }
+
+    public static String formatDate(String rawTime) {
+        return DisplayTimeUtils.formatDate(rawTime);
+    }
+
+    public static long parseToMillis(String rawTime) {
+        return DisplayTimeUtils.parseToMillis(rawTime);
     }
 }

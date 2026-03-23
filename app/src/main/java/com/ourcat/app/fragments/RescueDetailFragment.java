@@ -5,6 +5,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -19,6 +20,7 @@ import com.ourcat.app.R;
 import com.ourcat.app.repositories.AuthApi;
 import com.ourcat.app.repositories.RescueApi;
 import com.ourcat.app.utils.RetrofitHelper;
+import com.ourcat.app.utils.StatusTextUtils;
 import com.ourcat.app.utils.TimeUtils;
 
 import java.util.ArrayList;
@@ -39,8 +41,7 @@ public class RescueDetailFragment extends Fragment {
     private TextView detailUrgencyStatus;
     private TextView detailDescription;
     private Button linkSquarePost;
-    private RecyclerView rescueTimeline;
-    private TimelineAdapter timelineAdapter;
+    private LinearLayout rescueTimeline;
     private List<TimelineItem> timelineItems = new ArrayList<>();
     private RecyclerView tasksList;
     private TasksAdapter tasksAdapter;
@@ -70,17 +71,14 @@ public class RescueDetailFragment extends Fragment {
         linkSquarePost = view.findViewById(R.id.link_square_post);
         rescueTimeline = view.findViewById(R.id.rescue_timeline);
 
-        rescueTimeline.setLayoutManager(new LinearLayoutManager(requireContext()));
-        timelineAdapter = new TimelineAdapter();
-        rescueTimeline.setAdapter(timelineAdapter);
-
         btnClaim = view.findViewById(R.id.btn_claim);
         btnAssign = view.findViewById(R.id.btn_assign);
         btnMarkComplete = view.findViewById(R.id.btn_mark_complete);
         tasksList = view.findViewById(R.id.tasks_list);
         linkMap = view.findViewById(R.id.link_map);
 
-        tasksList.setLayoutManager(new LinearLayoutManager(requireContext()));
+        tasksList.setLayoutManager(createExpandedLayoutManager());
+        tasksList.setNestedScrollingEnabled(false);
         tasksAdapter = new TasksAdapter();
         tasksList.setAdapter(tasksAdapter);
 
@@ -174,6 +172,15 @@ public class RescueDetailFragment extends Fragment {
         return value instanceof Number ? ((Number) value).longValue() : 0L;
     }
 
+    private LinearLayoutManager createExpandedLayoutManager() {
+        return new LinearLayoutManager(requireContext()) {
+            @Override
+            public boolean canScrollVertically() {
+                return false;
+            }
+        };
+    }
+
     private void buildTimeline(Map<String, Object> activity) {
         timelineItems.clear();
 
@@ -206,12 +213,35 @@ public class RescueDetailFragment extends Fragment {
         }
 
         String status = stringValue(activity.get("status"));
-        if ("completed".equals(status)) {
+        if ("completed".equalsIgnoreCase(status)) {
             String completedAt = stringValue(activity.get("completedAt"));
             timelineItems.add(new TimelineItem("完成救助", completedAt, ""));
         }
 
-        timelineAdapter.notifyDataSetChanged();
+        java.util.Collections.reverse(timelineItems);
+        renderTimelineItems();
+    }
+
+    private void renderTimelineItems() {
+        rescueTimeline.removeAllViews();
+        LayoutInflater inflater = LayoutInflater.from(requireContext());
+        for (int i = 0; i < timelineItems.size(); i++) {
+            TimelineItem item = timelineItems.get(i);
+            View itemView = inflater.inflate(R.layout.item_rescue_timeline, rescueTimeline, false);
+            TextView title = itemView.findViewById(R.id.timeline_title);
+            TextView time = itemView.findViewById(R.id.timeline_time);
+            TextView operator = itemView.findViewById(R.id.timeline_operator);
+            View topLine = itemView.findViewById(R.id.timeline_top_line);
+            View bottomLine = itemView.findViewById(R.id.timeline_bottom_line);
+
+            title.setText(item.title);
+            time.setText(item.time.isEmpty() ? "" : TimeUtils.formatDateTime(item.time));
+            operator.setText(item.operator.isEmpty() ? "" : item.operator);
+            topLine.setVisibility(i == 0 ? View.INVISIBLE : View.VISIBLE);
+            bottomLine.setVisibility(i == timelineItems.size() - 1 ? View.INVISIBLE : View.VISIBLE);
+
+            rescueTimeline.addView(itemView);
+        }
     }
 
     private String buildTaskMembersText(List<Map<String, Object>> tasks) {
@@ -370,6 +400,9 @@ public class RescueDetailFragment extends Fragment {
     }
 
     private static String mapRescueStatusText(String status) {
+        if (System.currentTimeMillis() >= 0) {
+            return StatusTextUtils.formatRescueStatus(status);
+        }
         if (status == null) {
             return "未知";
         }
@@ -410,7 +443,7 @@ public class RescueDetailFragment extends Fragment {
         public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
             TimelineItem item = timelineItems.get(position);
             holder.title.setText(item.title);
-            holder.time.setText(item.time.isEmpty() ? "" : TimeUtils.getRelativeTime(item.time));
+            holder.time.setText(item.time.isEmpty() ? "" : TimeUtils.formatDateTime(item.time));
             holder.operator.setText(item.operator.isEmpty() ? "" : item.operator);
 
             holder.topLine.setVisibility(position == 0 ? View.INVISIBLE : View.VISIBLE);
@@ -638,6 +671,9 @@ public class RescueDetailFragment extends Fragment {
     }
 
     private static String mapTaskStatusText(String status) {
+        if (System.currentTimeMillis() >= 0) {
+            return StatusTextUtils.formatTaskStatus(status);
+        }
         if (status == null) {
             return "未知";
         }
