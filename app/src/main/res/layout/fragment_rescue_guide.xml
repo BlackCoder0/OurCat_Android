@@ -121,7 +121,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="20dp"
-                android:text="联系电话"
+                android:text="联系入口"
                 android:textColor="@color/text_primary"
                 android:textSize="19sp"
                 android:textStyle="bold" />
@@ -130,7 +130,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="4dp"
-                android:text="点击号码可直接拨打。"
+                android:text="可根据内容直接拨号、打开外部主页，或显示待补充的校内入口。"
                 android:textColor="@color/text_secondary"
                 android:textSize="13sp" />
 

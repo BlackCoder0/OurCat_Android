@@ -150,15 +150,46 @@ public class RescueGuideFragment extends Fragment {
             public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder, int position) {
                 Map<String, Object> m = list.get(position);
                 String name = str(m, "name");
-                String phone = str(m, "phone");
+                String contactValue = str(m, "phone");
                 String desc = str(m, "description");
-                ((TextView) holder.itemView.findViewById(android.R.id.text1)).setText(name + " " + phone);
+                String actionType = str(m, "actionType");
+                String actionValue = str(m, "actionValue");
+
+                ((TextView) holder.itemView.findViewById(android.R.id.text1)).setText(name + " " + contactValue);
                 ((TextView) holder.itemView.findViewById(android.R.id.text2)).setText(desc);
-                holder.itemView.setOnClickListener(v -> {
-                    Intent i = new Intent(Intent.ACTION_DIAL);
-                    i.setData(Uri.parse("tel:" + phone));
-                    startActivity(i);
-                });
+
+                if (isBlank(actionType)) {
+                    if (isHttpLink(contactValue)) {
+                        actionType = "url";
+                        actionValue = contactValue;
+                    } else if (!isBlank(contactValue)) {
+                        actionType = "phone";
+                        actionValue = contactValue;
+                    }
+                }
+
+                if ("url".equalsIgnoreCase(actionType) && !isBlank(actionValue)) {
+                    String finalActionValue = actionValue;
+                    holder.itemView.setAlpha(1f);
+                    holder.itemView.setClickable(true);
+                    holder.itemView.setOnClickListener(v -> {
+                        Intent i = new Intent(Intent.ACTION_VIEW, Uri.parse(finalActionValue));
+                        startActivity(i);
+                    });
+                } else if ("phone".equalsIgnoreCase(actionType) && !isBlank(actionValue)) {
+                    String finalActionValue = actionValue;
+                    holder.itemView.setAlpha(1f);
+                    holder.itemView.setClickable(true);
+                    holder.itemView.setOnClickListener(v -> {
+                        Intent i = new Intent(Intent.ACTION_DIAL);
+                        i.setData(Uri.parse("tel:" + finalActionValue));
+                        startActivity(i);
+                    });
+                } else {
+                    holder.itemView.setAlpha(0.7f);
+                    holder.itemView.setClickable(false);
+                    holder.itemView.setOnClickListener(null);
+                }
             }
 
             @Override
@@ -184,6 +215,14 @@ public class RescueGuideFragment extends Fragment {
             public void onFailure(Call<List<Map<String, Object>>> call, Throwable t) {
             }
         });
+    }
+
+    private boolean isHttpLink(String value) {
+        return value != null && (value.startsWith("http://") || value.startsWith("https://"));
+    }
+
+    private boolean isBlank(String value) {
+        return value == null || value.trim().isEmpty();
     }
 
     private void loadArticles() {

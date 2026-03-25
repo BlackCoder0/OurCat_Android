@@ -63,7 +63,7 @@ import retrofit2.Callback;
 import retrofit2.Response;
 
 /**
- * 广场发布广播页面。对应计划文档「阶段 6 → 前端 → 发布界面」。
+ * 广场发布广播页面。对应计划文档「阶段 6 → 前端 sh→ 发布界面」。
  */
 public class CreateSquarePostFragment extends Fragment {
 
