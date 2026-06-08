@@ -14,6 +14,19 @@
 
 > **让每一只校园猫咪都被看见。**  
 > Spring Boot + Android + MySQL 全栈项目中的 Android 原生客户端。拍照上报、AI 识猫、地图找猫、救助协作——把整座校园的猫咪装进口袋。
+>
+> ⚠️ **运行前需要一个可访问的 [OurCat Backend](https://github.com/BlackCoder0/OurCat_backend) 实例。** 建议先按下方 Quick Start 同时启动后端。
+
+---
+
+## ⚡ Quick Start
+
+1. 用 Android Studio 打开本仓库，等待 Gradle 同步完成
+2. 配置 `local.properties`（高德 Key + 后端地址）
+3. 启动后端（见上方链接）
+4. 在模拟器或真机上 ▶ Run
+
+> 📖 详见下方[快速上手](#-快速上手)。
 
 ---
 
@@ -72,29 +85,31 @@
 
 ## 📸 界面预览
 
-### 🐈 猫咪上报与 AI 识猫
+> 按用户操作流程编排：发现猫 → 上报识别 → 地图找猫 → 发起救助 → 社区互动 → 个人中心。
+
+### 🐈 发现猫 → 拍照上报 → AI 识别
 
 | 上报表单 | 猫咪档案详情 |
 | :---: | :---: |
 | ![猫咪上报](docs/images/猫咪上报界面-1.jpg) | ![猫咪档案](docs/images/猫咪上报界面-2.jpg) |
 
-### 🗺️ 地图与救助联动
+### 🗺️ 地图找猫 → 查看档案 → 热力图分析
 
 | 猫咪点位地图 | 救助联动界面 | 热力图 |
 | :---: | :---: | :---: |
 | ![地图点位](docs/images/地图点位与救助联动组合界面-1.jpg) | ![救助联动](docs/images/地图点位与救助联动组合界面-2.jpg) | ![热力图](docs/images/地图热力图.jpg) |
 
-### 💬 论坛 & 广场
+### 💬 社区互动：论坛发帖 + 广场广播
 
 | 论坛帖子列表 | 广场广播 | 发布界面 |
 | :---: | :---: | :---: |
 | ![论坛](docs/images/论坛.jpg) | ![广场](docs/images/广场广播发布界面-1.jpg) | ![发布](docs/images/广场广播发布界面-2.jpg) |
 
-| 论坛发帖编辑（占位） | |
-| :---: | :---: |
-| ![发帖](docs/images/论坛发帖界面.jpg) | *截图待补充* |
+| 论坛发帖编辑 | 
+| :---: | 
+| ![发帖](docs/images/论坛发帖界面.jpg) |
 
-### 🚑 救助活动
+### 🚑 救助一条龙：发起 → 认领 → 执行 → 归档
 
 | 活动详情 | 进度追踪 | 推荐区域 |
 | :---: | :---: | :---: |
@@ -109,7 +124,7 @@
 │               OurCat Android App                  │
 ├─────────────────────────────────────────────────┤
 │                                                   │
-│  🎨 UI Layer (23 个 Fragment)                     │
+│  🎨 UI Layer（Fragment + ViewPager2 导航）         │
 │  ┌─────────────────────────────────────────┐    │
 │  │ MapFragment          高德 3D 地图交互    │    │
 │  │ CatsListFragment     猫咪列表/搜索/筛选  │    │
@@ -138,7 +153,7 @@
 │                                                   │
 └──────────────────────┬────────────────────────────┘
                        │
-           JWT + HTTPS REST API
+           JWT + REST API（debug 走 HTTP，生产建议 HTTPS）
                        │
                        ▼
           ┌─────────────────────────┐
@@ -163,7 +178,7 @@ android/
 │       │   ├── activities/          # Activity 层
 │       │   │   ├── MainActivity     # 主界面（底部Tab + Fragment容器）
 │       │   │   └── LoginActivity    # 登录/注册
-│       │   ├── fragments/           # 🎨 23 个业务 Fragment
+│       │   ├── fragments/           # 🎨 业务 Fragment（含 DialogFragment）
 │       │   │   ├── MapFragment      # 🗺️ 地图：猫咪标记、热力图、定位
 │       │   │   ├── CatsListFragment # 🐈 猫咪列表 + 搜索过滤
 │       │   │   ├── CatProfileFragment # 📋 猫咪档案详情
@@ -239,12 +254,12 @@ OURCAT_BASE_URL_RELEASE=https://你的服务器地址/
 sdk.dir=C\:\\Users\\你的用户名\\AppData\\Local\\Android\\Sdk
 ```
 
-| 配置项 | 怎么填 |
-| :--- | :--- |
-| `OURCAT_AMAP_KEY_DEBUG` | 去 [高德开放平台](https://console.amap.com) → 创建应用 → 添加 Key → 服务平台选"Android" → 填写 SHA1（调试用 `androiddebugkey` 的 SHA1）→ 获取 Key |
-| `OURCAT_AMAP_KEY_RELEASE` | 同上，但要填发布版 SHA1。暂时不发布的话可以先留空 |
-| `OURCAT_BASE_URL_DEBUG` | **模拟器用** `http://10.0.2.2:8080/`（Android 模拟器访问宿主机的固定地址）<br>**真机调试用** `http://你的电脑局域网IP:8080/`（如 `http://192.168.1.5:8080/`） |
-| `OURCAT_BASE_URL_RELEASE` | 正式服务器的地址，未部署可先留空 |
+| 配置项 | 优先级 | 怎么填 |
+| :--- | :--- | :--- |
+| `OURCAT_AMAP_KEY_DEBUG` | **必填** | 去 [高德开放平台](https://console.amap.com) → 创建应用 → 添加 Key → 服务平台选"Android" → 填写 SHA1（调试用 `androiddebugkey` 的 SHA1）→ 获取 Key |
+| `OURCAT_BASE_URL_DEBUG` | **必填** | 模拟器填 `http://10.0.2.2:8080/`，真机填 `http://你的局域网IP:8080/`（见下方网络决策表） |
+| `OURCAT_AMAP_KEY_RELEASE` | 发布时需要 | 同上填发布版 SHA1，暂时不发布可留空 |
+| `OURCAT_BASE_URL_RELEASE` | 发布时需要 | 正式服务器地址，未部署可留空 |
 
 > ⚠️ **如何获取调试 SHA1？** 打开终端执行：
 > ```bash
@@ -276,6 +291,15 @@ mvn spring-boot:run -Dspring-boot.run.profiles=dev
 
 #### 网络连接说明
 
+| 场景 | `OURCAT_BASE_URL_DEBUG` 应填什么 | 原理 |
+| :--- | :--- | :--- |
+| **Android 模拟器** | `http://10.0.2.2:8080/` | 模拟器内置 NAT，`10.0.2.2` 固定指向宿主机 `localhost` |
+| **同 WiFi 真机** | `http://你的局域网IP:8080/` | 手机和电脑连同一 WiFi；用 `ipconfig` 查电脑 IP |
+| **线上环境** | `https://你的域名/` | 填入 `OURCAT_BASE_URL_RELEASE` |
+
+<details>
+<summary>📡 网络拓扑示意（点击展开）</summary>
+
 ```
 🖥️ 模拟器模式（最简单）
 ┌──────────┐   10.0.2.2:8080    ┌──────────┐
@@ -297,11 +321,7 @@ mvn spring-boot:run -Dspring-boot.run.profiles=dev
 └──────────┘                    └──────────┘
 ```
 
-| 场景 | 后端地址 | 原理 |
-| :--- | :--- | :--- |
-| **模拟器** | `http://10.0.2.2:8080` | 模拟器内置 NAT，`10.0.2.2` 永远指向宿主机 `localhost` |
-| **USB 真机** | `http://你的局域网IP:8080` | 手机和电脑连同一 WiFi，用 `ipconfig` 查电脑 IP |
-| **正式发布** | `https://你的域名` | 填入 `OURCAT_BASE_URL_RELEASE` |
+</details>
 
 #### 常见问题排查
 
@@ -335,7 +355,7 @@ mvn spring-boot:run -Dspring-boot.run.profiles=dev
 * **零硬编码凭据**：高德 Key 和后端地址通过 `local.properties` 注入，源码中无任何真实密钥。
 * **JWT 安全存储**：Token 存于 Android SharedPreferences（应用私有目录），外部不可读。
 * **OSS 预签名上传**：上传流程为 `GET /api/oss/upload-url` → 获取临时预签名 URL → 直传，客户端不持有 OSS AccessKey。
-* **HTTPS 传输**：Release 构建强制 HTTPS。
+* **网络安全**：生产部署时建议启用 HTTPS 并配置 Network Security Config。
 
 ---
 
@@ -343,7 +363,15 @@ mvn spring-boot:run -Dspring-boot.run.profiles=dev
 
 如果你觉得这个项目对校园流浪猫救助有意义，欢迎点一个 **⭐ Star**！
 
-截图建议、Bug 报告、功能提议，欢迎提交 Issue。
+---
+
+## 📌 当前状态
+
+- **运行前提**：需要一个可访问的 [OurCat Backend](https://github.com/BlackCoder0/OurCat_backend) 实例
+- **最低兼容**：Android 7.0 (API 24)，已在 API 34 模拟器上验证
+- **地图功能**：依赖高德 3D 地图 SDK，需在[高德开放平台](https://console.amap.com)申请 Key
+- **当前覆盖**：猫咪上报、AI 识猫、地图探索、救助协作、论坛、广场、消息通知
+- **Last reviewed**：2026-06-08
 
 ---
 
@@ -361,6 +389,6 @@ MIT License
 
 ---
 
-<p align="center">
+OurCat — 让每一只校园猫都被看见 ❤️
   <sub>OurCat — 让每一只校园猫咪都被看见 ❤️</sub>
 </p>
