@@ -14,13 +14,13 @@
 
 > **让每一只校园猫都被看见。**
 >
-> Spring Boot + Android + MySQL 全栈项目中的 Android 原生客户端。拍照上报、AI 识猫、地图找猫、救助协作——把整座校园的猫咪装进口袋。
+> OurCat 是一个面向校园流浪猫救助场景的 Android 客户端，提供猫咪上报、地图查看、救助协作、论坛和广场等功能。
 >
-> ⚠️ **运行前需要一个可访问的 [OurCat Backend](https://github.com/BlackCoder0/OurCat_backend) 实例。** 本项目默认按本地 Backend 说明运行；公开仓库不提供现成的云端 Backend 地址。
+> 运行前需要一个可访问的 [OurCat Backend](https://github.com/BlackCoder0/OurCat_backend) 实例。公开仓库不提供现成云端地址。
 
 ---
 
-## ⚡ Quick Start
+## 快速开始
 
 > 本仓库当前未提交 `gradlew`、`gradlew.bat` 和 `gradle-wrapper.jar`。以下流程以 Android Studio 的同步和运行功能为准；不要直接执行 `./gradlew` 或 `gradlew.bat`，命令行构建需要先补齐 Gradle Wrapper。
 
@@ -31,97 +31,85 @@
 5. 启动 [OurCat Backend](https://github.com/BlackCoder0/OurCat_backend)。
 6. 在 Android Studio 中运行 `app`。
 
-> 📖 这条路径只需要先跑通 Backend 和 Android 基础页面。高德地图、OSS 图片上传和 Replicate AI 需要按功能额外配置。
+> 这条路径先验证 Backend 和 Android 基础页面。高德地图、OSS 图片上传和 Replicate AI 按需配置。
 
 ---
 
-## 📖 项目简介
+## 项目定位
 
-**OurCat（校园猫谱）** 是一个 **Spring Boot + Android + MySQL** 的全栈校园流浪猫救助平台。本仓库是其中的 Android 客户端。
+**OurCat（校园猫谱）** 是一个 **Spring Boot + Android + MySQL** 的全栈校园流浪猫救助平台。本仓库提供 Android 客户端。
 
-打开 App，你会看到一个完整运转的猫咪救助世界：
+客户端主要包含以下功能：
 
-- 📸 **拍照就能上报**——对着猫咪拍一张，填写毛色、特征和性格，提交后由 Backend 保存记录并执行当前匹配流程
-- 🗺️ **地图上找猫**——高德地图直观展示猫咪分布，点击标记看档案，热力图看哪里猫最多
-- 🚑 **救助一条龙**——发现受伤猫咪 → 发起救助 → 组织成员认领任务 → 更新进度 → 救助完成归档，全程在 App 内闭环
-- 💬 **社区互动**——论坛分享养猫心得、广场发布领养信息、消息中心接收天气预警
+- **猫咪上报**：拍照后填写位置、毛色、特征和性格，提交到 Backend 并执行当前匹配流程。
+- **地图查看**：查看猫咪分布、档案、热力图和活跃区域。
+- **救助协作**：发起救助活动，认领任务，更新进度并提交日志。
+- **社区功能**：使用论坛、广场和消息中心。
 
-> 👉 这是 **Android 客户端**。后端 API 服务请见 [OurCat Backend](https://github.com/BlackCoder0/OurCat_backend)
+后端 API 服务请见 [OurCat Backend](https://github.com/BlackCoder0/OurCat_backend)。
 
 ---
 
-## ⭐ 先看核心体验
+## 主要功能
 
-- **拍照上报**：记录猫咪照片、位置和特征，提交到 Backend。
-- **地图探索**：查看猫咪位置、热力图和推荐区域。
-- **救助协作**：发起活动、认领任务、更新进度并留下日志。
-- **社区沟通**：使用论坛、广场和消息中心协作。
+| 功能 | 说明 | 额外依赖 |
+| :--- | :--- | :--- |
+| 猫咪上报 | 上传照片，填写位置、毛色、特征和性格，提交到 Backend | Backend；图片上传需要 OSS |
+| 猫咪匹配 | Backend 根据文本和图片特征尝试匹配已有档案 | Backend；图片识别需要 Replicate |
+| 地图查看 | 查看猫咪位置、热力图和活跃区域推荐 | 高德 Android Key |
+| 救助协作 | 创建活动、认领任务、更新任务状态和提交救助日志 | Backend |
+| 论坛与广场 | 浏览、发布和互动 | Backend |
+| 消息与天气 | 查看系统消息和天气预警记录 | Backend；官方灾害预警需要和风天气配置
 
-### 三张代表性截图
+### 精选截图
 
 | 拍照上报 | 地图探索 | 救助协作 |
 | :---: | :---: | :---: |
 | ![猫咪上报](docs/images/猫咪上报界面-1.jpg) | ![地图点位](docs/images/地图点位与救助联动组合界面-1.jpg) | ![救助详情](docs/images/救助活动详情组合界面-1.jpg) |
 
-> 这些页面需要可访问的 Backend；AI 识猫还需要 Replicate，地图和定位还需要高德 Android Key，图片上传还需要 Backend 配置阿里云 OSS。
+> 这些页面需要可访问的 Backend。AI 识猫需要 Replicate，地图和定位需要高德 Android Key，图片上传需要 Backend 配置阿里云 OSS。
 
 ---
 
-## 🎨 功能全景
+## 功能全景
 
-```
+```text
 ┌──────────────────────────────────────────────────────────┐
-│                    🐱 OurCat Android                      │
+│                     OurCat Android                       │
 ├──────────────────────────────────────────────────────────┤
 │                                                          │
-│   📸 猫咪上报          🗺️ 地图探索         🚑 救助中心    │
-│   ┌──────────┐       ┌──────────┐       ┌──────────┐   │
-│   │拍照→描述  │       │标记点浏览 │       │活动列表  │   │
-│   │AI特征提取 │       │猫咪详情  │       │任务认领  │   │
-│   │相似匹配   │       │热力图    │       │进度更新  │   │
-│   │自动归档   │       │区域推荐  │       │救助日志  │   │
-│   └──────────┘       └──────────┘       └──────────┘   │
+│  猫咪上报              地图查看              救助协作      │
+│  照片、位置和特征      猫咪点位与档案        活动与任务    │
+│  匹配结果查询          热力图与区域推荐      状态与日志    │
 │                                                          │
-│   💬 论坛              📢 广场             👤 我的        │
-│   ┌──────────┐       ┌──────────┐       ┌──────────┐   │
-│   │评论互动  │       │广播发布  │       │个人动态  │   │
-│   │点赞投票  │       │活动推广  │       │我的猫咪  │   │
-│   │发帖编辑  │       │评论互动  │       │我的任务  │   │
-│   └──────────┘       └──────────┘       │消息通知  │   │
-│                                          └──────────┘   │
+│  论坛                  广场                  个人中心      │
+│  帖子、评论和点赞      广播与救助关联        我的上报      │
+│                                              我的任务      │
 │                                                          │
-│   🌤️ 天气预警 ──── 天气查询与提醒 ──── 🏛️ 组织管理       │
-│                                                          │
+│  消息与天气            组织管理              Backend API   │
+│  系统消息与预警        组织和成员            JWT 鉴权      │
 └──────────────────────────────────────────────────────────┘
 ```
 
-### 🔥 三大热点功能详解
-
-| 热点 | 操作流程 | 背后发生了什么 |
-| :--- | :--- | :--- |
-| 📸 **AI 拍照识猫** | 打开相机拍猫 → 选择毛色、特征和性格 → 提交 | 图片上传 OSS → Backend 调用 Replicate 提取图片特征 → 与已有猫咪档案进行相似度比对 → 保存上报和匹配结果；当前 Android 上报界面只提示“上报成功”，不直接展示候选列表 |
-| 🚑 **救助一条龙** | 发现受伤猫 → 发起救助活动 → 成员认领任务 → 逐步更新进度 → 完成 | 创建活动后由创建者或组织管理员指派任务，组织成员也可主动申领；指派/申领时写入消息 → 任务状态流转（待认领→进行中→已完成）→ 每一步可附带文字+图片日志 → 完成后自动更新猫咪健康状态；天气预警由独立天气查询产生并写入消息 |
-| 🗺️ **地图 × 热力图** | 打开地图页 → 缩放浏览 → 点击标记看猫咪 → 切换热力图看密度 | 高德 SDK 渲染猫咪坐标点 → 点击弹出卡片（照片+品种+最后目击时间）→ 热力图模式展示猫咪活动热点区域 → **推荐区域**：按最近上报数量排序，显示高活跃或低活跃网格 |
-
 ---
 
-## 📸 完整界面预览
+## 截图展示
 
-> 按用户操作流程编排：发现猫 → 上报识别 → 地图找猫 → 发起救助 → 社区互动 → 个人中心。
+> 以下截图按功能和使用顺序排列。
 
-### 🐈 发现猫 → 拍照上报 → 匹配归档
+### 猫咪上报与匹配
 
 | 上报表单（上半部分） | 上报表单（下半部分） |
 | :---: | :---: |
 | ![猫咪上报表单上半部分](docs/images/猫咪上报界面-1.jpg) | ![猫咪上报表单下半部分](docs/images/猫咪上报界面-2.jpg) |
 
-### 🗺️ 地图找猫 → 查看档案 → 热力图分析
+### 地图与区域分析
 
 | 猫咪点位地图 | 救助联动界面 | 热力图 |
 | :---: | :---: | :---: |
 | ![地图点位](docs/images/地图点位与救助联动组合界面-1.jpg) | ![救助联动](docs/images/地图点位与救助联动组合界面-2.jpg) | ![热力图](docs/images/地图热力图.jpg) |
 
-### 💬 社区互动：论坛发帖 + 广场广播
+### 论坛与广场
 
 | 论坛帖子列表 | 广场广播发布表单（上半部分） | 广场广播发布表单（下半部分） |
 | :---: | :---: | :---: |
@@ -131,7 +119,7 @@
 | :---: | 
 | ![发帖](docs/images/论坛发帖界面.jpg) |
 
-### 🚑 救助一条龙：发起 → 认领 → 执行 → 归档
+### 救助活动
 
 | 活动详情 | 进度追踪 | 地图推荐区域 |
 | :---: | :---: | :---: |
@@ -139,14 +127,14 @@
 
 ---
 
-## 🏗️ 客户端架构
+## 客户端架构
 
 ```
 ┌─────────────────────────────────────────────────┐
 │               OurCat Android App                  │
 ├─────────────────────────────────────────────────┤
 │                                                   │
-│  🎨 UI Layer（Fragment + ViewPager2 导航）         │
+│  UI Layer（Fragment + ViewPager2 导航）            │
 │  ┌─────────────────────────────────────────┐    │
 │  │ MapFragment          高德 3D 地图交互    │    │
 │  │ CatsListFragment     猫咪列表/搜索/筛选  │    │
@@ -160,14 +148,14 @@
 │  │ ProfileFragment      个人中心/我的动态   │    │
 │  └─────────────────────────────────────────┘    │
 │                                                   │
-│  🔌 Network Layer                                │
+│  Network Layer                                   │
 │  ┌─────────────────────────────────────────┐    │
 │  │ RetrofitHelper    Retrofit 2.9 + OkHttp  │    │
 │  │ TokenStore        JWT 持久化存储          │    │
 │  │ OssUploader       预签名直传 OSS          │    │
 │  └─────────────────────────────────────────┘    │
 │                                                   │
-│  📱 App Core                                     │
+│  App Core                                         │
 │  ┌─────────────────────────────────────────┐    │
 │  │ OurCatApp         高德 SDK 初始化         │    │
 │  │ MainActivity      底部四栏 Tab 导航       │    │
@@ -186,7 +174,7 @@
 
 ---
 
-## 📁 目录结构
+## 目录结构
 
 ```text
 android/
@@ -196,21 +184,21 @@ android/
 │       ├── AndroidManifest.xml      # 权限 + 高德Key占位（local.properties注入）
 │       │
 │       ├── java/com/ourcat/app/
-│       │   ├── OurCatApp.java       # 🚀 Application（初始化高德SDK）
+│       │   ├── OurCatApp.java       # Application（初始化高德 SDK）
 │       │   ├── activities/          # Activity 层
 │       │   │   ├── MainActivity     # 主界面（底部Tab + Fragment容器）
 │       │   │   └── LoginActivity    # 登录/注册
-│       │   ├── fragments/           # 🎨 业务 Fragment（含 DialogFragment）
-│       │   │   ├── MapFragment      # 🗺️ 地图：猫咪标记、热力图、定位
-│       │   │   ├── CatsListFragment # 🐈 猫咪列表 + 搜索过滤
-│       │   │   ├── CatProfileFragment # 📋 猫咪档案详情
-│       │   │   ├── ReportCatDialogFragment # 📸 猫咪上报弹窗
-│       │   │   ├── RescueHomeFragment # 🚑 救助活动首页
+│       │   ├── fragments/           # 业务 Fragment（含 DialogFragment）
+│       │   │   ├── MapFragment      # 地图：猫咪标记、热力图、定位
+│       │   │   ├── CatsListFragment # 猫咪列表、搜索和筛选
+│       │   │   ├── CatProfileFragment # 猫咪档案详情
+│       │   │   ├── ReportCatDialogFragment # 猫咪上报弹窗
+│       │   │   ├── RescueHomeFragment # 救助活动首页
 │       │   │   ├── RescueDetailFragment # 📊 救助详情 + 任务分配
-│       │   │   ├── RescueGuideFragment # 📖 救助指南
-│       │   │   ├── RescueKnowledgeFragment # 📚 救助知识库
-│       │   │   ├── ForumFragment    # 💬 论坛帖子列表
-│       │   │   ├── PostDetailFragment # 💬 帖子详情/评论/点赞
+│       │   │   ├── RescueGuideFragment # 救助指南
+│       │   │   ├── RescueKnowledgeFragment # 救助知识库
+│       │   │   ├── ForumFragment    # 论坛帖子列表
+│       │   │   ├── PostDetailFragment # 帖子详情、评论和点赞
 │       │   │   ├── CreateEditPostFragment # ✏️ 发帖/编辑
 │       │   │   ├── SquareFragment   # 📢 广场
 │       │   │   ├── CreateSquarePostFragment # 📝 发布广播
@@ -222,7 +210,7 @@ android/
 │       │   ├── adapters/            # 🔗 8 个 RecyclerView 适配器
 │       │   └── utils/               # 🔧 RetrofitHelper, TokenStore, OssUploader
 │       │
-│       └── res/                     # 🎨 布局、图标、颜色、字符串
+│       └── res/                     # 布局、图标、颜色和字符串
 │
 ├── build.gradle                     # 项目级 Gradle（Android SDK 34）
 ├── local.properties                 # 🔒 本地配置（可能需要手动创建，不提交）
@@ -231,9 +219,9 @@ android/
 
 ---
 
-## 🚀 快速上手
+## 配置与运行
 
-下面按“先启动基础 App，再逐步启用功能”的顺序操作。不要一开始就配置所有 Key。
+按以下顺序完成环境、后端地址和地图 Key 配置。
 
 ---
 
@@ -407,7 +395,7 @@ Android 端不会保存 OSS AccessKey 或 Replicate Token。它们应该配置�
 
 ---
 
-## 🛠️ 技术栈
+## 技术栈
 
 | 层面 | 选型 |
 | :--- | :--- |
@@ -424,7 +412,7 @@ Android 端不会保存 OSS AccessKey 或 Replicate Token。它们应该配置�
 
 ---
 
-## 🔒 安全设计
+## 安全设计
 
 * **零硬编码凭据**：高德 Key 和后端地址通过 `local.properties` 注入，源码中无任何真实密钥。
 * **JWT 安全存储**：Token 存于 Android 应用私有目录的 SharedPreferences；这不是对已 root 设备或调试环境的绝对保密保证。
@@ -434,13 +422,13 @@ Android 端不会保存 OSS AccessKey 或 Replicate Token。它们应该配置�
 
 ---
 
-## 🤝 贡献与鸣谢
+## 反馈
 
-如果你觉得这个项目对校园流浪猫救助有意义，欢迎点一个 **⭐ Star**！
+如有问题或建议，欢迎提交 Issue。
 
 ---
 
-## 📌 当前状态
+## 当前状态
 
 - **运行前提**：需要一个可访问的 [OurCat Backend](https://github.com/BlackCoder0/OurCat_backend) 实例
 - **最低兼容**：Android 7.0 (API 24)；推荐使用 API 34 模拟器进行验证
@@ -451,20 +439,16 @@ Android 端不会保存 OSS AccessKey 或 Replicate Token。它们应该配置�
 
 ---
 
-## 📄 开源协议
+## 开源协议
 
 MIT License
 
 ---
 
-## 🌐 English
+## English
 
 **OurCat Android** is the native Android client for the OurCat campus stray cat rescue platform. It runs with JDK 17, uses Java 11 source compatibility, and targets Android 7.0+. It features Replicate-backed cat photo recognition, Amap-based location tracking with heatmap visualization, a full rescue task scheduling workflow, forum & community square, and weather query/warning features — all backed by a Spring Boot + MySQL API server. This repository currently provides a Chinese README with a short English summary.
 
 > 👉 **Android repo** (this one) · [Backend](https://github.com/BlackCoder0/OurCat_backend)
 
 ---
-
-OurCat — 让每一只校园猫都被看见 ❤️
-  <sub>OurCat — 让每一只校园猫都被看见 ❤️</sub>
-</p>
