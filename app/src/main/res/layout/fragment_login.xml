@@ -82,6 +82,16 @@
             app:cornerRadius="8dp" />
 
         <Button
+            android:id="@+id/btn_server"
+            style="@style/Widget.MaterialComponents.Button.TextButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="设置后端地址"
+            android:visibility="gone"
+            android:textColor="@color/primary"
+            android:layout_marginTop="4dp" />
+
+        <Button
             android:id="@+id/btn_go_register"
             style="@style/Widget.MaterialComponents.Button.TextButton"
             android:layout_width="match_parent"

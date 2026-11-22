@@ -13,6 +13,7 @@ import android.util.Log;
 import com.amap.api.location.AMapLocationClient;
 import com.amap.api.maps.MapsInitializer;
 import com.ourcat.app.utils.RetrofitHelper;
+import com.ourcat.app.utils.ServerConfig;
 
 import java.io.File;
 import java.io.FileWriter;
@@ -27,7 +28,8 @@ public class OurCatApp extends Application {
     public void onCreate() {
         super.onCreate();
         setupCrashHandler();
-        RetrofitHelper.init(this, BuildConfig.BASE_URL);
+        String configuredUrl = BuildConfig.ALLOW_SERVER_SWITCH ? ServerConfig.get(this) : null;
+        RetrofitHelper.init(this, configuredUrl != null ? configuredUrl : BuildConfig.BASE_URL);
 
         MapsInitializer.updatePrivacyShow(this, true, true);
         MapsInitializer.updatePrivacyAgree(this, true);

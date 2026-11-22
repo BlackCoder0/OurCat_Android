@@ -20,6 +20,7 @@ android {
         targetSdk 34
         versionCode 1
         versionName "1.0"
+        buildConfigField "boolean", "ALLOW_SERVER_SWITCH", "false"
         // 以发布版 Key 为默认，与高德只配发布版 SHA1 一致；debug 由 buildTypes.debug 覆盖
         manifestPlaceholders = [AMAP_API_KEY: amapKeyRelease]
     }
@@ -32,6 +33,14 @@ android {
         }
         debug {
             buildConfigField "String", "BASE_URL", "\"${baseUrlDebug}\""
+            buildConfigField "boolean", "ALLOW_SERVER_SWITCH", "false"
+            manifestPlaceholders = [AMAP_API_KEY: amapKeyDebug]
+        }
+        demo {
+            initWith debug
+            applicationIdSuffix ".demo"
+            buildConfigField "String", "BASE_URL", "\"${baseUrlDebug}\""
+            buildConfigField "boolean", "ALLOW_SERVER_SWITCH", "true"
             manifestPlaceholders = [AMAP_API_KEY: amapKeyDebug]
         }
     }

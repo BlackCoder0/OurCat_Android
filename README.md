@@ -31,7 +31,7 @@
 5. 启动 [OurCat Backend](https://github.com/BlackCoder0/OurCat_backend)。
 6. 在 Android Studio 中运行 `app`。
 
-> 这条路径先验证 Backend 和 Android 基础页面。高德地图、OSS 图片上传和 Replicate AI 按需配置。
+> 这条路径先验证 Backend 和 Android 基础页面。高德地图、图片上传和 Replicate AI 按需配置；使用 `demo` Backend 时图片保存在本地目录，不需要 OSS。
 
 不用 Android Studio，也可在 Android 项目根目录构建 Debug APK：
 
@@ -46,6 +46,19 @@ macOS/Linux：
 ```
 
 生成文件位于 `app/build/outputs/apk/debug/app-debug.apk`。
+
+### 构建本地体验版
+
+体验版使用独立包名 `com.ourcat.app.demo`，允许连接本地 HTTP Backend，并在登录页显示“设置后端地址”。地址只接受 HTTP/HTTPS 根地址，例如：
+
+- Android 模拟器：`http://10.0.2.2:8080/`
+- 同一 Wi-Fi 的实体手机：`http://电脑局域网IP:8080/`
+
+```powershell
+.\gradlew.bat assembleDemo
+```
+
+生成文件位于 `app/build/outputs/apk/demo/app-demo.apk`。首次进入登录页时可以修改地址；保存后会清除旧 Token 和最近浏览缓存，并要求重新登录。体验版仍需要用户自己启动 `demo` Backend，仓库目前没有提供免开发环境的打包后端。
 
 ---
 
@@ -68,7 +81,7 @@ macOS/Linux：
 
 | 功能 | 说明 | 额外依赖 |
 | :--- | :--- | :--- |
-| 猫咪上报 | 上传照片，填写位置、毛色、特征和性格，提交到 Backend | Backend；图片上传需要 OSS |
+| 猫咪上报 | 上传照片，填写位置、毛色、特征和性格，提交到 Backend | Backend；`demo` 使用本地图片目录，生产/云端需要 OSS |
 | 猫咪匹配 | Backend 根据文本和图片特征尝试匹配已有档案 | Backend；图片识别需要 Replicate |
 | 地图查看 | 查看猫咪位置、热力图和活跃区域推荐 | 高德 Android Key |
 | 救助协作 | 创建活动、认领任务、更新任务状态和提交救助日志 | Backend |
@@ -81,7 +94,7 @@ macOS/Linux：
 | :---: | :---: | :---: |
 | ![猫咪上报](docs/images/猫咪上报界面-1.jpg) | ![地图点位](docs/images/地图点位与救助联动组合界面-1.jpg) | ![救助详情](docs/images/救助活动详情组合界面-1.jpg) |
 
-> 这些页面需要可访问的 Backend。AI 识猫需要 Replicate，地图和定位需要高德 Android Key，图片上传需要 Backend 配置阿里云 OSS。
+> 这些页面需要可访问的 Backend。AI 识猫需要 Replicate，地图和定位需要高德 Android Key；`demo` 的图片上传使用本地目录，生产/云端图片上传需要 OSS。
 
 ---
 
@@ -365,7 +378,7 @@ curl.exe http://localhost:8080/api/auth/captcha
 | :--- | :--- |
 | 登录、基础页面、论坛和救助基础流程 | Backend 可访问，Android Debug 地址正确 |
 | 地图和定位 | Android 高德 Debug Key |
-| 图片、头像、帖子和救助日志上传 | Backend 配置阿里云 OSS |
+| 图片、头像、帖子和救助日志上传 | `demo` Backend 使用本地图片目录；生产/云端 Backend 配置阿里云 OSS |
 | AI 识猫 | Backend 配置 Replicate，并打开 AI |
 | 天气提醒 | Backend 默认可使用 Open-Meteo；官方灾害预警需要和风天气 JWT |
 
@@ -422,7 +435,7 @@ Android 端不会保存 OSS AccessKey 或 Replicate Token。它们应该配置�
 | App 闪退 | 设备、运行时或其他异常 | 查看 Android Studio 的 Logcat；高德 Key 缺失通常只会导致地图/定位不可用，不是本应用启动的唯一条件 |
 | 接口请求失败 | 后端未启动或地址不对 | 模拟器用 `10.0.2.2`，真机用局域网 IP；curl 测试后端是否可达 |
 | 地图不显示 | 高德 Key 错误 | 查看 Logcat 搜 `amap`，通常有明确错误提示 |
-| 图片上传失败 | Backend 没有配置 OSS 或 RAM 权限不足 | 检查 Backend 的 OSS Endpoint、Bucket 和 AccessKey |
+| 图片上传失败 | `dev`/生产 Backend 没有配置 OSS，或本地 demo 数据目录不可写 | `demo` 检查 `OURCAT_DEMO_DATA_DIR` 权限；生产检查 OSS Endpoint、Bucket 和 AccessKey |
 | AI 识猫失败 | Backend 没有配置 Replicate 或 AI 被关闭 | 检查 Backend 的 `AI_ENABLED`、`AI_REPLICATE_ENABLED` 和 Token |
 
 ---
@@ -448,9 +461,9 @@ Android 端不会保存 OSS AccessKey 或 Replicate Token。它们应该配置�
 
 * **零硬编码凭据**：高德 Key 和后端地址通过 `local.properties` 注入，源码中无任何真实密钥。
 * **JWT 安全存储**：Token 存于 Android 应用私有目录的 SharedPreferences；这不是对已 root 设备或调试环境的绝对保密保证。
-* **OSS 预签名上传**：上传流程为 `GET /api/oss/upload-url` → 获取临时预签名 URL → 直传，客户端不持有 OSS AccessKey。
-* **网络安全**：Debug 允许本地 HTTP 联调；Release 默认禁止明文 HTTP，只应连接 HTTPS Backend。
-  Release 的默认限制位于主 Manifest，Debug 的本地 HTTP 例外位于 `app/src/debug/AndroidManifest.xml`。
+* **统一图片上传接口**：上传流程为 `GET /api/oss/upload-url` → 获取临时地址 → `PUT` 直传；云端地址是 OSS 预签名 URL，`demo` 地址写入本地目录，客户端不持有 OSS AccessKey。
+* **网络安全**：Debug 与 Demo 允许本地 HTTP 联调；Release 默认禁止明文 HTTP，只应连接 HTTPS Backend。
+  Release 的默认限制位于主 Manifest，Debug/Demo 的本地 HTTP 例外位于各自的构建类型 Manifest。
 
 ---
 
@@ -466,7 +479,7 @@ Android 端不会保存 OSS AccessKey 或 Replicate Token。它们应该配置�
 - **最低兼容**：Android 7.0 (API 24)；推荐使用 API 34 模拟器进行验证
 - **地图功能**：依赖高德 3D 地图 SDK，需在[高德开放平台](https://console.amap.com)申请 Key
 - **当前覆盖**：猫咪上报、AI 识猫、地图探索、救助协作、论坛、广场、消息通知
-- **构建验证**：Windows 上使用 JDK 17、Gradle Wrapper 8.2 和 Android SDK 34 构建 Debug APK 成功；Android API 35 模拟器已连接本地 H2 Backend 并登录
+- **构建验证**：Windows 上使用 JDK 17、Gradle Wrapper 8.2 和 Android SDK 34 构建 Debug/Demo APK 成功；Android API 35 模拟器已安装 Demo APK，登录页显示地址设置入口并成功打开地址弹窗；Demo 的保存切换和实体手机连接仍待验收
 - **CI**：仓库未配置
 - **Last reviewed**：2026-11-22
 

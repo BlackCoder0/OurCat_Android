@@ -10,14 +10,19 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.Toast;
+import android.text.InputType;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
+import androidx.appcompat.app.AlertDialog;
 
 import com.ourcat.app.R;
+import com.ourcat.app.BuildConfig;
 import com.ourcat.app.activities.LoginActivity;
 import com.ourcat.app.utils.RetrofitHelper;
+import com.ourcat.app.utils.RecentCatStore;
+import com.ourcat.app.utils.ServerConfig;
 import com.ourcat.app.utils.TokenStore;
 
 import java.util.HashMap;
@@ -32,6 +37,7 @@ public class LoginFragment extends Fragment {
     private EditText etUsername, etPassword, etCaptcha;
     private ImageView ivCaptcha;
     private Button btnLogin, btnGoRegister;
+    private Button btnServer;
     private String captchaKey;
 
     @Nullable
@@ -45,6 +51,12 @@ public class LoginFragment extends Fragment {
         ivCaptcha = view.findViewById(R.id.iv_captcha);
         btnLogin = view.findViewById(R.id.btn_login);
         btnGoRegister = view.findViewById(R.id.btn_go_register);
+        btnServer = view.findViewById(R.id.btn_server);
+
+        if (BuildConfig.ALLOW_SERVER_SWITCH) {
+            btnServer.setVisibility(View.VISIBLE);
+            btnServer.setOnClickListener(v -> showServerDialog());
+        }
 
         loadCaptcha();
         ivCaptcha.setOnClickListener(v -> loadCaptcha());
@@ -58,6 +70,46 @@ public class LoginFragment extends Fragment {
             }
         });
         return view;
+    }
+
+    private void showServerDialog() {
+        EditText input = new EditText(requireContext());
+        input.setSingleLine(true);
+        input.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_URI);
+        input.setHint("http://电脑地址:8080/");
+        String current = ServerConfig.get(requireContext());
+        input.setText(current != null ? current : RetrofitHelper.getBaseUrl());
+        input.setSelectAllOnFocus(true);
+
+        int padding = (int) (24 * getResources().getDisplayMetrics().density);
+        android.widget.FrameLayout container = new android.widget.FrameLayout(requireContext());
+        container.setPadding(padding, 0, padding, 0);
+        container.addView(input);
+
+        new AlertDialog.Builder(requireContext())
+                .setTitle("设置后端地址")
+                .setMessage("模拟器填写 10.0.2.2；实体手机填写电脑局域网地址")
+                .setView(container)
+                .setNegativeButton("取消", null)
+                .setPositiveButton("保存并重新登录", (dialog, which) -> applyServerUrl(input.getText().toString()))
+                .show();
+    }
+
+    private void applyServerUrl(String value) {
+        try {
+            String normalized = RetrofitHelper.normalizeBaseUrl(value);
+            String old = RetrofitHelper.getBaseUrl();
+            if (!normalized.equals(old)) {
+                ServerConfig.save(requireContext(), normalized);
+                new TokenStore(requireContext()).clear();
+                RecentCatStore.clear(requireContext());
+                RetrofitHelper.init(requireContext(), normalized);
+            }
+            Toast.makeText(requireContext(), "后端地址已保存", Toast.LENGTH_SHORT).show();
+            loadCaptcha();
+        } catch (IllegalArgumentException e) {
+            Toast.makeText(requireContext(), e.getMessage(), Toast.LENGTH_LONG).show();
+        }
     }
 
     private void loadCaptcha() {
