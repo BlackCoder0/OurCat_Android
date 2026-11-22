@@ -80,7 +80,7 @@
 │                                                          │
 │  猫咪上报              地图查看              救助协作      │
 │  照片、位置和特征      猫咪点位与档案        活动与任务    │
-│  匹配结果查询          热力图与区域推荐      状态与日志    │
+│  上报记录与档案查看    热力图与区域推荐      状态与日志    │
 │                                                          │
 │  论坛                  广场                  个人中心      │
 │  帖子、评论和点赞      广播与救助关联        我的上报      │
@@ -119,11 +119,17 @@
 | :---: | 
 | ![发帖](docs/images/论坛发帖界面.jpg) |
 
+### 地图推荐区域
+
+| 地图推荐区域 |
+| :---: |
+| ![地图推荐区域](docs/images/推荐区域界面.jpg) |
+
 ### 救助活动
 
-| 活动详情 | 进度追踪 | 地图推荐区域 |
-| :---: | :---: | :---: |
-| ![救助详情](docs/images/救助活动详情组合界面-1.jpg) | ![救助进度](docs/images/救助活动详情组合界面-2.jpg) | ![地图推荐区域](docs/images/推荐区域界面.jpg) |
+| 活动详情 | 进度追踪 |
+| :---: | :---: |
+| ![救助详情](docs/images/救助活动详情组合界面-1.jpg) | ![救助进度](docs/images/救助活动详情组合界面-2.jpg) |
 
 ---
 
@@ -252,24 +258,37 @@ git clone https://github.com/BlackCoder0/OurCat_Android.git
 
 ### 第三步：配置 `local.properties`
 
-`local.properties` 已在 `.gitignore` 中排除，**不会提交到仓库**。新克隆项目后如果文件不存在，请在 Android 项目根目录手动新建它。至少写入下面的内容：
+`local.properties` 已在 `.gitignore` 中排除，**不会提交到仓库**。新克隆项目后如果文件不存在，请在 Android 项目根目录手动新建它。
+
+配置项分为四类：
+
+| 配置项 | 是否必须 | 说明 |
+| :--- | :--- | :--- |
+| `sdk.dir` | 编译必需 | Android Studio 通常会自动写入；如果没有，Gradle 无法找到 Android SDK |
+| `OURCAT_BASE_URL_DEBUG` | 模拟器可省略 | 模拟器默认使用 `http://10.0.2.2:8080/`；真机、局域网或云端必须填写实际 Backend 地址 |
+| `OURCAT_AMAP_KEY_DEBUG` | 地图功能必需 | 不使用地图时可以留空；留空不影响基础页面启动 |
+| `OURCAT_BASE_URL_RELEASE`、`OURCAT_AMAP_KEY_RELEASE` | Release 按功能必需 | 只有构建 Release 包时才需要；地址必须是可访问的 HTTPS Backend，高德 Key 必须匹配 Release SHA1 |
+
+第一次只运行模拟器时，通常只需要确认 `sdk.dir`，并启动本地 Backend。没有高德 Key 也可以先编译和运行基础页面。
+
+如果需要手动创建文件，可使用下面的内容：
 
 ```properties
 # Android SDK 路径。Android Studio 通常会自动写入，不要随意修改
 sdk.dir=C\:\\Users\\你的用户名\\AppData\\Local\\Android\\Sdk
 
-# Debug：Android 模拟器访问宿主机 Backend
-OURCAT_BASE_URL_DEBUG=http://10.0.2.2:8080/
+# Debug：可选。模拟器默认使用此地址
+# OURCAT_BASE_URL_DEBUG=http://10.0.2.2:8080/
 
-# 地图功能需要；暂时没有 Key 可先留空，但地图和定位不可用
-OURCAT_AMAP_KEY_DEBUG=你的调试Key
+# 地图功能需要；没有 Key 时先留空
+OURCAT_AMAP_KEY_DEBUG=
 ```
 
 | 配置项 | 优先级 | 怎么填 |
 | :--- | :--- | :--- |
 | `sdk.dir` | 编译必需 | 填本机 Android SDK 路径；Android Studio 通常会自动生成 |
-| `OURCAT_BASE_URL_DEBUG` | 真机或自定义后端时需要 | 模拟器不填也会使用默认值 `http://10.0.2.2:8080/`；真机填电脑局域网 IP；云端填自己的 HTTPS 地址 |
-| `OURCAT_AMAP_KEY_DEBUG` | 地图功能必需 | 在 [高德开放平台](https://console.amap.com) 创建 Android Key，并配置应用包名和 Debug SHA1 |
+| `OURCAT_BASE_URL_DEBUG` | 模拟器可省略 | 模拟器使用默认值 `http://10.0.2.2:8080/`；真机填电脑局域网 IP；云端填自己的 HTTPS 地址 |
+| `OURCAT_AMAP_KEY_DEBUG` | 地图功能必需 | 在 [高德开放平台](https://console.amap.com) 创建 Android Key，并配置应用包名和 Debug SHA1；不用地图时可留空 |
 | `OURCAT_BASE_URL_RELEASE` | 正式发布必需 | 填真实可访问的 HTTPS Backend 地址；没有云端地址时不要使用 Release 包联调 |
 | `OURCAT_AMAP_KEY_RELEASE` | 正式发布地图必需 | 使用 Release 签名证书对应的 SHA1 申请的高德 Android Key |
 
