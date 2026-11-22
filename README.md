@@ -466,7 +466,7 @@ Android 端不会保存 OSS AccessKey 或 Replicate Token。它们应该配置�
 - **最低兼容**：Android 7.0 (API 24)；推荐使用 API 34 模拟器进行验证
 - **地图功能**：依赖高德 3D 地图 SDK，需在[高德开放平台](https://console.amap.com)申请 Key
 - **当前覆盖**：猫咪上报、AI 识猫、地图探索、救助协作、论坛、广场、消息通知
-- **构建验证**：Windows 上使用 JDK 17、Gradle Wrapper 8.2 和 Android SDK 34 构建 Debug APK 成功；尚未在模拟器或真机验证
+- **构建验证**：Windows 上使用 JDK 17、Gradle Wrapper 8.2 和 Android SDK 34 构建 Debug APK 成功；Android API 35 模拟器已连接本地 H2 Backend 并登录
 - **CI**：仓库未配置
 - **Last reviewed**：2026-11-22
 
