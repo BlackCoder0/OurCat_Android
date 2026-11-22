@@ -22,7 +22,7 @@
 
 ## 快速开始
 
-> 本仓库当前未提交 `gradlew`、`gradlew.bat` 和 `gradle-wrapper.jar`。以下流程以 Android Studio 的同步和运行功能为准；不要直接执行 `./gradlew` 或 `gradlew.bat`，命令行构建需要先补齐 Gradle Wrapper。
+> 本仓库已包含 Gradle Wrapper。首次命令行构建需要 JDK 17、Android SDK 34 和网络来下载 Gradle 与依赖。
 
 1. 安装 Android Studio 和 Android SDK 34。
 2. 用 Android Studio 打开本仓库，等待 Gradle 同步完成。
@@ -32,6 +32,20 @@
 6. 在 Android Studio 中运行 `app`。
 
 > 这条路径先验证 Backend 和 Android 基础页面。高德地图、OSS 图片上传和 Replicate AI 按需配置。
+
+不用 Android Studio，也可在 Android 项目根目录构建 Debug APK：
+
+```powershell
+.\gradlew.bat assembleDebug
+```
+
+macOS/Linux：
+
+```bash
+./gradlew assembleDebug
+```
+
+生成文件位于 `app/build/outputs/apk/debug/app-debug.apk`。
 
 ---
 
@@ -328,8 +342,7 @@ keytool -list -v -keystore ~/.android/debug.keystore -alias androiddebugkey -sto
 git clone https://github.com/BlackCoder0/OurCat_backend.git
 cd OurCat_backend
 
-# 没有 Replicate 时先关闭 AI
-$env:AI_ENABLED = "false"
+# dev Profile 默认使用 H2 并关闭 AI
 mvn spring-boot:run "-Dspring-boot.run.profiles=dev"
 ```
 
@@ -453,8 +466,9 @@ Android 端不会保存 OSS AccessKey 或 Replicate Token。它们应该配置�
 - **最低兼容**：Android 7.0 (API 24)；推荐使用 API 34 模拟器进行验证
 - **地图功能**：依赖高德 3D 地图 SDK，需在[高德开放平台](https://console.amap.com)申请 Key
 - **当前覆盖**：猫咪上报、AI 识猫、地图探索、救助协作、论坛、广场、消息通知
-- **构建验证**：仓库未提供 CI；请在 Android Studio 中完成 Gradle 同步和设备运行验证
-- **Last reviewed**：2026-08-29
+- **构建验证**：Windows 上使用 JDK 17、Gradle Wrapper 8.2 和 Android SDK 34 构建 Debug APK 成功；尚未在模拟器或真机验证
+- **CI**：仓库未配置
+- **Last reviewed**：2026-11-22
 
 ---
 
