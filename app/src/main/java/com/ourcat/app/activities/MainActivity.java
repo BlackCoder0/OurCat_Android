@@ -124,7 +124,7 @@ public class MainActivity extends AppCompatActivity {
                         }
                     }
                 });
-        requestWeatherWarning();
+        if (!com.ourcat.app.BuildConfig.ALLOW_SERVER_SWITCH) requestWeatherWarning();
 
         toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
@@ -189,12 +189,12 @@ public class MainActivity extends AppCompatActivity {
         toolbar.setNavigationIconTint(ContextCompat.getColor(this, android.R.color.white));
         toolbar.setNavigationOnClickListener(v -> onToolbarNavigateClick());
 
-        if (savedInstanceState == null) {
+        if (savedInstanceState == null && !com.ourcat.app.BuildConfig.ALLOW_SERVER_SWITCH) {
             mapFragment = new MapFragment();
             getSupportFragmentManager().beginTransaction()
                     .add(R.id.map_container, mapFragment, "persistent_map")
                     .commit();
-        } else {
+        } else if (savedInstanceState != null) {
             mapFragment = (MapFragment) getSupportFragmentManager().findFragmentByTag("persistent_map");
             isMapVisible = savedInstanceState.getBoolean("is_map_visible", false);
             if (isMapVisible) {
@@ -440,6 +440,10 @@ public class MainActivity extends AppCompatActivity {
 
     private void checkLocationAndOpenDialog(Uri imageUri) {
         pendingImageUri = imageUri;
+        if (com.ourcat.app.BuildConfig.ALLOW_SERVER_SWITCH) {
+            openQuickCameraTarget(31.23, 121.47, imageUri);
+            return;
+        }
         double[] cachedLocation = getCachedQuickLocation();
         if (cachedLocation != null) {
             openQuickCameraTarget(cachedLocation[0], cachedLocation[1], imageUri);
@@ -576,6 +580,10 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void showMap() {
+        if (com.ourcat.app.BuildConfig.ALLOW_SERVER_SWITCH) {
+            Toast.makeText(this, "本地体验版不提供地图，上报使用已标注的示例坐标；真实地图请从源码配置自己的高德 Key", Toast.LENGTH_LONG).show();
+            return;
+        }
         hideQuickActionMenu();
         isMapVisible = true;
         mapContainer.setVisibility(View.VISIBLE);

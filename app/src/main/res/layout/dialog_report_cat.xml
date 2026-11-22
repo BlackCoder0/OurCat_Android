@@ -61,6 +61,7 @@
 
             <!-- 位置信息 -->
             <TextView
+                android:id="@+id/report_location_title"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="📍 拖动地图选择位置"
@@ -111,6 +112,15 @@
                     android:contentDescription="我的位置" />
 
             </com.ourcat.app.views.MapTouchWrapper>
+
+            <TextView
+                android:id="@+id/report_demo_location"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:padding="16dp"
+                android:text="本地演示：本次上报使用示例坐标（上海 31.23, 121.47），不代表你或猫咪的真实位置。真实地图与定位需自行配置高德 Key。"
+                android:textColor="@color/text_primary"
+                android:visibility="gone" />
 
             <!-- 分隔线 -->
             <View

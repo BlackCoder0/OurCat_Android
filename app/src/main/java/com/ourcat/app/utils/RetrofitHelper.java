@@ -1,38 +1,58 @@
 package com.ourcat.app.utils;
 
 import android.content.Context;
-import android.net.Uri;
+import java.io.IOException;
 
 import java.util.concurrent.TimeUnit;
 
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
+import okhttp3.Response;
 import retrofit2.Retrofit;
 import retrofit2.converter.gson.GsonConverterFactory;
 
 public class RetrofitHelper {
 
-    private static Retrofit retrofit;
-    private static String baseUrl;
+    private static volatile Retrofit retrofit;
+    private static volatile String baseUrl;
+    private static OkHttpClient client;
+    private static volatile int generation;
 
-    public static void init(Context context, String serverUrl) {
+    public static synchronized void init(Context context, String serverUrl) {
         if (serverUrl == null || serverUrl.trim().isEmpty()) {
             throw new IllegalStateException(
                     "BASE_URL 未配置，请在 local.properties 中设置 OURCAT_BASE_URL_DEBUG/OURCAT_BASE_URL_RELEASE");
         }
-        baseUrl = normalizeBaseUrl(serverUrl);
+        if (client != null) client.dispatcher().cancelAll();
+        final int session = ++generation;
+        baseUrl = serverUrl.endsWith("/") ? serverUrl : serverUrl + "/";
+        final okhttp3.HttpUrl origin = okhttp3.HttpUrl.get(baseUrl);
         TokenStore tokenStore = new TokenStore(context);
-        OkHttpClient client = new OkHttpClient.Builder()
+        client = new OkHttpClient.Builder()
                 .connectTimeout(30, TimeUnit.SECONDS)
                 .readTimeout(30, TimeUnit.SECONDS)
+                .followRedirects(false)
+                .followSslRedirects(false)
                 .addInterceptor(chain -> {
                     Request original = chain.request();
-                    String token = tokenStore.getToken();
+                    String token;
+                    synchronized (RetrofitHelper.class) {
+                        if (session != generation) throw new IOException("Backend changed");
+                        token = tokenStore.getToken();
+                    }
                     Request.Builder builder = original.newBuilder();
-                    if (token != null && !token.isEmpty()) {
+                    if (origin.scheme().equals(original.url().scheme())
+                            && origin.host().equals(original.url().host())
+                            && origin.port() == original.url().port()
+                            && token != null && !token.isEmpty()) {
                         builder.header("Authorization", "Bearer " + token);
                     }
-                    return chain.proceed(builder.build());
+                    Response response = chain.proceed(builder.build());
+                    if (session != generation) {
+                        response.close();
+                        throw new IOException("Backend changed");
+                    }
+                    return response;
                 })
                 .build();
         retrofit = new Retrofit.Builder()
@@ -55,17 +75,10 @@ public class RetrofitHelper {
     }
 
     public static String normalizeBaseUrl(String serverUrl) {
-        String value = serverUrl == null ? "" : serverUrl.trim();
-        Uri uri = Uri.parse(value);
-        String scheme = uri.getScheme();
-        String path = uri.getPath();
-        if (!("http".equalsIgnoreCase(scheme) || "https".equalsIgnoreCase(scheme))
-                || uri.getHost() == null
-                || uri.getQuery() != null
-                || uri.getFragment() != null
-                || (path != null && !path.isEmpty() && !"/".equals(path))) {
-            throw new IllegalArgumentException("请输入完整的 HTTP/HTTPS 后端地址，例如 http://192.168.1.20:8080/");
-        }
-        return value.endsWith("/") ? value : value + "/";
+        return ServerAddress.normalize(serverUrl);
+    }
+
+    public static int getGeneration() {
+        return generation;
     }
 }

@@ -23,39 +23,14 @@ public class ImageUtils {
 
     public static File uriToFile(Context context, Uri uri) {
         try {
-            InputStream inputStream = context.getContentResolver().openInputStream(uri);
-            if (inputStream == null)
-                return null;
-
-            File tempFile = File.createTempFile("upload_img_" + System.currentTimeMillis(), ".jpg",
-                    context.getCacheDir());
-            FileOutputStream outputStream = new FileOutputStream(tempFile);
-            byte[] buffer = new byte[4096];
-            int bytesRead;
-            while ((bytesRead = inputStream.read(buffer)) != -1) {
-                outputStream.write(buffer, 0, bytesRead);
-            }
-            outputStream.close();
-            inputStream.close();
-            return tempFile;
+            return uriToTempFile(context, uri);
         } catch (IOException e) {
-            e.printStackTrace();
             return null;
         }
     }
 
     public static File uriToTempFile(Context context, Uri uri) throws IOException {
-        InputStream inputStream = context.getContentResolver().openInputStream(uri);
-        File tempFile = File.createTempFile("temp_image", ".jpg", context.getCacheDir());
-        OutputStream outputStream = new FileOutputStream(tempFile);
-        byte[] buffer = new byte[4096];
-        int bytesRead;
-        while ((bytesRead = inputStream.read(buffer)) != -1) {
-            outputStream.write(buffer, 0, bytesRead);
-        }
-        outputStream.close();
-        inputStream.close();
-        return tempFile;
+        return compressUriForUpload(context, uri, 2560, 92);
     }
 
     public static File compressUriForUpload(Context context, Uri uri, int maxLongSide, int quality) throws IOException {
@@ -81,7 +56,9 @@ public class ImageUtils {
 
         File tempFile = File.createTempFile("upload_compressed_", ".jpg", context.getCacheDir());
         try (FileOutputStream outputStream = new FileOutputStream(tempFile)) {
-            uploadBitmap.compress(Bitmap.CompressFormat.JPEG, quality, outputStream);
+            if (!uploadBitmap.compress(Bitmap.CompressFormat.JPEG, quality, outputStream)) {
+                throw new IOException("Cannot encode upload image");
+            }
             outputStream.flush();
         } finally {
             uploadBitmap.recycle();

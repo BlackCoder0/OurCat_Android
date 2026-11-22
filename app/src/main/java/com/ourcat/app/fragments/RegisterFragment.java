@@ -33,6 +33,7 @@ public class RegisterFragment extends Fragment {
     private ImageView ivCaptcha;
     private Button btnRegister, btnGoLogin;
     private String captchaKey;
+    private Call<?> captchaCall, registerCall;
 
     @Nullable
     @Override
@@ -55,10 +56,17 @@ public class RegisterFragment extends Fragment {
     }
 
     private void loadCaptcha() {
-        RetrofitHelper.get().create(com.ourcat.app.repositories.AuthApi.class).getCaptcha()
-                .enqueue(new Callback<Map<String, String>>() {
+        if (captchaCall != null) captchaCall.cancel();
+        captchaKey = null;
+        etCaptcha.setText("");
+        final int session = RetrofitHelper.getGeneration();
+        Call<Map<String, String>> request = RetrofitHelper.get().create(com.ourcat.app.repositories.AuthApi.class).getCaptcha();
+        captchaCall = request;
+        request.enqueue(new Callback<Map<String, String>>() {
                     @Override
                     public void onResponse(Call<Map<String, String>> call, Response<Map<String, String>> response) {
+                        if (!isAdded() || getView() == null || call != captchaCall
+                                || session != RetrofitHelper.getGeneration()) return;
                         if (response.isSuccessful() && response.body() != null) {
                             captchaKey = response.body().get("key");
                             String image = response.body().get("image");
@@ -72,6 +80,8 @@ public class RegisterFragment extends Fragment {
                     }
                     @Override
                     public void onFailure(Call<Map<String, String>> call, Throwable t) {
+                        if (!isAdded() || getView() == null || call != captchaCall || call.isCanceled()
+                                || session != RetrofitHelper.getGeneration()) return;
                         Toast.makeText(requireContext(), "验证码加载失败", Toast.LENGTH_SHORT).show();
                     }
                 });
@@ -98,10 +108,14 @@ public class RegisterFragment extends Fragment {
         body.put("captcha", captcha);
 
         btnRegister.setEnabled(false);
-        RetrofitHelper.get().create(com.ourcat.app.repositories.AuthApi.class).register(body)
-                .enqueue(new Callback<Map<String, Object>>() {
+        final int session = RetrofitHelper.getGeneration();
+        Call<Map<String, Object>> request = RetrofitHelper.get().create(com.ourcat.app.repositories.AuthApi.class).register(body);
+        registerCall = request;
+        request.enqueue(new Callback<Map<String, Object>>() {
                     @Override
                     public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
+                        if (!isAdded() || getView() == null || call != registerCall
+                                || session != RetrofitHelper.getGeneration()) return;
                         btnRegister.setEnabled(true);
                         if (response.isSuccessful() && response.body() != null) {
                             Object token = response.body().get("token");
@@ -122,13 +136,25 @@ public class RegisterFragment extends Fragment {
                             } catch (Exception e) {
                                 Toast.makeText(requireContext(), "注册失败", Toast.LENGTH_SHORT).show();
                             }
+                            loadCaptcha();
                         }
                     }
                     @Override
                     public void onFailure(Call<Map<String, Object>> call, Throwable t) {
+                        if (!isAdded() || getView() == null || call != registerCall || call.isCanceled()
+                                || session != RetrofitHelper.getGeneration()) return;
                         btnRegister.setEnabled(true);
                         Toast.makeText(requireContext(), "网络错误: " + t.getMessage(), Toast.LENGTH_SHORT).show();
                     }
                 });
+    }
+
+    @Override
+    public void onDestroyView() {
+        if (captchaCall != null) captchaCall.cancel();
+        if (registerCall != null) registerCall.cancel();
+        captchaCall = null;
+        registerCall = null;
+        super.onDestroyView();
     }
 }

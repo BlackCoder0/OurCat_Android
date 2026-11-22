@@ -20,7 +20,8 @@ import okhttp3.Response;
 public class OssUploader {
 
     private static final String TAG = "OssUploader";
-    private static final OkHttpClient CLIENT = new OkHttpClient.Builder().build();
+    private static final OkHttpClient CLIENT = new OkHttpClient.Builder()
+            .followRedirects(false).followSslRedirects(false).build();
 
     /**
      * 1. Call api to get uploadUrl and publicUrl (api must add Authorization
@@ -31,7 +32,7 @@ public class OssUploader {
     public String uploadWithPresign(String uploadUrl, String publicUrl, File file, String contentType)
             throws IOException {
         if (uploadUrl == null || uploadUrl.isEmpty()) {
-            return publicUrl;
+            throw new IOException("图片上传未配置，请使用 demo 后端或配置 OSS");
         }
         MediaType type = contentType != null ? MediaType.parse(contentType) : MediaType.parse("image/jpeg");
         Request request = new Request.Builder()
@@ -88,7 +89,7 @@ public class OssUploader {
     public String uploadWithPresign(String uploadUrl, String publicUrl, byte[] data, String contentType)
             throws IOException {
         if (uploadUrl == null || uploadUrl.isEmpty()) {
-            return publicUrl;
+            throw new IOException("图片上传未配置，请使用 demo 后端或配置 OSS");
         }
         MediaType type = contentType != null ? MediaType.parse(contentType) : MediaType.parse("image/jpeg");
         Request request = new Request.Builder()

@@ -38,6 +38,7 @@ import com.google.android.material.chip.ChipGroup;
 import com.google.android.material.textfield.TextInputEditText;
 import com.google.android.material.textfield.TextInputLayout;
 import com.ourcat.app.R;
+import com.ourcat.app.BuildConfig;
 import com.ourcat.app.adapters.ImagePickAdapter;
 import com.ourcat.app.utils.CatTagUtils;
 import com.ourcat.app.utils.ImageUtils;
@@ -246,6 +247,10 @@ public class CreateSquarePostFragment extends Fragment {
     }
 
     private void checkLocationPermission() {
+        if (BuildConfig.ALLOW_SERVER_SWITCH) {
+            fillPresetLocation(31.23, 121.47);
+            return;
+        }
         locationPermissionLauncher.launch(new String[] {
                 android.Manifest.permission.ACCESS_FINE_LOCATION,
                 android.Manifest.permission.ACCESS_COARSE_LOCATION
@@ -317,6 +322,11 @@ public class CreateSquarePostFragment extends Fragment {
         }
         currentLat = lat;
         currentLng = lng;
+        if (BuildConfig.ALLOW_SERVER_SWITCH) {
+            etLocation.setText("示例位置：上海（31.23, 121.47）");
+            updateLocationEndIcon();
+            return;
+        }
         etLocation.setText("定位中...");
         updateLocationEndIcon();
         try {
@@ -601,16 +611,7 @@ public class CreateSquarePostFragment extends Fragment {
     }
 
     private File uriToTempFile(Uri uri) throws Exception {
-        InputStream is = requireContext().getContentResolver().openInputStream(uri);
-        File temp = File.createTempFile("upload_", ".tmp", requireContext().getCacheDir());
-        FileOutputStream fos = new FileOutputStream(temp);
-        byte[] buf = new byte[65536];
-        int len;
-        while ((len = is.read(buf)) > 0)
-            fos.write(buf, 0, len);
-        fos.close();
-        is.close();
-        return temp;
+        return com.ourcat.app.utils.ImageUtils.uriToTempFile(requireContext(), uri);
     }
 
     private void onFail(String msg) {

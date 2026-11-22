@@ -10,6 +10,7 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.Toast;
+import android.widget.TextView;
 import android.text.InputType;
 
 import androidx.annotation.NonNull;
@@ -39,6 +40,9 @@ public class LoginFragment extends Fragment {
     private Button btnLogin, btnGoRegister;
     private Button btnServer;
     private String captchaKey;
+    private Call<Map<String, String>> captchaCall;
+    private Call<Map<String, Object>> loginCall;
+    private TextView connectionStatus;
 
     @Nullable
     @Override
@@ -52,6 +56,7 @@ public class LoginFragment extends Fragment {
         btnLogin = view.findViewById(R.id.btn_login);
         btnGoRegister = view.findViewById(R.id.btn_go_register);
         btnServer = view.findViewById(R.id.btn_server);
+        connectionStatus = view.findViewById(R.id.connection_status);
 
         if (BuildConfig.ALLOW_SERVER_SWITCH) {
             btnServer.setVisibility(View.VISIBLE);
@@ -86,13 +91,20 @@ public class LoginFragment extends Fragment {
         container.setPadding(padding, 0, padding, 0);
         container.addView(input);
 
-        new AlertDialog.Builder(requireContext())
+        AlertDialog dialog = new AlertDialog.Builder(requireContext())
                 .setTitle("设置后端地址")
-                .setMessage("模拟器填写 10.0.2.2；实体手机填写电脑局域网地址")
-                .setView(container)
-                .setNegativeButton("取消", null)
-                .setPositiveButton("保存并重新登录", (dialog, which) -> applyServerUrl(input.getText().toString()))
-                .show();
+                .setMessage("模拟器：http://10.0.2.2:8080/\n手机：填写电脑的局域网地址")
+                .setView(container).setNegativeButton("取消", null)
+                .setPositiveButton("保存并重新登录", null).create();
+        dialog.setOnShowListener(ignored -> dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
+            try {
+                applyServerUrl(RetrofitHelper.normalizeBaseUrl(input.getText().toString()));
+                dialog.dismiss();
+            } catch (IllegalArgumentException e) {
+                input.setError(e.getMessage());
+            }
+        }));
+        dialog.show();
     }
 
     private void applyServerUrl(String value) {
@@ -100,6 +112,9 @@ public class LoginFragment extends Fragment {
             String normalized = RetrofitHelper.normalizeBaseUrl(value);
             String old = RetrofitHelper.getBaseUrl();
             if (!normalized.equals(old)) {
+                if (loginCall != null) loginCall.cancel();
+                loginCall = null;
+                btnLogin.setEnabled(true);
                 ServerConfig.save(requireContext(), normalized);
                 new TokenStore(requireContext()).clear();
                 RecentCatStore.clear(requireContext());
@@ -113,10 +128,21 @@ public class LoginFragment extends Fragment {
     }
 
     private void loadCaptcha() {
-        RetrofitHelper.get().create(com.ourcat.app.repositories.AuthApi.class).getCaptcha()
-                .enqueue(new Callback<Map<String, String>>() {
+        if (captchaCall != null) captchaCall.cancel();
+        captchaKey = null;
+        etCaptcha.setText("");
+        ivCaptcha.setImageDrawable(null);
+        if (BuildConfig.ALLOW_SERVER_SWITCH) {
+            connectionStatus.setVisibility(View.VISIBLE);
+            connectionStatus.setText("正在连接 " + RetrofitHelper.getBaseUrl());
+        }
+        final int session = RetrofitHelper.getGeneration();
+        captchaCall = RetrofitHelper.get().create(com.ourcat.app.repositories.AuthApi.class).getCaptcha();
+        captchaCall.enqueue(new Callback<Map<String, String>>() {
                     @Override
                     public void onResponse(Call<Map<String, String>> call, Response<Map<String, String>> response) {
+                        if (!isAdded() || getView() == null || call != captchaCall
+                                || session != RetrofitHelper.getGeneration()) return;
                         if (response.isSuccessful() && response.body() != null) {
                             captchaKey = response.body().get("key");
                             String image = response.body().get("image");
@@ -125,11 +151,17 @@ public class LoginFragment extends Fragment {
                                 byte[] bytes = Base64.decode(base64, Base64.DEFAULT);
                                 android.graphics.Bitmap bitmap = android.graphics.BitmapFactory.decodeByteArray(bytes, 0, bytes.length);
                                 ivCaptcha.setImageBitmap(bitmap);
+                                if (BuildConfig.ALLOW_SERVER_SWITCH) connectionStatus.setText("已连接 " + RetrofitHelper.getBaseUrl());
                             }
+                        } else if (BuildConfig.ALLOW_SERVER_SWITCH) {
+                            connectionStatus.setText("后端返回 " + response.code() + "，请检查地址后点击验证码重试");
                         }
                     }
                     @Override
                     public void onFailure(Call<Map<String, String>> call, Throwable t) {
+                        if (!isAdded() || getView() == null || call != captchaCall || call.isCanceled()
+                                || session != RetrofitHelper.getGeneration()) return;
+                        if (BuildConfig.ALLOW_SERVER_SWITCH) connectionStatus.setText("无法连接后端，请确认电脑已启动服务、地址正确且网络可达。点击验证码重试。");
                         Toast.makeText(requireContext(), "验证码加载失败", Toast.LENGTH_SHORT).show();
                     }
                 });
@@ -154,10 +186,13 @@ public class LoginFragment extends Fragment {
         body.put("captcha", captcha);
 
         btnLogin.setEnabled(false);
-        RetrofitHelper.get().create(com.ourcat.app.repositories.AuthApi.class).login(body)
-                .enqueue(new Callback<Map<String, Object>>() {
+        final int session = RetrofitHelper.getGeneration();
+        loginCall = RetrofitHelper.get().create(com.ourcat.app.repositories.AuthApi.class).login(body);
+        loginCall.enqueue(new Callback<Map<String, Object>>() {
                     @Override
                     public void onResponse(Call<Map<String, Object>> call, Response<Map<String, Object>> response) {
+                        if (!isAdded() || getView() == null || call != loginCall
+                                || session != RetrofitHelper.getGeneration()) return;
                         btnLogin.setEnabled(true);
                         if (response.isSuccessful() && response.body() != null) {
                             Object token = response.body().get("token");
@@ -178,13 +213,25 @@ public class LoginFragment extends Fragment {
                             } catch (Exception e) {
                                 Toast.makeText(requireContext(), "登录失败", Toast.LENGTH_SHORT).show();
                             }
+                            loadCaptcha();
                         }
                     }
                     @Override
                     public void onFailure(Call<Map<String, Object>> call, Throwable t) {
+                        if (!isAdded() || getView() == null || call != loginCall || call.isCanceled()
+                                || session != RetrofitHelper.getGeneration()) return;
                         btnLogin.setEnabled(true);
                         Toast.makeText(requireContext(), "网络错误: " + t.getMessage(), Toast.LENGTH_SHORT).show();
                     }
                 });
+    }
+
+    @Override
+    public void onDestroyView() {
+        if (captchaCall != null) captchaCall.cancel();
+        if (loginCall != null) loginCall.cancel();
+        captchaCall = null;
+        loginCall = null;
+        super.onDestroyView();
     }
 }

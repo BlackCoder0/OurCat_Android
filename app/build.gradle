@@ -39,9 +39,10 @@ android {
         demo {
             initWith debug
             applicationIdSuffix ".demo"
-            buildConfigField "String", "BASE_URL", "\"${baseUrlDebug}\""
+            buildConfigField "String", "BASE_URL", '"http://10.0.2.2:8080/"'
             buildConfigField "boolean", "ALLOW_SERVER_SWITCH", "true"
-            manifestPlaceholders = [AMAP_API_KEY: amapKeyDebug]
+            manifestPlaceholders = [AMAP_API_KEY: '']
+            resValue "string", "app_name", "OurCat 本地体验"
         }
     }
     compileOptions {

@@ -180,10 +180,19 @@ public class ReportCatDialogFragment extends DialogFragment {
 
         // 初始化地图
         mapView = view.findViewById(R.id.report_map_view);
-        mapView.onCreate(savedInstanceState);
         locationText = view.findViewById(R.id.report_location_text);
+        if (com.ourcat.app.BuildConfig.ALLOW_SERVER_SWITCH) {
+            ((TextView) view.findViewById(R.id.report_location_title)).setText("本地示例位置");
+            currentLat = 31.23;
+            currentLng = 121.47;
+            ((View) mapView.getParent()).setVisibility(View.GONE);
+            mapView = null;
+            view.findViewById(R.id.report_demo_location).setVisibility(View.VISIBLE);
+        } else {
+            mapView.onCreate(savedInstanceState);
+        }
 
-        if (aMap == null) {
+        if (mapView != null && aMap == null) {
             aMap = mapView.getMap();
             aMap.getUiSettings().setZoomControlsEnabled(false);
             aMap.getUiSettings().setMyLocationButtonEnabled(false);
@@ -371,7 +380,7 @@ public class ReportCatDialogFragment extends DialogFragment {
             mapView.onResume();
         if (autoCamera && !autoCameraTriggered) {
             autoCameraTriggered = true;
-            mapView.postDelayed(this::triggerAutoCamera, 300);
+            if (getView() != null) getView().postDelayed(this::triggerAutoCamera, 300);
         }
     }
 

@@ -259,16 +259,7 @@ public class CreateEditPostFragment extends Fragment {
     }
 
     private File uriToTempFile(Uri uri) throws Exception {
-        InputStream is = requireContext().getContentResolver().openInputStream(uri);
-        File temp = File.createTempFile("upload_", ".tmp", requireContext().getCacheDir());
-        FileOutputStream fos = new FileOutputStream(temp);
-        byte[] buf = new byte[8192];
-        int len;
-        while ((len = is.read(buf)) > 0)
-            fos.write(buf, 0, len);
-        fos.close();
-        is.close();
-        return temp;
+        return com.ourcat.app.utils.ImageUtils.uriToTempFile(requireContext(), uri);
     }
 
     private void onUploadFail(String msg) {
