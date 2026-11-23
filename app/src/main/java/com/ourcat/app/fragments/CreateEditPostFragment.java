@@ -9,7 +9,6 @@ import android.provider.OpenableColumns;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.webkit.MimeTypeMap;
 import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.Toast;
@@ -209,14 +208,9 @@ public class CreateEditPostFragment extends Fragment {
             return;
         }
         Uri uri = uris.get(index);
-        String mimeType = requireContext().getContentResolver().getType(uri);
-        if (mimeType == null)
-            mimeType = "image/jpeg";
-        String ext = MimeTypeMap.getSingleton().getExtensionFromMimeType(mimeType);
-        if (ext == null)
-            ext = "jpg";
-        String filename = "post_img_" + System.currentTimeMillis() + "_" + index + "." + ext;
-        String finalMimeType = mimeType;
+        // ImageUtils 将选图统一编码为 JPEG，上传声明必须与实际文件一致。
+        String mimeType = "image/jpeg";
+        String filename = "post_img_" + System.currentTimeMillis() + "_" + index + ".jpg";
 
         RetrofitHelper.get().create(com.ourcat.app.repositories.OssApi.class)
                 .getUploadUrl(filename, mimeType)
@@ -228,7 +222,7 @@ public class CreateEditPostFragment extends Fragment {
                             String publicUrl = response.body().get("publicUrl");
                             String ct = response.body().get("contentType");
                             if (ct == null)
-                                ct = finalMimeType;
+                                ct = mimeType;
                             doUploadFile(uri, uploadUrl, publicUrl, ct, uris, index, urls, title, content);
                         } else {
                             onUploadFail("获取上传URL失败");

@@ -11,7 +11,6 @@ import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.webkit.MimeTypeMap;
 import android.widget.Spinner;
 import android.widget.Toast;
 
@@ -534,14 +533,9 @@ public class CreateSquarePostFragment extends Fragment {
 
         for (int i = 0; i < total; i++) {
             Uri uri = uris.get(i);
-            String mimeType = requireContext().getContentResolver().getType(uri);
-            if (mimeType == null)
-                mimeType = "image/jpeg";
-            String ext = MimeTypeMap.getSingleton().getExtensionFromMimeType(mimeType);
-            if (ext == null)
-                ext = "jpg";
-            String filename = "square_img_" + System.currentTimeMillis() + "_" + i + "." + ext;
-            String finalMimeType = mimeType;
+            // ImageUtils 将选图统一编码为 JPEG，上传声明必须与实际文件一致。
+            String mimeType = "image/jpeg";
+            String filename = "square_img_" + System.currentTimeMillis() + "_" + i + ".jpg";
             int index = i;
 
             RetrofitHelper.get().create(com.ourcat.app.repositories.OssApi.class)
@@ -560,7 +554,7 @@ public class CreateSquarePostFragment extends Fragment {
                             String publicUrl = response.body().get("publicUrl");
                             String ct = response.body().get("contentType");
                             if (ct == null)
-                                ct = finalMimeType;
+                                ct = mimeType;
                             uploadSingleFileParallel(uri, uploadUrl, publicUrl, ct, index, uploadedUrls,
                                     completed, total, failed, text, location, type, referencedCatId, problemType);
                         }
